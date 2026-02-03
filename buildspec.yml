@@ -18,7 +18,7 @@ phases:
     commands:
       - echo Pushing image to ECR...
       - docker push $IMAGE_URI
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$SOURCE_TAG
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$SOURCE_IMAGE_TAG
       - echo Writing image definitions for CodeDeploy...
       - printf '[{"name":"healplace-backend","imageUri":"%s"}]' $IMAGE_URI > imagedefinitions.json
 
