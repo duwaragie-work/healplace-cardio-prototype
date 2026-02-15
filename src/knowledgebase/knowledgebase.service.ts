@@ -12,6 +12,14 @@ export class KnowledgebaseService {
     private readonly mistralService: MistralService,
   ) {}
 
+  async findDocumentByName(name: string) {
+    return this.prisma.document.findFirst({
+      where: {
+        sourceName: name,
+      },
+    });
+  }
+
   async processDocument(buffer: Buffer, originalName: string): Promise<string[]> {
     try {
       const text = await extractTextFromBuffer(buffer, originalName);

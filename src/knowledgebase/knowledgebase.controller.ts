@@ -24,6 +24,14 @@ export class KnowledgebaseController {
             throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
         }
 
+        const existingDocument = await this.knowledgebaseService.findDocumentByName(file.originalname);
+        if (existingDocument) {
+            return {
+                message: 'already uploaded',
+                data: existingDocument
+            };
+        }
+
         try {
             const content = await this.knowledgebaseService.processDocument(file.buffer, file.originalname);
             
