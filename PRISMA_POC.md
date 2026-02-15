@@ -22,7 +22,13 @@ This PR introduces **Prisma ORM** as the database abstraction layer for the Nest
 
 ### 1. Configure Database URL
 
-Create a `.env` file in the project root:
+Copy the example environment file and configure your database:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` with your actual database connection string:
 
 ```bash
 # .env
