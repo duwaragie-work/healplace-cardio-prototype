@@ -1,0 +1,9 @@
+model DocumentVector {
+  id         String @id @default(uuid())
+  content    String 
+  embedding  Unsupported("vector(1024)")? 
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([embedding], map: "hnsw_index")
+}
