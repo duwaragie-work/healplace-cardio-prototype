@@ -26,28 +26,18 @@ export class KnowledgebaseController {
 
         try {
             const content = await this.knowledgebaseService.processDocument(file.buffer, file.originalname);
-            const originalFileName = file.originalname;
-            const fileExtension = originalFileName.split('.').pop();
-            const chunkCount = content.length;
-            const fileSizeMB = file.size / (1024 * 1024);
-            const activeStatus = true;
-            const createdAt = new Date();
-            const updatedAt = new Date();
-            const sourceType = body.sourceType;
+            
+            const savedDocument = await this.knowledgebaseService.saveDocument(file, content, {
+                originalName: file.originalname,
+                fileExtension: file.originalname.split('.').pop(),
+                fileSize: file.size,
+                sourceType: body.sourceType,
+                sourceResourceLink: body.sourceResourceLink,
+            });
             
             return {
                 message: 'Document uploaded and processed successfully',
-                data: {
-                    originalName: file.originalname,
-                    content: content,
-                    fileExtension: fileExtension,
-                    chunkCount: chunkCount,
-                    fileSizeMB: fileSizeMB,
-                    activeStatus: activeStatus,
-                    createdAt: createdAt,
-                    updatedAt: updatedAt,
-                    sourceType: sourceType
-                }
+                data: savedDocument
             };
         } catch (error) {
             throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

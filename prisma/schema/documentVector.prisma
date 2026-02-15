@@ -5,5 +5,4 @@ model DocumentVector {
   documentId String
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  @@index([embedding], map: "hnsw_index")
 }
