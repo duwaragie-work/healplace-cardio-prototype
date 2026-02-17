@@ -92,10 +92,9 @@ export class KnowledgebaseService {
         fileSize,
         sourceType,
         sourceResourceLink,
-        sourceTags, // Destructure sourceTags
+        sourceTags,
       } = metadata;
 
-      // 1. Create Document Record
       const document = await this.prisma.document.create({
         data: {
           sourceName: originalName,
@@ -104,12 +103,11 @@ export class KnowledgebaseService {
           sourceSize: fileSize,
           sourceChunkCount: chunks.length,
           sourceResourceLink: sourceResourceLink || '',
-          sourceTags: sourceTags || [], // Use passed tags or default to empty
+          sourceTags: sourceTags || [],
           sourceActiveStatus: true,
         },
       });
 
-      // 2. Generate Embeddings and Save Vectors
       for (const chunk of chunks) {
         const embeddingResponse = await this.mistralService.getEmbeddings(chunk);
         const embedding = embeddingResponse.data[0]?.embedding;
@@ -119,7 +117,6 @@ export class KnowledgebaseService {
           continue;
         }
 
-        // format embedding as a string for vector pgvector insertion: "[0.1, 0.2, ...]"
         const embeddingString = `[${embedding.join(',')}]`;
 
         await this.prisma.$executeRaw`
