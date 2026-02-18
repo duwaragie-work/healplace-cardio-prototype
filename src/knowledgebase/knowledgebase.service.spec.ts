@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { KnowledgebaseService } from './knowledgebase.service';
+import { KnowledgebaseService } from './knowledgebase.service.js';
 
 describe('KnowledgebaseService', () => {
   let service: KnowledgebaseService;

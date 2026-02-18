@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { extractTextFromBuffer } from './utils/document-reader.util';
-import { document_cleaner } from './utils/text-cleaner';
-import { text_splitter } from './utils/text-splitter';
-import { PrismaService } from '../prisma/prisma.service';
-import { MistralService } from '../mistral/mistral.service';
-import { retry } from '@mistralai/mistralai/lib/retries';
+import { extractTextFromBuffer } from './utils/document-reader.util.js';
+import { document_cleaner } from './utils/text-cleaner.js';
+import { text_splitter } from './utils/text-splitter.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { MistralService } from '../mistral/mistral.service.js';
+import { retry } from '@mistralai/mistralai/lib/retries.js';
 
 @Injectable()
 export class KnowledgebaseService {

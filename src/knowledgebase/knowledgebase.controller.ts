@@ -1,6 +1,6 @@
 import { Controller, Get, Post, UseInterceptors, UploadedFile, HttpException, HttpStatus, Body, Patch } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { KnowledgebaseService } from './knowledgebase.service';
+import { KnowledgebaseService } from './knowledgebase.service.js';
 
 @Controller('v2/knowledgebase')
 export class KnowledgebaseController {

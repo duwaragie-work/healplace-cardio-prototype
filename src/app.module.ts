@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { KnowledgebaseModule } from './knowledgebase/knowledgebase.module';
-import { MistralModule } from './mistral/mistral.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { KnowledgebaseModule } from './knowledgebase/knowledgebase.module.js';
+import { MistralModule } from './mistral/mistral.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
-import { PrismaService } from './prisma.service.js';
+import { PrismaService } from './prisma/prisma.service.js';
 import { UsersService } from './users/users.service.js';
 import { UsersController } from './users/users.controller.js';
 

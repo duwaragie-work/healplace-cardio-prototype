@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { KnowledgebaseController } from './knowledgebase.controller';
+import { KnowledgebaseController } from './knowledgebase.controller.js';
 
 describe('KnowledgebaseController', () => {
   let controller: KnowledgebaseController;

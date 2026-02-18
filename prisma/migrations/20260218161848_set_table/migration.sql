@@ -21,12 +21,23 @@ CREATE TABLE "DocumentVector" (
     "content" TEXT NOT NULL,
     "embedding" vector(1024),
     "documentId" TEXT NOT NULL,
+    "sourceActiveStatus" BOOLEAN NOT NULL DEFAULT true,
 
     CONSTRAINT "DocumentVector_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "User" (
+    "id" SERIAL NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "pwdhash" TEXT,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
-CREATE INDEX "hnsw_index" ON "DocumentVector"("embedding");
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- AddForeignKey
 ALTER TABLE "DocumentVector" ADD CONSTRAINT "DocumentVector_documentId_fkey" FOREIGN KEY ("documentId") REFERENCES "Document"("id") ON DELETE CASCADE ON UPDATE CASCADE;

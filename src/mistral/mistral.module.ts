@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { MistralService } from './mistral.service';
+import { MistralService } from './mistral.service.js';
 
 @Module({
   imports: [ConfigModule],
