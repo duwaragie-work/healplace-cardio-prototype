@@ -1,5 +1,5 @@
 # ============== Stage 1: Build ==============
-FROM node:22-alpine AS builder
+FROM public.ecr.aws/docker/library/node:lts-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # ============== Stage 2: Production ==============
-FROM node:22-alpine AS production
+FROM public.ecr.aws/docker/library/node:lts-alpine AS production
 WORKDIR /app
 
 RUN addgroup -g 1001 -S nodejs && \
