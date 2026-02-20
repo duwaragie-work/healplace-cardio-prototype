@@ -1,3 +1,5 @@
+
+
 # ============== Stage 1: Build ==============
 FROM public.ecr.aws/docker/library/node:lts-alpine AS builder
 
@@ -13,6 +15,12 @@ RUN npm run build
 
 # ============== Stage 2: Production ==============
 FROM public.ecr.aws/docker/library/node:lts-alpine AS production
+
+ENV DATABASE_URL="postgres://INCORRECT_UNAME:INCORRECT_PWD@fake.domain.com:5432/dbname?sslmode=require&pool=true"
+ENV MISTRAL_API_KEY="INCORRECT_MISTRAL_API_KEY"
+ENV MISTRAL_EMBED_MODEL="mistral-embed"
+ENV MISTRAL_CHAT_MODEL="mistral-small-2506"
+
 WORKDIR /app
 
 RUN addgroup -g 1001 -S nodejs && \
