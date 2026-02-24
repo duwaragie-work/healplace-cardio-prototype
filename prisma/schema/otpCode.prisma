@@ -1,0 +1,13 @@
+model OtpCode {
+  id         String    @id @default(cuid())
+  email      String    
+  codeHash   String    
+  expiresAt  DateTime
+  attempts   Int       @default(0) 
+  consumedAt DateTime? 
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}

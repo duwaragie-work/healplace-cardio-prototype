@@ -1,0 +1,12 @@
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    
+  expiresAt DateTime
+  revokedAt DateTime? 
+  userAgent String?  
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
