@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt'
 import { createHash, randomBytes, randomInt } from 'crypto'
 import nodemailer from 'nodemailer'
 import type { Profile } from 'passport-google-oauth20'
+import { UserRole } from '../generated/prisma/enums.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -18,9 +19,17 @@ export interface TokenPair {
   refreshToken: string
 }
 
+export interface AuthResponse extends TokenPair {
+  onboarding_required: boolean
+  user_type: UserRole // e.g. "GUEST", "REGISTERED_USER"
+  login_method: 'otp' | 'google' | 'apple' 
+}
+
 interface MinimalUser {
   id: string
   email: string | null
+  role: UserRole
+  onboardingCompleted: boolean
 }
 
 function sha256(input: string): string {
@@ -30,7 +39,12 @@ function sha256(input: string): string {
 function parseDuration(duration: string): number {
   const unit = duration.slice(-1)
   const value = parseInt(duration.slice(0, -1), 10)
-  const map: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
+  const map: Record<string, number> = {
+    s: 1000,
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+  }
   return value * (map[unit] ?? 86_400_000)
 }
 
@@ -45,11 +59,11 @@ export class AuthService {
   // ─── Token Issuance ─────────────────────────────────────────────────────────
 
   async issueAccessToken(user: MinimalUser): Promise<string> {
+    const expiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m')
+    // @ts-expect-error - NestJS JWT accepts string for expiresIn despite type definition
     return await this.jwtService.signAsync(
-      { sub: user.id, email: user.email },
-      {
-        expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m') as any,
-      },
+      { sub: user.id, email: user.email, role: user.role },
+      { expiresIn },
     )
   }
 
@@ -106,7 +120,10 @@ export class AuthService {
     })
   }
 
-  private async issueTokenPair(user: MinimalUser, userAgent?: string): Promise<TokenPair> {
+  private async issueTokenPair(
+    user: MinimalUser,
+    userAgent?: string,
+  ): Promise<TokenPair> {
     const [accessToken, refreshToken] = await Promise.all([
       this.issueAccessToken(user),
       this.issueRefreshToken(user.id, userAgent),
@@ -114,12 +131,29 @@ export class AuthService {
     return { accessToken, refreshToken }
   }
 
+  private buildAuthResponse(
+    tokens: TokenPair,
+    user: MinimalUser,
+    login_method: 'otp' | 'google' | 'apple',
+  ): AuthResponse {
+    return {
+      ...tokens,
+      onboarding_required: !user.onboardingCompleted,
+      user_type: user.role,
+      login_method,
+    }
+  }
+
   // ─── Google Web Flow ────────────────────────────────────────────────────────
 
-  async googleLogin(profile: Profile, userAgent?: string): Promise<TokenPair> {
+  async googleLogin(
+    profile: Profile,
+    userAgent?: string,
+  ): Promise<AuthResponse> {
     const providerId = profile.id
     const rawEmail = profile.emails?.[0]?.value ?? null
-    const emailVerified = (profile.emails?.[0] as { verified?: boolean })?.verified ?? false
+    const emailVerified =
+      (profile.emails?.[0] as { verified?: boolean })?.verified ?? false
 
     const user = await this.upsertSocialUser(
       'google',
@@ -128,13 +162,19 @@ export class AuthService {
       emailVerified,
       profile.displayName,
     )
-    return this.issueTokenPair(user, userAgent)
+    const tokens = await this.issueTokenPair(user, userAgent)
+    return this.buildAuthResponse(tokens, user, 'google')
   }
 
   // ─── Google Mobile Flow ─────────────────────────────────────────────────────
 
-  async googleMobileLogin(idToken: string, userAgent?: string): Promise<TokenPair> {
-    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`)
+  async googleMobileLogin(
+    idToken: string,
+    userAgent?: string,
+  ): Promise<AuthResponse> {
+    const res = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+    )
 
     if (!res.ok) {
       throw new UnauthorizedException('Invalid Google token')
@@ -161,12 +201,16 @@ export class AuthService {
       emailVerified,
       claims.name,
     )
-    return this.issueTokenPair(user, userAgent)
+    const tokens = await this.issueTokenPair(user, userAgent)
+    return this.buildAuthResponse(tokens, user, 'google')
   }
 
   // ─── Apple Mobile Flow ──────────────────────────────────────────────────────
 
-  async appleLogin(identityToken: string, userAgent?: string): Promise<TokenPair> {
+  async appleLogin(
+    identityToken: string,
+    userAgent?: string,
+  ): Promise<AuthResponse> {
     const appleSignin = await import('apple-signin-auth')
     const clientId = this.config.get<string>('APPLE_CLIENT_ID', '')
 
@@ -186,23 +230,35 @@ export class AuthService {
       claims.email ?? null,
       false,
     )
-    return this.issueTokenPair(user, userAgent)
+    const tokens = await this.issueTokenPair(user, userAgent)
+    return this.buildAuthResponse(tokens, user, 'apple')
   }
 
   // ─── Apple Web Flow ─────────────────────────────────────────────────────────
 
   async appleWebLogin(
-    profile: { id: string; email?: string; name?: { firstName?: string; lastName?: string } },
+    profile: {
+      id: string
+      email?: string
+      name?: { firstName?: string; lastName?: string }
+    },
     userAgent?: string,
-  ): Promise<TokenPair> {
+  ): Promise<AuthResponse> {
     const providerId = profile.id
     const email = profile.email ?? null
     const fullName = profile.name
       ? `${profile.name.firstName ?? ''} ${profile.name.lastName ?? ''}`.trim()
       : undefined
 
-    const user = await this.upsertSocialUser('apple', providerId, email, false, fullName)
-    return this.issueTokenPair(user, userAgent)
+    const user = await this.upsertSocialUser(
+      'apple',
+      providerId,
+      email,
+      false,
+      fullName,
+    )
+    const tokens = await this.issueTokenPair(user, userAgent)
+    return this.buildAuthResponse(tokens, user, 'apple')
   }
 
   // ─── Shared Social Upsert ───────────────────────────────────────────────────
@@ -221,7 +277,9 @@ export class AuthService {
     if (existingAccount) return existingAccount.user
 
     if (provider === 'google' && email && emailVerified) {
-      const existingUser = await this.prisma.user.findUnique({ where: { email } })
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      })
       if (existingUser) {
         await this.prisma.account.create({
           data: { provider, providerId, email, userId: existingUser.id },
@@ -235,6 +293,7 @@ export class AuthService {
         email: email ?? null,
         name: name ?? null,
         isVerified: emailVerified,
+        role: UserRole.REGISTERED_USER,
         accounts: {
           create: { provider, providerId, email },
         },
@@ -255,13 +314,16 @@ export class AuthService {
     const recentOtp = await this.prisma.otpCode.findFirst({
       where: {
         email: normalizedEmail,
+        isConsumed: false,
+        isFailedAttempt: false,
         createdAt: { gt: new Date(Date.now() - 60_000) },
-        consumedAt: null,
       },
       orderBy: { createdAt: 'desc' },
     })
     if (recentOtp) {
-      throw new BadRequestException('Please wait 60 seconds before requesting a new OTP')
+      throw new BadRequestException(
+        'Please wait 60 seconds before requesting a new OTP',
+      )
     }
 
     const otp = randomInt(100_000, 1_000_000).toString()
@@ -283,7 +345,7 @@ export class AuthService {
     email: string,
     code: string,
     userAgent?: string,
-  ): Promise<TokenPair> {
+  ): Promise<AuthResponse> {
     if (!email?.trim()) {
       throw new BadRequestException('Email is required')
     }
@@ -293,7 +355,8 @@ export class AuthService {
     const otpRecord = await this.prisma.otpCode.findFirst({
       where: {
         email: normalizedEmail,
-        consumedAt: null,
+        isConsumed: false,
+        isFailedAttempt: false,
         expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
@@ -303,28 +366,44 @@ export class AuthService {
       throw new BadRequestException('OTP not found or expired')
     }
 
-    if (otpRecord.attempts >= 5) {
-      throw new BadRequestException('Too many incorrect attempts. Request a new OTP.')
+    const failedAttempts = await this.prisma.otpCode.count({
+      where: {
+        email: normalizedEmail,
+        isFailedAttempt: true,
+        createdAt: { gt: otpRecord.createdAt },
+      },
+    })
+
+    if (failedAttempts >= 5) {
+      throw new BadRequestException(
+        'Too many incorrect attempts. Request a new OTP.',
+      )
     }
 
     const valid = await bcrypt.compare(code, otpRecord.codeHash)
     if (!valid) {
-      await this.prisma.otpCode.update({
-        where: { id: otpRecord.id },
-        data: { attempts: { increment: 1 } },
+      await this.prisma.otpCode.create({
+        data: {
+          email: normalizedEmail,
+          codeHash: '',
+          expiresAt: otpRecord.expiresAt,
+          isFailedAttempt: true,
+        },
       })
       throw new BadRequestException('Invalid OTP')
     }
 
-    await this.prisma.otpCode.update({
-      where: { id: otpRecord.id },
-      data: { consumedAt: new Date() },
+    let user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
     })
 
-    let user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (!user) {
       user = await this.prisma.user.create({
-        data: { email: normalizedEmail, isVerified: true },
+        data: {
+          email: normalizedEmail,
+          isVerified: true,
+          role: UserRole.REGISTERED_USER,
+        },
       })
     } else if (!user.isVerified) {
       user = await this.prisma.user.update({
@@ -333,12 +412,64 @@ export class AuthService {
       })
     }
 
-    await this.prisma.otpCode.update({
-      where: { id: otpRecord.id },
-      data: { userId: user.id },
+    await this.prisma.otpCode.create({
+      data: {
+        email: normalizedEmail,
+        codeHash: '',
+        expiresAt: otpRecord.expiresAt,
+        isConsumed: true,
+        userId: user.id,
+      },
     })
 
-    return this.issueTokenPair(user, userAgent)
+    const tokens = await this.issueTokenPair(user, userAgent)
+    return this.buildAuthResponse(tokens, user, 'otp')
+  }
+
+  // ─── Device Tracking ────────────────────────────────────────────────────────
+
+  async upsertOrTrackDevice(opts: {
+    deviceId: string
+    userId?: string
+    platform?: string
+    deviceType?: string
+    deviceName?: string
+    userAgent?: string
+  }): Promise<void> {
+    await this.prisma.device.upsert({
+      where: { deviceId: opts.deviceId },
+      create: {
+        deviceId: opts.deviceId,
+        userId: opts.userId ?? null,
+        platform: opts.platform,
+        deviceType: opts.deviceType,
+        deviceName: opts.deviceName,
+        userAgent: opts.userAgent,
+      },
+      update: {
+        lastSeenAt: new Date(),
+        userId: opts.userId ?? undefined,
+        userAgent: opts.userAgent,
+      },
+    })
+  }
+
+  // ─── Onboarding ─────────────────────────────────────────────────────────────
+
+  async completeOnboarding(
+    userId: string,
+    dto: { name: string; age?: number },
+  ): Promise<{ message: string }> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name,
+        age: dto.age ?? null,
+        onboardingCompleted: true,
+        role: UserRole.REGISTERED_USER,
+      },
+    })
+    return { message: 'Onboarding completed' }
   }
 
   // ─── Email Helper ────────────────────────────────────────────────────────────
@@ -354,7 +485,10 @@ export class AuthService {
     })
 
     await transporter.sendMail({
-      from: this.config.get<string>('SMTP_FROM', 'Healplace <no-reply@healplace.com>'),
+      from: this.config.get<string>(
+        'SMTP_FROM',
+        'Healplace <no-reply@healplace.com>',
+      ),
       to: email,
       subject: 'Your Healplace verification code',
       html: `

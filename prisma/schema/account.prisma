@@ -1,10 +1,10 @@
 model Account {
-  id         String  @id @default(cuid())
-  provider   String  
-  providerId String  
-  email      String? 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String  @id @default(ulid())
+  provider   String // "google" | "apple"
+  providerId String // Google sub OR Apple sub
+  email      String? // snapshot from provider — informational only
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 

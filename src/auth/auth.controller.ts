@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
@@ -14,6 +15,7 @@ import { AuthService, TokenPair } from './auth.service.js'
 import { Public } from './decorators/public.decorator.js'
 import { AppleLoginDto } from './dto/apple-login.dto.js'
 import { GoogleMobileLoginDto } from './dto/google-mobile-login.dto.js'
+import { OnboardingDto } from './dto/onboarding.dto.js'
 import { RefreshDto } from './dto/refresh.dto.js'
 import { SendOtpDto } from './dto/send-otp.dto.js'
 import { VerifyOtpDto } from './dto/verify-otp.dto.js'
@@ -34,35 +36,71 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @Get('google')
   async googleAuth() {
+    // Guard triggers OAuth redirect to Google
   }
 
   @Public()
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = await this.authService.googleLogin(
+    const result = await this.authService.googleLogin(
       req.user as Parameters<AuthService['googleLogin']>[0],
       req.headers['user-agent'],
     )
-    this.setRefreshCookie(res, tokens.refreshToken)
-    const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3001')
-    return res.redirect(`${webAppUrl}/auth/callback?access=${tokens.accessToken}`)
+    this.setRefreshCookie(res, result.refreshToken)
+    const webAppUrl = this.config.get<string>(
+      'WEB_APP_URL',
+      'http://localhost:3001',
+    )
+    const params = new URLSearchParams({
+      access: result.accessToken,
+      onboarding_required: String(result.onboarding_required),
+      user_type: result.user_type,
+      login_method: result.login_method,
+    })
+    return res.redirect(`${webAppUrl}/auth/callback?${params.toString()}`)
   }
 
   // ─── Google Mobile ───────────────────────────────────────────────────────────
 
   @Public()
   @Post('google/mobile')
-  googleMobile(@Body() dto: GoogleMobileLoginDto, @Req() req: Request): Promise<TokenPair> {
-    return this.authService.googleMobileLogin(dto.idToken, req.headers['user-agent'])
+  async googleMobile(@Body() dto: GoogleMobileLoginDto, @Req() req: Request) {
+    const result = await this.authService.googleMobileLogin(
+      dto.idToken,
+      req.headers['user-agent'],
+    )
+    const deviceId = req.headers['x-device-id'] as string | undefined
+    if (deviceId) {
+      await this.authService.upsertOrTrackDevice({
+        deviceId,
+        userId: undefined,
+        platform: req.headers['x-device-platform'] as string | undefined,
+        userAgent: req.headers['user-agent'],
+      })
+    }
+    return result
   }
 
   // ─── Apple Mobile ─────────────────────────────────────────────────────────────
 
   @Public()
   @Post('apple')
-  apple(@Body() dto: AppleLoginDto, @Req() req: Request): Promise<TokenPair> {
-    return this.authService.appleLogin(dto.identityToken, req.headers['user-agent'])
+  async apple(@Body() dto: AppleLoginDto, @Req() req: Request) {
+    const result = await this.authService.appleLogin(
+      dto.identityToken,
+      req.headers['user-agent'],
+    )
+    const deviceId = req.headers['x-device-id'] as string | undefined
+    if (deviceId) {
+      await this.authService.upsertOrTrackDevice({
+        deviceId,
+        userId: undefined,
+        platform: req.headers['x-device-platform'] as string | undefined,
+        userAgent: req.headers['user-agent'],
+      })
+    }
+    return result
   }
 
   // ─── Apple Web ───────────────────────────────────────────────────────────────
@@ -71,19 +109,29 @@ export class AuthController {
   @UseGuards(AppleAuthGuard)
   @Get('apple/web')
   async appleAuth() {
+    // Guard triggers OAuth redirect to Apple
   }
 
   @Public()
   @UseGuards(AppleAuthGuard)
   @Get('apple/callback')
   async appleCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = await this.authService.appleWebLogin(
+    const result = await this.authService.appleWebLogin(
       req.user as Parameters<AuthService['appleWebLogin']>[0],
       req.headers['user-agent'],
     )
-    this.setRefreshCookie(res, tokens.refreshToken)
-    const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3001')
-    return res.redirect(`${webAppUrl}/auth/callback?access=${tokens.accessToken}`)
+    this.setRefreshCookie(res, result.refreshToken)
+    const webAppUrl = this.config.get<string>(
+      'WEB_APP_URL',
+      'http://localhost:3001',
+    )
+    const params = new URLSearchParams({
+      access: result.accessToken,
+      onboarding_required: String(result.onboarding_required),
+      user_type: result.user_type,
+      login_method: result.login_method,
+    })
+    return res.redirect(`${webAppUrl}/auth/callback?${params.toString()}`)
   }
 
   // ─── Email OTP ────────────────────────────────────────────────────────────────
@@ -100,14 +148,31 @@ export class AuthController {
     @Body() dto: VerifyOtpDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<TokenPair> {
+  ) {
     const result = await this.authService.verifyOtp(
       dto.email,
       dto.otp,
       req.headers['user-agent'],
     )
     this.setRefreshCookie(res, result.refreshToken)
+    if (dto.deviceId) {
+      await this.authService.upsertOrTrackDevice({
+        deviceId: dto.deviceId,
+        userId: result.user_type !== 'GUEST' ? undefined : undefined, 
+        platform: req.headers['x-device-platform'] as string | undefined,
+        userAgent: req.headers['user-agent'],
+      })
+    }
     return result
+  }
+
+  // ─── Onboarding ───────────────────────────────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('onboarding')
+  completeOnboarding(@Req() req: Request, @Body() dto: OnboardingDto) {
+    const user = req.user as { id: string }
+    return this.authService.completeOnboarding(user.id, dto)
   }
 
   // ─── Refresh ─────────────────────────────────────────────────────────────────
@@ -119,12 +184,20 @@ export class AuthController {
     @Body() dto: RefreshDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const rawToken = (req.cookies as Record<string, string>)?.['refresh_token'] ?? dto.refreshToken
+    const rawToken =
+      (req.cookies as Record<string, string>)?.['refresh_token'] ??
+      dto.refreshToken
     if (!rawToken) throw new UnauthorizedException('No refresh token provided')
 
-    const result = await this.authService.rotateRefreshToken(rawToken, req.headers['user-agent'])
+    const result = await this.authService.rotateRefreshToken(
+      rawToken,
+      req.headers['user-agent'],
+    )
     this.setRefreshCookie(res, result.refreshToken)
-    return { accessToken: result.accessToken, refreshToken: result.refreshToken }
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    }
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -136,7 +209,9 @@ export class AuthController {
     @Body() dto: RefreshDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const rawToken = (req.cookies as Record<string, string>)?.['refresh_token'] ?? dto.refreshToken
+    const rawToken =
+      (req.cookies as Record<string, string>)?.['refresh_token'] ??
+      dto.refreshToken
     if (rawToken) await this.authService.revokeRefreshToken(rawToken)
     res.clearCookie('refresh_token')
     return { message: 'Logged out successfully' }
