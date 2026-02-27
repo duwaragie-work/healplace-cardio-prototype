@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport'
 import { PrismaModule } from '../prisma/prisma.module.js'
 import { AuthController } from './auth.controller.js'
 import { AuthService } from './auth.service.js'
+import { BcryptService } from './bcrypt.service.js'
 import { Public } from './decorators/public.decorator.js'
 import { AppleAuthGuard } from './guards/apple-auth.guard.js'
 import { GoogleAuthGuard } from './guards/google-auth.guard.js'
@@ -31,6 +32,7 @@ export { Public }
   ],
   providers: [
     AuthService,
+    BcryptService,
     JwtStrategy,
     GoogleStrategy,
     AppleStrategy,

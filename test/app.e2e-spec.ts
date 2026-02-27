@@ -7,19 +7,25 @@ import { AppModule } from './../src/app.module'
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile()
 
     app = moduleFixture.createNestApplication()
     await app.init()
+  }, 30000) // 30 second timeout for app initialization
+
+  afterAll(async () => {
+    await app.close()
   })
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
+  it('/ (GET)', async () => {
+    const response = await request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!')
+    
+    // Check that response contains expected content
+    expect(response.text).toContain('Hello World v2.13!')
   })
 })

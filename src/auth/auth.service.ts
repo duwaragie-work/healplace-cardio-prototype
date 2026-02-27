@@ -5,12 +5,12 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
-import * as bcrypt from 'bcrypt'
 import { createHash, randomBytes, randomInt } from 'crypto'
 import nodemailer from 'nodemailer'
 import type { Profile } from 'passport-google-oauth20'
 import { UserRole } from '../generated/prisma/enums.js'
 import { PrismaService } from '../prisma/prisma.service.js'
+import { BcryptService } from './bcrypt.service.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
+    private bcryptService: BcryptService,
   ) {}
 
   // ─── Token Issuance ─────────────────────────────────────────────────────────
@@ -82,7 +83,11 @@ export class AuthService {
 
   async rotateRefreshToken(
     rawToken: string,
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<TokenPair & { user: MinimalUser }> {
     const tokenHash = sha256(rawToken)
 
@@ -92,6 +97,14 @@ export class AuthService {
     })
 
     if (!existing || existing.revokedAt || existing.expiresAt < new Date()) {
+      await this.logAuthEvent({
+        event: 'refresh_failed',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        success: false,
+        errorCode: 'invalid_or_expired_token',
+      })
       throw new UnauthorizedException('Invalid or expired refresh token')
     }
 
@@ -102,21 +115,48 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.issueAccessToken(existing.user),
-      this.issueRefreshToken(existing.userId, userAgent),
+      this.issueRefreshToken(existing.userId, context?.userAgent),
     ])
+
+    await this.logAuthEvent({
+      event: 'refresh_success',
+      userId: existing.user.id,
+      deviceId: context?.deviceId,
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+      success: true,
+    })
 
     return { accessToken, refreshToken, user: existing.user }
   }
 
-  async revokeRefreshToken(rawToken: string): Promise<void> {
+  async revokeRefreshToken(
+    rawToken: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
+  ): Promise<void> {
     const tokenHash = sha256(rawToken)
     const existing = await this.prisma.refreshToken.findFirst({
       where: { tokenHash, revokedAt: null },
+      include: { user: true },
     })
     if (!existing) return
+    
     await this.prisma.refreshToken.update({
       where: { id: existing.id },
       data: { revokedAt: new Date() },
+    })
+
+    await this.logAuthEvent({
+      event: 'logout',
+      userId: existing.userId,
+      deviceId: context?.deviceId,
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+      success: true,
     })
   }
 
@@ -144,39 +184,119 @@ export class AuthService {
     }
   }
 
+  // ─── Auth Logging ───────────────────────────────────────────────────────────
+
+  private async logAuthEvent(params: {
+    event: string
+    identifier?: string
+    userId?: string
+    method?: 'otp' | 'google' | 'apple'
+    deviceId?: string
+    ipAddress?: string
+    userAgent?: string
+    metadata?: Record<string, unknown>
+    success: boolean
+    errorCode?: string
+  }): Promise<void> {
+    try {
+      await this.prisma.authLog.create({
+        data: {
+          event: params.event,
+          identifier: params.identifier ?? null,
+          userId: params.userId ?? null,
+          method: params.method ?? null,
+          deviceId: params.deviceId ?? null,
+          ipAddress: params.ipAddress ?? null,
+          userAgent: params.userAgent ?? null,
+          metadata: params.metadata ? JSON.parse(JSON.stringify(params.metadata)) : null,
+          success: params.success,
+          errorCode: params.errorCode ?? null,
+        },
+      })
+    } catch (error) {
+      // Never let logging failures break the auth flow
+      console.error('Failed to log auth event:', error)
+    }
+  }
+
   // ─── Google Web Flow ────────────────────────────────────────────────────────
 
   async googleLogin(
     profile: Profile,
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<AuthResponse> {
     const providerId = profile.id
     const rawEmail = profile.emails?.[0]?.value ?? null
     const emailVerified =
       (profile.emails?.[0] as { verified?: boolean })?.verified ?? false
 
-    const user = await this.upsertSocialUser(
-      'google',
-      providerId,
-      rawEmail,
-      emailVerified,
-      profile.displayName,
-    )
-    const tokens = await this.issueTokenPair(user, userAgent)
-    return this.buildAuthResponse(tokens, user, 'google')
+    try {
+      const user = await this.upsertSocialUser(
+        'google',
+        providerId,
+        rawEmail,
+        emailVerified,
+        profile.displayName,
+      )
+      const tokens = await this.issueTokenPair(user, context?.userAgent)
+
+      await this.logAuthEvent({
+        event: 'social_login_success',
+        identifier: rawEmail ?? undefined,
+        userId: user.id,
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId },
+        success: true,
+      })
+
+      return this.buildAuthResponse(tokens, user, 'google')
+    } catch (err) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        identifier: rawEmail ?? undefined,
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId },
+        success: false,
+        errorCode: 'google_login_error',
+      })
+      throw err
+    }
   }
 
   // ─── Google Mobile Flow ─────────────────────────────────────────────────────
 
   async googleMobileLogin(
     idToken: string,
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<AuthResponse> {
     const res = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
     )
 
     if (!res.ok) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        success: false,
+        errorCode: 'invalid_google_token',
+      })
       throw new UnauthorizedException('Invalid Google token')
     }
 
@@ -190,26 +310,69 @@ export class AuthService {
 
     const expectedAud = this.config.get<string>('GOOGLE_CLIENT_ID')
     if (claims.aud !== expectedAud) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        identifier: claims.email,
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId: claims.sub },
+        success: false,
+        errorCode: 'audience_mismatch',
+      })
       throw new UnauthorizedException('Google token audience mismatch')
     }
 
-    const emailVerified = claims.email_verified === 'true'
-    const user = await this.upsertSocialUser(
-      'google',
-      claims.sub,
-      claims.email ?? null,
-      emailVerified,
-      claims.name,
-    )
-    const tokens = await this.issueTokenPair(user, userAgent)
-    return this.buildAuthResponse(tokens, user, 'google')
+    try {
+      const emailVerified = claims.email_verified === 'true'
+      const user = await this.upsertSocialUser(
+        'google',
+        claims.sub,
+        claims.email ?? null,
+        emailVerified,
+        claims.name,
+      )
+      const tokens = await this.issueTokenPair(user, context?.userAgent)
+
+      await this.logAuthEvent({
+        event: 'social_login_success',
+        identifier: claims.email,
+        userId: user.id,
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId: claims.sub },
+        success: true,
+      })
+
+      return this.buildAuthResponse(tokens, user, 'google')
+    } catch (err) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        identifier: claims.email,
+        method: 'google',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId: claims.sub },
+        success: false,
+        errorCode: 'google_mobile_login_error',
+      })
+      throw err
+    }
   }
 
   // ─── Apple Mobile Flow ──────────────────────────────────────────────────────
 
   async appleLogin(
     identityToken: string,
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<AuthResponse> {
     const appleSignin = await import('apple-signin-auth')
     const clientId = this.config.get<string>('APPLE_CLIENT_ID', '')
@@ -221,17 +384,54 @@ export class AuthService {
         ignoreExpiration: false,
       })
     } catch {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        method: 'apple',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        success: false,
+        errorCode: 'invalid_apple_token',
+      })
       throw new UnauthorizedException('Invalid Apple token')
     }
 
-    const user = await this.upsertSocialUser(
-      'apple',
-      claims.sub,
-      claims.email ?? null,
-      false,
-    )
-    const tokens = await this.issueTokenPair(user, userAgent)
-    return this.buildAuthResponse(tokens, user, 'apple')
+    try {
+      const user = await this.upsertSocialUser(
+        'apple',
+        claims.sub,
+        claims.email ?? null,
+        false,
+      )
+      const tokens = await this.issueTokenPair(user, context?.userAgent)
+
+      await this.logAuthEvent({
+        event: 'social_login_success',
+        identifier: claims.email,
+        userId: user.id,
+        method: 'apple',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId: claims.sub },
+        success: true,
+      })
+
+      return this.buildAuthResponse(tokens, user, 'apple')
+    } catch (err) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        identifier: claims.email,
+        method: 'apple',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId: claims.sub },
+        success: false,
+        errorCode: 'apple_login_error',
+      })
+      throw err
+    }
   }
 
   // ─── Apple Web Flow ─────────────────────────────────────────────────────────
@@ -242,7 +442,11 @@ export class AuthService {
       email?: string
       name?: { firstName?: string; lastName?: string }
     },
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<AuthResponse> {
     const providerId = profile.id
     const email = profile.email ?? null
@@ -250,15 +454,43 @@ export class AuthService {
       ? `${profile.name.firstName ?? ''} ${profile.name.lastName ?? ''}`.trim()
       : undefined
 
-    const user = await this.upsertSocialUser(
-      'apple',
-      providerId,
-      email,
-      false,
-      fullName,
-    )
-    const tokens = await this.issueTokenPair(user, userAgent)
-    return this.buildAuthResponse(tokens, user, 'apple')
+    try {
+      const user = await this.upsertSocialUser(
+        'apple',
+        providerId,
+        email,
+        false,
+        fullName,
+      )
+      const tokens = await this.issueTokenPair(user, context?.userAgent)
+
+      await this.logAuthEvent({
+        event: 'social_login_success',
+        identifier: email ?? undefined,
+        userId: user.id,
+        method: 'apple',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId },
+        success: true,
+      })
+
+      return this.buildAuthResponse(tokens, user, 'apple')
+    } catch (err) {
+      await this.logAuthEvent({
+        event: 'social_login_failed',
+        identifier: email ?? undefined,
+        method: 'apple',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { providerId },
+        success: false,
+        errorCode: 'apple_web_login_error',
+      })
+      throw err
+    }
   }
 
   // ─── Shared Social Upsert ───────────────────────────────────────────────────
@@ -304,18 +536,24 @@ export class AuthService {
 
   // ─── Email OTP — Send ───────────────────────────────────────────────────────
 
-  async sendOtp(email: string): Promise<{ message: string }> {
+  async sendOtp(
+    email: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
+  ): Promise<{ message: string }> {
     if (!email?.trim()) {
       throw new BadRequestException('Email is required')
     }
 
     const normalizedEmail = email.trim().toLowerCase()
 
+    // Check for recent OTP request (rate limiting)
     const recentOtp = await this.prisma.otpCode.findFirst({
       where: {
         email: normalizedEmail,
-        isConsumed: false,
-        isFailedAttempt: false,
         createdAt: { gt: new Date(Date.now() - 60_000) },
       },
       orderBy: { createdAt: 'desc' },
@@ -327,7 +565,7 @@ export class AuthService {
     }
 
     const otp = randomInt(100_000, 1_000_000).toString()
-    const codeHash = await bcrypt.hash(otp, 10)
+    const codeHash = await this.bcryptService.hash(otp)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
     await this.prisma.otpCode.create({
@@ -335,6 +573,17 @@ export class AuthService {
     })
 
     await this.sendOtpEmail(normalizedEmail, otp)
+
+    // Log the OTP request event
+    await this.logAuthEvent({
+      event: 'otp_requested',
+      identifier: normalizedEmail,
+      method: 'otp',
+      deviceId: context?.deviceId,
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+      success: true,
+    })
 
     return { message: 'OTP sent successfully' }
   }
@@ -344,7 +593,11 @@ export class AuthService {
   async verifyOtp(
     email: string,
     code: string,
-    userAgent?: string,
+    context?: {
+      deviceId?: string
+      ipAddress?: string
+      userAgent?: string
+    },
   ): Promise<AuthResponse> {
     if (!email?.trim()) {
       throw new BadRequestException('Email is required')
@@ -352,47 +605,74 @@ export class AuthService {
 
     const normalizedEmail = email.trim().toLowerCase()
 
+    // Find the most recent unexpired OTP
     const otpRecord = await this.prisma.otpCode.findFirst({
       where: {
         email: normalizedEmail,
-        isConsumed: false,
-        isFailedAttempt: false,
         expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
     })
 
     if (!otpRecord) {
+      await this.logAuthEvent({
+        event: 'otp_expired',
+        identifier: normalizedEmail,
+        method: 'otp',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        success: false,
+        errorCode: 'otp_not_found_or_expired',
+      })
       throw new BadRequestException('OTP not found or expired')
     }
 
-    const failedAttempts = await this.prisma.otpCode.count({
-      where: {
-        email: normalizedEmail,
-        isFailedAttempt: true,
-        createdAt: { gt: otpRecord.createdAt },
-      },
-    })
-
-    if (failedAttempts >= 5) {
+    // Check if max attempts reached
+    if (otpRecord.attempts >= 5) {
+      await this.logAuthEvent({
+        event: 'otp_locked',
+        identifier: normalizedEmail,
+        method: 'otp',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { attempts: otpRecord.attempts },
+        success: false,
+        errorCode: 'max_attempts_exceeded',
+      })
+      // Delete the locked OTP
+      await this.prisma.otpCode.delete({ where: { id: otpRecord.id } })
       throw new BadRequestException(
         'Too many incorrect attempts. Request a new OTP.',
       )
     }
 
-    const valid = await bcrypt.compare(code, otpRecord.codeHash)
+    // Verify the code
+    const valid = await this.bcryptService.compare(code, otpRecord.codeHash)
     if (!valid) {
-      await this.prisma.otpCode.create({
-        data: {
-          email: normalizedEmail,
-          codeHash: '',
-          expiresAt: otpRecord.expiresAt,
-          isFailedAttempt: true,
-        },
+      // Increment attempt counter
+      const updatedOtp = await this.prisma.otpCode.update({
+        where: { id: otpRecord.id },
+        data: { attempts: otpRecord.attempts + 1 },
       })
+
+      await this.logAuthEvent({
+        event: 'otp_failed',
+        identifier: normalizedEmail,
+        method: 'otp',
+        deviceId: context?.deviceId,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+        metadata: { attempts: updatedOtp.attempts },
+        success: false,
+        errorCode: 'invalid_code',
+      })
+
       throw new BadRequestException('Invalid OTP')
     }
 
+    // OTP is valid - upsert user
     let user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     })
@@ -412,17 +692,22 @@ export class AuthService {
       })
     }
 
-    await this.prisma.otpCode.create({
-      data: {
-        email: normalizedEmail,
-        codeHash: '',
-        expiresAt: otpRecord.expiresAt,
-        isConsumed: true,
-        userId: user.id,
-      },
+    // Delete the OTP record (cache cleanup)
+    await this.prisma.otpCode.delete({ where: { id: otpRecord.id } })
+
+    // Log successful verification
+    await this.logAuthEvent({
+      event: 'otp_verified',
+      identifier: normalizedEmail,
+      userId: user.id,
+      method: 'otp',
+      deviceId: context?.deviceId,
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+      success: true,
     })
 
-    const tokens = await this.issueTokenPair(user, userAgent)
+    const tokens = await this.issueTokenPair(user, context?.userAgent)
     return this.buildAuthResponse(tokens, user, 'otp')
   }
 
