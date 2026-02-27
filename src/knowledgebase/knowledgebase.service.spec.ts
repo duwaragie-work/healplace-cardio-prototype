@@ -1,4 +1,7 @@
+import { jest } from '@jest/globals'
 import { Test, TestingModule } from '@nestjs/testing'
+import { MistralService } from '../mistral/mistral.service.js'
+import { PrismaService } from '../prisma/prisma.service.js'
 import { KnowledgebaseService } from './knowledgebase.service.js'
 
 describe('KnowledgebaseService', () => {
@@ -6,7 +9,27 @@ describe('KnowledgebaseService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [KnowledgebaseService],
+      providers: [
+        KnowledgebaseService,
+        {
+          provide: PrismaService,
+          useValue: {
+            document: {
+              findFirst: jest.fn(),
+              create: jest.fn(),
+            },
+            documentVector: {
+              createMany: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: MistralService,
+          useValue: {
+            getEmbeddings: jest.fn(),
+          },
+        },
+      ],
     }).compile()
 
     service = module.get<KnowledgebaseService>(KnowledgebaseService)

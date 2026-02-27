@@ -30,6 +30,33 @@ export class AuthController {
     private config: ConfigService,
   ) {}
 
+  // ─── Helper: Extract IP Address ──────────────────────────────────────────────
+
+  private extractIpAddress(req: Request): string | undefined {
+    // Check X-Forwarded-For header first (for proxies/load balancers)
+    const forwardedFor = req.headers['x-forwarded-for']
+    if (forwardedFor) {
+      const ips = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor.split(',')[0]
+      return ips?.trim()
+    }
+    // Fallback to req.ip
+    return req.ip
+  }
+
+  private buildAuthContext(req: Request): {
+    deviceId?: string
+    ipAddress?: string
+    userAgent?: string
+  } {
+    return {
+      deviceId: req.headers['x-device-id'] as string | undefined,
+      ipAddress: this.extractIpAddress(req),
+      userAgent: req.headers['user-agent'],
+    }
+  }
+
   // ─── Google Web ──────────────────────────────────────────────────────────────
 
   @Public()
@@ -43,9 +70,10 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
+    const context = this.buildAuthContext(req)
     const result = await this.authService.googleLogin(
       req.user as Parameters<AuthService['googleLogin']>[0],
-      req.headers['user-agent'],
+      context,
     )
     this.setRefreshCookie(res, result.refreshToken)
     const webAppUrl = this.config.get<string>(
@@ -66,17 +94,17 @@ export class AuthController {
   @Public()
   @Post('google/mobile')
   async googleMobile(@Body() dto: GoogleMobileLoginDto, @Req() req: Request) {
+    const context = this.buildAuthContext(req)
     const result = await this.authService.googleMobileLogin(
       dto.idToken,
-      req.headers['user-agent'],
+      context,
     )
-    const deviceId = req.headers['x-device-id'] as string | undefined
-    if (deviceId) {
+    if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
-        deviceId,
+        deviceId: context.deviceId,
         userId: undefined,
         platform: req.headers['x-device-platform'] as string | undefined,
-        userAgent: req.headers['user-agent'],
+        userAgent: context.userAgent,
       })
     }
     return result
@@ -87,17 +115,17 @@ export class AuthController {
   @Public()
   @Post('apple')
   async apple(@Body() dto: AppleLoginDto, @Req() req: Request) {
+    const context = this.buildAuthContext(req)
     const result = await this.authService.appleLogin(
       dto.identityToken,
-      req.headers['user-agent'],
+      context,
     )
-    const deviceId = req.headers['x-device-id'] as string | undefined
-    if (deviceId) {
+    if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
-        deviceId,
+        deviceId: context.deviceId,
         userId: undefined,
         platform: req.headers['x-device-platform'] as string | undefined,
-        userAgent: req.headers['user-agent'],
+        userAgent: context.userAgent,
       })
     }
     return result
@@ -116,9 +144,10 @@ export class AuthController {
   @UseGuards(AppleAuthGuard)
   @Get('apple/callback')
   async appleCallback(@Req() req: Request, @Res() res: Response) {
+    const context = this.buildAuthContext(req)
     const result = await this.authService.appleWebLogin(
       req.user as Parameters<AuthService['appleWebLogin']>[0],
-      req.headers['user-agent'],
+      context,
     )
     this.setRefreshCookie(res, result.refreshToken)
     const webAppUrl = this.config.get<string>(
@@ -138,8 +167,9 @@ export class AuthController {
 
   @Public()
   @Post('otp/send')
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto.email)
+  sendOtp(@Body() dto: SendOtpDto, @Req() req: Request) {
+    const context = this.buildAuthContext(req)
+    return this.authService.sendOtp(dto.email, context)
   }
 
   @Public()
@@ -149,18 +179,19 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const context = this.buildAuthContext(req)
     const result = await this.authService.verifyOtp(
       dto.email,
       dto.otp,
-      req.headers['user-agent'],
+      context,
     )
     this.setRefreshCookie(res, result.refreshToken)
     if (dto.deviceId) {
       await this.authService.upsertOrTrackDevice({
         deviceId: dto.deviceId,
-        userId: result.user_type !== 'GUEST' ? undefined : undefined, 
+        userId: result.user_type !== 'GUEST' ? undefined : undefined,
         platform: req.headers['x-device-platform'] as string | undefined,
-        userAgent: req.headers['user-agent'],
+        userAgent: context.userAgent,
       })
     }
     return result
@@ -189,9 +220,10 @@ export class AuthController {
       dto.refreshToken
     if (!rawToken) throw new UnauthorizedException('No refresh token provided')
 
+    const context = this.buildAuthContext(req)
     const result = await this.authService.rotateRefreshToken(
       rawToken,
-      req.headers['user-agent'],
+      context,
     )
     this.setRefreshCookie(res, result.refreshToken)
     return {
@@ -212,7 +244,10 @@ export class AuthController {
     const rawToken =
       (req.cookies as Record<string, string>)?.['refresh_token'] ??
       dto.refreshToken
-    if (rawToken) await this.authService.revokeRefreshToken(rawToken)
+    if (rawToken) {
+      const context = this.buildAuthContext(req)
+      await this.authService.revokeRefreshToken(rawToken, context)
+    }
     res.clearCookie('refresh_token')
     return { message: 'Logged out successfully' }
   }
