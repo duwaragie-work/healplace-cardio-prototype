@@ -5,6 +5,7 @@
 model OtpCode {
   id        String   @id @default(ulid())
   email     String   
+  codeHash  String
   expiresAt DateTime 
   attempts  Int      @default(0)
   
