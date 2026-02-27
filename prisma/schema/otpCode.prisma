@@ -1,13 +1,15 @@
+// OtpCode: Active OTP sessions cache (temporary, deleted on success/failure)
+// Lifecycle: Created on request → Updated on failed attempts → Deleted on success/max attempts/expiry
+// Historical data is preserved in AuthLog table
+
 model OtpCode {
-  id              String   @id @default(ulid())
-  email           String
-  codeHash        String // bcrypt hash of 6-digit OTP (empty string for sentinel rows)
-  expiresAt       DateTime
-  isConsumed      Boolean  @default(false) // true on successful verify sentinel row
-  isFailedAttempt Boolean  @default(false) // true on each wrong guess sentinel row
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
+  id        String   @id @default(ulid())
+  email     String   
+  expiresAt DateTime 
+  attempts  Int      @default(0)
+  
   createdAt DateTime @default(now())
+  
+  @@index([email])     
+  @@index([expiresAt]) 
 }

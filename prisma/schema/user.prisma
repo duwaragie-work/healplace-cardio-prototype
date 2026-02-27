@@ -23,8 +23,8 @@ model User {
 
   accounts      Account[]
   refreshTokens RefreshToken[]
-  otps          OtpCode[]
   devices       Device[]
+  authLogs      AuthLog[] 
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
