@@ -49,11 +49,13 @@ export class AuthController {
     deviceId?: string
     ipAddress?: string
     userAgent?: string
+    timezone?: string
   } {
     return {
       deviceId: req.headers['x-device-id'] as string | undefined,
       ipAddress: this.extractIpAddress(req),
       userAgent: req.headers['user-agent'],
+      timezone: req.headers['x-timezone'] as string | undefined,
     }
   }
 
@@ -116,10 +118,7 @@ export class AuthController {
   @Post('apple')
   async apple(@Body() dto: AppleLoginDto, @Req() req: Request) {
     const context = this.buildAuthContext(req)
-    const result = await this.authService.appleLogin(
-      dto.identityToken,
-      context,
-    )
+    const result = await this.authService.appleLogin(dto.identityToken, context)
     if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
         deviceId: context.deviceId,
@@ -180,11 +179,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const context = this.buildAuthContext(req)
-    const result = await this.authService.verifyOtp(
-      dto.email,
-      dto.otp,
-      context,
-    )
+    const result = await this.authService.verifyOtp(dto.email, dto.otp, context)
     this.setRefreshCookie(res, result.refreshToken)
     if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
@@ -202,8 +197,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('onboarding')
   completeOnboarding(@Req() req: Request, @Body() dto: OnboardingDto) {
-    const user = req.user as { id: string }
-    return this.authService.completeOnboarding(user.id, dto)
+    const { id } = req.user as { id: string }
+    return this.authService.completeOnboarding(id, dto)
   }
 
   // ─── Refresh ─────────────────────────────────────────────────────────────────
@@ -221,10 +216,7 @@ export class AuthController {
     if (!rawToken) throw new UnauthorizedException('No refresh token provided')
 
     const context = this.buildAuthContext(req)
-    const result = await this.authService.rotateRefreshToken(
-      rawToken,
-      context,
-    )
+    const result = await this.authService.rotateRefreshToken(rawToken, context)
     this.setRefreshCookie(res, result.refreshToken)
     return {
       accessToken: result.accessToken,
@@ -252,12 +244,21 @@ export class AuthController {
     return { message: 'Logged out successfully' }
   }
 
-  // ─── Me (protected) ───────────────────────────────────────────────────────────
+  // ─── Me (JWT payload) ────────────────────────────────────────────────────────
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getMe(@Req() req: Request) {
     return req.user
+  }
+
+  // ─── Profile (full DB record) ─────────────────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@Req() req: Request) {
+    const { id } = req.user as { id: string }
+    return this.authService.getProfile(id)
   }
 
   // ─── Cookie Helper ────────────────────────────────────────────────────────────

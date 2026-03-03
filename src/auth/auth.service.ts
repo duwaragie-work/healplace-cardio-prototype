@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -8,9 +9,10 @@ import { JwtService } from '@nestjs/jwt'
 import { createHash, randomBytes, randomInt } from 'crypto'
 import nodemailer from 'nodemailer'
 import type { Profile } from 'passport-google-oauth20'
-import { UserRole } from '../generated/prisma/enums.js'
+import { MenopauseStage, UserRole } from '../generated/prisma/enums.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { BcryptService } from './bcrypt.service.js'
+import type { OnboardingDto } from './dto/onboarding.dto.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,14 +23,27 @@ export interface TokenPair {
 
 export interface AuthResponse extends TokenPair {
   onboarding_required: boolean
-  user_type: UserRole // e.g. "GUEST", "REGISTERED_USER"
-  login_method: 'otp' | 'google' | 'apple' 
+  user_type: UserRole
+  login_method: 'otp' | 'google' | 'apple'
+  name: string | null
 }
 
 interface MinimalUser {
   id: string
   email: string | null
+  name: string | null
   role: UserRole
+  onboardingCompleted: boolean
+}
+
+export interface OnboardingResult {
+  message: string
+  name: string | null
+  dateOfBirth: Date | null
+  menopauseStage: MenopauseStage
+  timezone: string | null
+  primarySymptoms: unknown
+  primarySymptomsOtherText: string | null
   onboardingCompleted: boolean
 }
 
@@ -144,7 +159,7 @@ export class AuthService {
       include: { user: true },
     })
     if (!existing) return
-    
+
     await this.prisma.refreshToken.update({
       where: { id: existing.id },
       data: { revokedAt: new Date() },
@@ -181,6 +196,7 @@ export class AuthService {
       onboarding_required: !user.onboardingCompleted,
       user_type: user.role,
       login_method,
+      name: user.name,
     }
   }
 
@@ -208,7 +224,9 @@ export class AuthService {
           deviceId: params.deviceId ?? null,
           ipAddress: params.ipAddress ?? null,
           userAgent: params.userAgent ?? null,
-          metadata: params.metadata ? JSON.parse(JSON.stringify(params.metadata)) : null,
+          metadata: params.metadata
+            ? JSON.parse(JSON.stringify(params.metadata))
+            : null,
           success: params.success,
           errorCode: params.errorCode ?? null,
         },
@@ -216,6 +234,23 @@ export class AuthService {
     } catch (error) {
       // Never let logging failures break the auth flow
       console.error('Failed to log auth event:', error)
+    }
+  }
+
+  // ─── Timezone Auto-Update ───────────────────────────────────────────────────
+
+  private async silentlyUpdateTimezone(
+    userId: string,
+    timezone?: string,
+  ): Promise<void> {
+    if (!timezone || !timezone.includes('/')) return
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { timezone },
+      })
+    } catch (error) {
+      console.error('Failed to update timezone:', error)
     }
   }
 
@@ -227,6 +262,7 @@ export class AuthService {
       deviceId?: string
       ipAddress?: string
       userAgent?: string
+      timezone?: string
     },
   ): Promise<AuthResponse> {
     const providerId = profile.id
@@ -242,6 +278,7 @@ export class AuthService {
         emailVerified,
         profile.displayName,
       )
+      await this.silentlyUpdateTimezone(user.id, context?.timezone)
       const tokens = await this.issueTokenPair(user, context?.userAgent)
 
       await this.logAuthEvent({
@@ -281,6 +318,7 @@ export class AuthService {
       deviceId?: string
       ipAddress?: string
       userAgent?: string
+      timezone?: string
     },
   ): Promise<AuthResponse> {
     const res = await fetch(
@@ -333,6 +371,7 @@ export class AuthService {
         emailVerified,
         claims.name,
       )
+      await this.silentlyUpdateTimezone(user.id, context?.timezone)
       const tokens = await this.issueTokenPair(user, context?.userAgent)
 
       await this.logAuthEvent({
@@ -372,6 +411,7 @@ export class AuthService {
       deviceId?: string
       ipAddress?: string
       userAgent?: string
+      timezone?: string
     },
   ): Promise<AuthResponse> {
     const appleSignin = await import('apple-signin-auth')
@@ -403,6 +443,7 @@ export class AuthService {
         claims.email ?? null,
         false,
       )
+      await this.silentlyUpdateTimezone(user.id, context?.timezone)
       const tokens = await this.issueTokenPair(user, context?.userAgent)
 
       await this.logAuthEvent({
@@ -446,6 +487,7 @@ export class AuthService {
       deviceId?: string
       ipAddress?: string
       userAgent?: string
+      timezone?: string
     },
   ): Promise<AuthResponse> {
     const providerId = profile.id
@@ -462,6 +504,7 @@ export class AuthService {
         false,
         fullName,
       )
+      await this.silentlyUpdateTimezone(user.id, context?.timezone)
       const tokens = await this.issueTokenPair(user, context?.userAgent)
 
       await this.logAuthEvent({
@@ -597,6 +640,7 @@ export class AuthService {
       deviceId?: string
       ipAddress?: string
       userAgent?: string
+      timezone?: string
     },
   ): Promise<AuthResponse> {
     if (!email?.trim()) {
@@ -695,6 +739,9 @@ export class AuthService {
     // Delete the OTP record (cache cleanup)
     await this.prisma.otpCode.delete({ where: { id: otpRecord.id } })
 
+    // Update timezone on every successful login (silently)
+    await this.silentlyUpdateTimezone(user.id, context?.timezone)
+
     // Log successful verification
     await this.logAuthEvent({
       event: 'otp_verified',
@@ -743,18 +790,82 @@ export class AuthService {
 
   async completeOnboarding(
     userId: string,
-    dto: { name: string; age?: number },
-  ): Promise<{ message: string; name: string }> {
-    const user = await this.prisma.user.update({
+    dto: OnboardingDto,
+  ): Promise<OnboardingResult> {
+    const patch = this.buildOnboardingPatch(dto)
+
+    const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        name: dto.name,
-        age: dto.age ?? null,
+      data: patch,
+      select: {
+        name: true,
+        dateOfBirth: true,
+        menopauseStage: true,
+        timezone: true,
+        primarySymptoms: true,
+        primarySymptomsOtherText: true,
         onboardingCompleted: true,
-        role: UserRole.REGISTERED_USER,
       },
     })
-    return { message: 'Onboarding completed', name: user.name ?? '' }
+
+    return { message: 'Onboarding completed', ...updated }
+  }
+
+  private buildOnboardingPatch(dto: OnboardingDto) {
+    const patch: {
+      onboardingCompleted: boolean
+      name?: string
+      dateOfBirth?: Date | null
+      menopauseStage?: MenopauseStage
+      timezone?: string
+      primarySymptoms?: string[]
+      primarySymptomsOtherText?: string | null
+    } = { onboardingCompleted: true }
+
+    if (dto.name !== undefined) patch.name = dto.name
+    if (dto.dateOfBirth !== undefined) {
+      patch.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null
+    }
+    if (dto.menopauseStage !== undefined) {
+      patch.menopauseStage = dto.menopauseStage as MenopauseStage
+    }
+    if (dto.timezone !== undefined) patch.timezone = dto.timezone
+    if (dto.primarySymptoms !== undefined) {
+      patch.primarySymptoms = dto.primarySymptoms
+    }
+    if (dto.primarySymptomsOtherText !== undefined) {
+      patch.primarySymptomsOtherText = dto.primarySymptomsOtherText
+    }
+
+    return patch
+  }
+
+  // ─── Profile ─────────────────────────────────────────────────────────────────
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isVerified: true,
+        onboardingCompleted: true,
+        dateOfBirth: true,
+        menopauseStage: true,
+        timezone: true,
+        primarySymptoms: true,
+        primarySymptomsOtherText: true,
+        createdAt: true,
+      },
+    })
+
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    return user
   }
 
   // ─── Email Helper ────────────────────────────────────────────────────────────
