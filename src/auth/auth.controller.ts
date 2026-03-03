@@ -186,9 +186,9 @@ export class AuthController {
       context,
     )
     this.setRefreshCookie(res, result.refreshToken)
-    if (dto.deviceId) {
+    if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
-        deviceId: dto.deviceId,
+        deviceId: context.deviceId,
         userId: result.user_type !== 'GUEST' ? undefined : undefined,
         platform: req.headers['x-device-platform'] as string | undefined,
         userAgent: context.userAgent,

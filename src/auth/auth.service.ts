@@ -744,8 +744,8 @@ export class AuthService {
   async completeOnboarding(
     userId: string,
     dto: { name: string; age?: number },
-  ): Promise<{ message: string }> {
-    await this.prisma.user.update({
+  ): Promise<{ message: string; name: string }> {
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         name: dto.name,
@@ -754,7 +754,7 @@ export class AuthService {
         role: UserRole.REGISTERED_USER,
       },
     })
-    return { message: 'Onboarding completed' }
+    return { message: 'Onboarding completed', name: user.name ?? '' }
   }
 
   // ─── Email Helper ────────────────────────────────────────────────────────────
