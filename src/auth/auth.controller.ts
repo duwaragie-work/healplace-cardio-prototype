@@ -15,7 +15,7 @@ import { AuthService, TokenPair } from './auth.service.js'
 import { Public } from './decorators/public.decorator.js'
 import { AppleLoginDto } from './dto/apple-login.dto.js'
 import { GoogleMobileLoginDto } from './dto/google-mobile-login.dto.js'
-import { OnboardingDto } from './dto/onboarding.dto.js'
+import { ProfileDto } from './dto/profile.dto.js'
 import { RefreshDto } from './dto/refresh.dto.js'
 import { SendOtpDto } from './dto/send-otp.dto.js'
 import { VerifyOtpDto } from './dto/verify-otp.dto.js'
@@ -192,15 +192,6 @@ export class AuthController {
     return result
   }
 
-  // ─── Onboarding ───────────────────────────────────────────────────────────────
-
-  @UseGuards(JwtAuthGuard)
-  @Patch('onboarding')
-  completeOnboarding(@Req() req: Request, @Body() dto: OnboardingDto) {
-    const { id } = req.user as { id: string }
-    return this.authService.completeOnboarding(id, dto)
-  }
-
   // ─── Refresh ─────────────────────────────────────────────────────────────────
 
   @Public()
@@ -252,13 +243,31 @@ export class AuthController {
     return req.user
   }
 
-  // ─── Profile (full DB record) ─────────────────────────────────────────────────
+  // ─── Profile ─────────────────────────────────────────────────────────────────
+  //
+  // GET  /auth/profile  — fetch full profile
+  // POST /auth/profile  — submit initial onboarding (marks onboardingStatus COMPLETED)
+  // PATCH/PUT /auth/profile  — edit profile fields
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req: Request) {
     const { id } = req.user as { id: string }
     return this.authService.getProfile(id)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('profile')
+  submitProfile(@Req() req: Request, @Body() dto: ProfileDto) {
+    const { id } = req.user as { id: string }
+    return this.authService.submitProfile(id, dto)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  patchProfile(@Req() req: Request, @Body() dto: ProfileDto) {
+    const { id } = req.user as { id: string }
+    return this.authService.patchProfile(id, dto)
   }
 
   // ─── Cookie Helper ────────────────────────────────────────────────────────────

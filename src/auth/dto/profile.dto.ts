@@ -1,5 +1,4 @@
 import {
-  IsArray,
   IsIn,
   IsOptional,
   IsString,
@@ -8,19 +7,6 @@ import {
   registerDecorator,
   ValidationOptions,
 } from 'class-validator'
-
-// ─── Canonical symptom identifiers ────────────────────────────────────────────
-
-export const CANONICAL_SYMPTOMS = [
-  'hot_flashes',
-  'night_sweats',
-  'anxiety',
-  'early_awakening',
-  'restless_legs',
-  'heart_palpitations',
-] as const
-
-export type CanonicalSymptom = (typeof CANONICAL_SYMPTOMS)[number]
 
 // ─── MenopauseStage values (mirrors the Prisma enum) ─────────────────────────
 
@@ -57,7 +43,7 @@ function IsDateInPast(validationOptions?: ValidationOptions) {
 
 // ─── DTO ──────────────────────────────────────────────────────────────────────
 
-export class OnboardingDto {
+export class ProfileDto {
   /** Display name — optional, max 100 chars. */
   @IsOptional()
   @IsString()
@@ -92,19 +78,4 @@ export class OnboardingDto {
       'timezone must be a valid IANA identifier (e.g. "America/New_York")',
   })
   timezone?: string
-
-  /**
-   * Canonical symptom identifiers the user selected.
-   * Empty array = "Not sure yet". null / omitted = skipped.
-   */
-  @IsOptional()
-  @IsArray()
-  @IsIn(CANONICAL_SYMPTOMS, { each: true })
-  primarySymptoms?: string[]
-
-  /** Free-text description for the "Other" symptom option. */
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  primarySymptomsOtherText?: string | null
 }

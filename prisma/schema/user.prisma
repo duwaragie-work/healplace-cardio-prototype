@@ -18,6 +18,17 @@ enum MenopauseStage {
   UNKNOWN
 }
 
+enum OnboardingStatus {
+  NOT_COMPLETED
+  COMPLETED
+}
+
+enum AccountStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
 model User {
   id      String  @id @default(ulid())
   email   String? @unique
@@ -25,15 +36,14 @@ model User {
   pwdhash String?
 
   // Profile fields set during / after onboarding
-  dateOfBirth              DateTime?      
-  menopauseStage           MenopauseStage @default(UNKNOWN)
-  timezone                 String?        // IANA identifier, e.g. "Asia/Colombo"
-  primarySymptoms          Json?          // string[] — canonical symptom identifiers
-  primarySymptomsOtherText String?        // free-text from the "Other" option
+  dateOfBirth    DateTime?
+  menopauseStage MenopauseStage @default(UNKNOWN)
+  timezone       String?        // IANA identifier, e.g. "Asia/Colombo"
 
-  isVerified          Boolean  @default(false)
-  role                UserRole @default(GUEST)
-  onboardingCompleted Boolean  @default(false)
+  isVerified       Boolean          @default(false)
+  role             UserRole         @default(GUEST)
+  onboardingStatus OnboardingStatus @default(NOT_COMPLETED)
+  accountStatus    AccountStatus    @default(ACTIVE)
 
   accounts      Account[]
   refreshTokens RefreshToken[]
