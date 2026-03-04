@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { createHash, randomBytes, randomInt } from 'crypto'
-import nodemailer from 'nodemailer'
+import * as nodemailer from 'nodemailer'
 import type { Profile } from 'passport-google-oauth20'
 import {
   AccountStatus,
@@ -28,6 +28,7 @@ export interface TokenPair {
 }
 
 export interface AuthResponse extends TokenPair {
+  userId: string
   onboarding_required: boolean
   user_type: UserRole
   login_method: 'otp' | 'google' | 'apple'
@@ -204,6 +205,7 @@ export class AuthService {
   ): AuthResponse {
     return {
       ...tokens,
+      userId: user.id,
       onboarding_required: user.onboardingStatus !== OnboardingStatus.COMPLETED,
       user_type: user.role,
       login_method,
@@ -856,6 +858,9 @@ export class AuthService {
       update: {
         lastSeenAt: new Date(),
         userId: opts.userId ?? undefined,
+        platform: opts.platform ?? undefined,
+        deviceType: opts.deviceType ?? undefined,
+        deviceName: opts.deviceName ?? undefined,
         userAgent: opts.userAgent,
       },
     })

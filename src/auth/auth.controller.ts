@@ -104,8 +104,10 @@ export class AuthController {
     if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
         deviceId: context.deviceId,
-        userId: undefined,
+        userId: result.userId,
         platform: req.headers['x-device-platform'] as string | undefined,
+        deviceType: req.headers['x-device-type'] as string | undefined,
+        deviceName: req.headers['x-device-name'] as string | undefined,
         userAgent: context.userAgent,
       })
     }
@@ -122,8 +124,10 @@ export class AuthController {
     if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
         deviceId: context.deviceId,
-        userId: undefined,
+        userId: result.userId,
         platform: req.headers['x-device-platform'] as string | undefined,
+        deviceType: req.headers['x-device-type'] as string | undefined,
+        deviceName: req.headers['x-device-name'] as string | undefined,
         userAgent: context.userAgent,
       })
     }
@@ -184,8 +188,10 @@ export class AuthController {
     if (context.deviceId) {
       await this.authService.upsertOrTrackDevice({
         deviceId: context.deviceId,
-        userId: result.user_type !== 'GUEST' ? undefined : undefined,
+        userId: result.userId,
         platform: req.headers['x-device-platform'] as string | undefined,
+        deviceType: req.headers['x-device-type'] as string | undefined,
+        deviceName: req.headers['x-device-name'] as string | undefined,
         userAgent: context.userAgent,
       })
     }

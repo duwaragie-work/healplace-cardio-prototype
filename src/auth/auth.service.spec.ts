@@ -1,5 +1,4 @@
 // @ts-nocheck
-
 import { jest } from '@jest/globals'
 import {
   BadRequestException,
@@ -20,6 +19,11 @@ import { PrismaService } from '../prisma/prisma.service.js'
 import { AuthService } from './auth.service.js'
 import { BcryptService } from './bcrypt.service.js'
 import { ProfileDto } from './dto/profile.dto.js'
+
+// Type for spying on private methods in tests
+type AuthServiceWithPrivateMethods = AuthService & {
+  issueTokenPair: (...args: unknown[]) => Promise<unknown>
+}
 
 describe('AuthService', () => {
   let service: AuthService
@@ -844,6 +848,74 @@ describe('AuthService', () => {
       await expect(service.getProfile('nonexistent-id')).rejects.toThrow(
         NotFoundException,
       )
+    })
+  })
+
+  // ─── Device Linking ──────────────────────────────────────────────────────────
+
+  describe('Device Linking', () => {
+    it('should include userId in AuthResponse for OTP verification', async () => {
+      const context = { deviceId: 'device-uuid-123', userAgent: 'test-agent' }
+
+      // Mock OTP verification
+      ;(prisma.otpCode.findFirst as jest.Mock).mockResolvedValue({
+        id: 'otp-id',
+        email: 'test@example.com',
+        codeHash: 'hashed_code',
+        expiresAt: new Date(Date.now() + 600000),
+        attempts: 0,
+      })
+      ;(bcryptService.compare as jest.Mock).mockResolvedValue(true)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null) // New user
+      ;(prisma.user.create as jest.Mock).mockResolvedValue(mockUser)
+      ;(prisma.otpCode.delete as jest.Mock).mockResolvedValue(undefined)
+
+      // Mock token issuance
+      const mockTokens = { accessToken: 'access', refreshToken: 'refresh' }
+      jest
+        .spyOn(service as unknown as AuthServiceWithPrivateMethods, 'issueTokenPair')
+        .mockResolvedValue(mockTokens)
+
+      const result = await service.verifyOtp(
+        'test@example.com',
+        '123456',
+        context,
+      )
+
+      // Verify AuthResponse includes userId
+      expect(result).toHaveProperty('userId', mockUser.id)
+      expect(result).toHaveProperty('onboarding_required', false)
+      expect(result).toHaveProperty('user_type', UserRole.REGISTERED_USER)
+      expect(result).toHaveProperty('login_method', 'otp')
+    })
+
+    it('should include userId in AuthResponse for Google mobile login', async () => {
+      const context = { deviceId: 'device-uuid-456', userAgent: 'mobile-agent' }
+
+      // Mock Google token verification
+      ;(global.fetch as jest.MockedFunction<typeof fetch>) = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          sub: 'google-user-id',
+          email: 'google@example.com',
+          email_verified: 'true',
+          name: 'Google User',
+          aud: 'mock-google-client-id', // Use the mocked client ID
+        }),
+      })
+
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.user.create as jest.Mock).mockResolvedValue(mockUser)
+
+      const mockTokens = { accessToken: 'access', refreshToken: 'refresh' }
+      jest
+        .spyOn(service as unknown as AuthServiceWithPrivateMethods, 'issueTokenPair')
+        .mockResolvedValue(mockTokens)
+
+      const result = await service.googleMobileLogin('fake-token', context)
+
+      expect(result).toHaveProperty('userId', mockUser.id)
+      expect(result).toHaveProperty('login_method', 'google')
     })
   })
 })
