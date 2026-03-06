@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { Prisma, Mood } from '../generated/prisma/client.js'
+import { Prisma, Mood, EntrySource } from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { JOURNAL_EVENTS } from './constants/events.js'
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto.js'
@@ -21,6 +21,11 @@ const MOOD_MAP: Record<string, Mood> = {
   irritable: Mood.IRRITABLE,
   energized: Mood.ENERGIZED,
   neutral: Mood.NEUTRAL,
+}
+
+const SOURCE_MAP: Record<string, EntrySource> = {
+  manual: EntrySource.MANUAL,
+  healthkit: EntrySource.HEALTHKIT,
 }
 
 @Injectable()
@@ -49,6 +54,8 @@ export class DailyJournalService {
           symptoms: (dto.symptoms as JsonValue) ?? Prisma.JsonNull,
           mood: dto.mood ? MOOD_MAP[dto.mood] : null,
           notes: dto.notes ?? null,
+          source: dto.source ? SOURCE_MAP[dto.source] : EntrySource.MANUAL,
+          sourceMetadata: (dto.sourceMetadata as JsonValue) ?? Prisma.JsonNull,
         },
       })
 
@@ -110,6 +117,10 @@ export class DailyJournalService {
       if (dto.mood !== undefined)
         data.mood = dto.mood ? MOOD_MAP[dto.mood] : null
       if (dto.notes !== undefined) data.notes = dto.notes
+      if (dto.source !== undefined)
+        data.source = dto.source ? SOURCE_MAP[dto.source] : EntrySource.MANUAL
+      if (dto.sourceMetadata !== undefined)
+        data.sourceMetadata = (dto.sourceMetadata as JsonValue) ?? Prisma.JsonNull
 
       const updated = await this.prisma.journalEntry.update({
         where: { id: entryId },
@@ -214,6 +225,8 @@ export class DailyJournalService {
         symptoms: entry.symptoms,
         mood: entry.mood,
         notes: entry.notes,
+        source: entry.source.toLowerCase(),
+        sourceMetadata: entry.sourceMetadata,
         baseline: entry.snapshot
           ? {
               id: entry.snapshot.id,
@@ -395,6 +408,8 @@ export class DailyJournalService {
     symptoms: JsonValue
     mood: Mood | null
     notes: string | null
+    source: EntrySource
+    sourceMetadata: JsonValue
     snapshotId: string | null
     createdAt: Date
     updatedAt: Date
@@ -411,6 +426,8 @@ export class DailyJournalService {
       symptoms: entry.symptoms,
       mood: entry.mood ? entry.mood.toLowerCase() : null,
       notes: entry.notes,
+      source: entry.source.toLowerCase(),
+      sourceMetadata: entry.sourceMetadata,
       snapshotId: entry.snapshotId,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,

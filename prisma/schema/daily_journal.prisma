@@ -37,6 +37,11 @@ enum Mood {
     NEUTRAL
 }
 
+enum EntrySource {
+    MANUAL
+    HEALTHKIT
+}
+
 model JournalEntry {
     id     String @id @default(uuid())
     userId String
@@ -57,6 +62,10 @@ model JournalEntry {
     // Mood & Notes
     mood  Mood?
     notes String? @db.VarChar(500)
+
+    // Data source
+    source         EntrySource @default(MANUAL)
+    sourceMetadata Json?
 
     // FK to the baseline snapshot that was active when this entry was evaluated
     snapshotId String?

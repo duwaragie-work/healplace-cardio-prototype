@@ -108,4 +108,15 @@ export class CreateJournalEntryDto {
   @IsString({ message: 'notes must be a string' })
   @MaxLength(500, { message: 'notes must be at most 500 characters' })
   notes?: string
+
+  @IsOptional()
+  @IsString({ message: 'source must be a string' })
+  @IsIn(['manual', 'healthkit'], {
+    message: 'source must be one of: manual, healthkit',
+  })
+  source?: 'manual' | 'healthkit'
+
+  @IsOptional()
+  @IsObject({ message: 'sourceMetadata must be a JSON object' })
+  sourceMetadata?: Record<string, unknown>
 }
