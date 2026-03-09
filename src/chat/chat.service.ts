@@ -175,6 +175,19 @@ export class ChatService {
     }
   }
 
+  async getUserSessions(userId: string) {
+    return this.prisma.session.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+  }
+
   async createSession(sessionId: string, userId?: string): Promise<void> {
     try {
       await this.prisma.session.create({
