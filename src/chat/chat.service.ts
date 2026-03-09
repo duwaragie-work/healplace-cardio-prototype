@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ChatMistralAI } from '@langchain/mistralai'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
@@ -184,6 +184,32 @@ export class ChatService {
         title: true,
         createdAt: true,
         updatedAt: true,
+      },
+    })
+  }
+
+  async getSessionHistory(sessionId: string, userId?: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    })
+
+    if (!session) {
+      throw new NotFoundException('Session not found')
+    }
+
+    // Strictly check userId if the session belongs to a registered user
+    if (session.userId && session.userId !== userId) {
+      throw new UnauthorizedException('Access denied to this session')
+    }
+
+    return this.prisma.conversation.findMany({
+      where: { sessionId },
+      orderBy: { timestamp: 'asc' },
+      select: {
+        id: true,
+        userMessage: true,
+        aiResponse: true,
+        timestamp: true,
       },
     })
   }

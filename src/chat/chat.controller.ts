@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, Req, Get, UnauthorizedException } from '@nestjs/common'
+import { Body, Controller, Post, Res, Req, Get, Param, UnauthorizedException } from '@nestjs/common'
 import type { Request, Response } from 'express'
 import { randomUUID } from 'crypto'
 import { Public } from '../auth/decorators/public.decorator.js'
@@ -78,5 +78,15 @@ export class ChatController {
       throw new UnauthorizedException('Authentication required to fetch sessions')
     }
     return this.chatService.getUserSessions(req.user.id)
+  }
+
+  /**
+   * GET /chat/sessions/:sessionId/history
+   * Returns the chat history for a specific session.
+   */
+  @Get('sessions/:sessionId/history')
+  async getSessionHistory(@Param('sessionId') sessionId: string, @Req() req: any) {
+    const userId = req.user?.id || null
+    return this.chatService.getSessionHistory(sessionId, userId)
   }
 }
