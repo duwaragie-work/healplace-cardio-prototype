@@ -35,7 +35,7 @@ describe('AuthService', () => {
     id: '01JCEXAMPLE123456789',
     email: 'test@example.com',
     name: 'Test User',
-    role: UserRole.REGISTERED_USER,
+    roles: [UserRole.REGISTERED_USER],
     isVerified: true,
     onboardingStatus: OnboardingStatus.COMPLETED,
     accountStatus: AccountStatus.ACTIVE,
@@ -421,7 +421,7 @@ describe('AuthService', () => {
         data: {
           email: 'test@example.com',
           isVerified: true,
-          role: UserRole.REGISTERED_USER,
+          roles: [UserRole.REGISTERED_USER],
         },
       })
     })
@@ -827,7 +827,7 @@ describe('AuthService', () => {
         id: mockUser.id,
         email: mockUser.email,
         name: mockUser.name,
-        role: mockUser.role,
+        roles: mockUser.roles,
         isVerified: mockUser.isVerified,
         onboardingStatus: OnboardingStatus.COMPLETED,
         accountStatus: AccountStatus.ACTIVE,

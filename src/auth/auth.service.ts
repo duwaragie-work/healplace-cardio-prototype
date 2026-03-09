@@ -31,6 +31,7 @@ export interface AuthResponse extends TokenPair {
   userId: string
   onboarding_required: boolean
   user_type: UserRole
+  roles: UserRole[]
   login_method: 'otp' | 'google' | 'apple'
   name: string | null
 }
@@ -39,7 +40,7 @@ interface MinimalUser {
   id: string
   email: string | null
   name: string | null
-  role: UserRole
+  roles: UserRole[]
   onboardingStatus: OnboardingStatus
   accountStatus: AccountStatus
 }
@@ -84,7 +85,7 @@ export class AuthService {
     const expiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m')
     // @ts-expect-error - NestJS JWT accepts string for expiresIn despite type definition
     return await this.jwtService.signAsync(
-      { sub: user.id, email: user.email, role: user.role },
+      { sub: user.id, email: user.email, roles: user.roles },
       { expiresIn },
     )
   }
@@ -203,11 +204,13 @@ export class AuthService {
     user: MinimalUser,
     login_method: 'otp' | 'google' | 'apple',
   ): AuthResponse {
+    const primaryRole = user.roles[0] ?? UserRole.GUEST
     return {
       ...tokens,
       userId: user.id,
       onboarding_required: user.onboardingStatus !== OnboardingStatus.COMPLETED,
-      user_type: user.role,
+      user_type: primaryRole,
+      roles: user.roles,
       login_method,
       name: user.name,
     }
@@ -606,7 +609,7 @@ export class AuthService {
         email: email ?? null,
         name: name ?? null,
         isVerified: emailVerified,
-        role: UserRole.REGISTERED_USER,
+        roles: [UserRole.REGISTERED_USER],
         accounts: {
           create: { provider, providerId, email },
         },
@@ -785,7 +788,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           isVerified: true,
-          role: UserRole.REGISTERED_USER,
+          roles: [UserRole.REGISTERED_USER],
         },
       })
     } else if (!user.isVerified) {
@@ -935,7 +938,7 @@ export class AuthService {
         id: true,
         email: true,
         name: true,
-        role: true,
+        roles: true,
         isVerified: true,
         onboardingStatus: true,
         accountStatus: true,
