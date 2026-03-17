@@ -30,7 +30,6 @@ export interface TokenPair {
 export interface AuthResponse extends TokenPair {
   userId: string
   onboarding_required: boolean
-  user_type: UserRole
   roles: UserRole[]
   login_method: 'otp' | 'google' | 'apple' | 'guest'
   name: string | null
@@ -204,12 +203,10 @@ export class AuthService {
     user: MinimalUser,
     login_method: 'otp' | 'google' | 'apple' | 'guest',
   ): AuthResponse {
-    const primaryRole = user.roles[0] ?? UserRole.GUEST
     return {
       ...tokens,
       userId: user.id,
       onboarding_required: user.onboardingStatus !== OnboardingStatus.COMPLETED,
-      user_type: primaryRole,
       roles: user.roles,
       login_method,
       name: user.name,

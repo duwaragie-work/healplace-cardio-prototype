@@ -402,7 +402,6 @@ describe('AuthService', () => {
         accessToken: expect.any(String),
         refreshToken: expect.any(String),
         onboarding_required: false,
-        user_type: UserRole.REGISTERED_USER,
         login_method: 'otp',
       })
     })
@@ -952,7 +951,6 @@ describe('AuthService', () => {
       })
       expect(result).toMatchObject({
         userId: guestUser.id,
-        user_type: UserRole.GUEST,
         roles: [UserRole.GUEST],
         login_method: 'guest',
         onboarding_required: true,
@@ -978,7 +976,6 @@ describe('AuthService', () => {
 
       expect(result).toMatchObject({
         userId: guestUser.id,
-        user_type: UserRole.GUEST,
         login_method: 'guest',
       })
     })
@@ -1056,7 +1053,6 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('userId', mockUser.id)
       expect(result).toHaveProperty('onboarding_required', false)
-      expect(result).toHaveProperty('user_type', UserRole.REGISTERED_USER)
       expect(result).toHaveProperty('login_method', 'otp')
     })
 
