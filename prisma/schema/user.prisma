@@ -46,10 +46,11 @@ model User {
   onboardingStatus OnboardingStatus @default(NOT_COMPLETED)
   accountStatus    AccountStatus    @default(ACTIVE)
 
-  accounts          Account[]
-  refreshTokens     RefreshToken[]
-  devices           Device[]
-  authLogs          AuthLog[]
+  accounts      Account[]
+  refreshTokens RefreshToken[]
+  devices       Device[]
+  authLogs      AuthLog[] 
+  sessions      Session[]
   baselineSnapshots BaselineSnapshot[]
   userDevices   UserDevice[]
 
