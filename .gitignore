@@ -4,6 +4,7 @@ backend/dist/
 backend/.env
 backend/.env.production
 backend/.env.local
+backend/src/generated/
 
 # Frontend
 frontend/node_modules/
