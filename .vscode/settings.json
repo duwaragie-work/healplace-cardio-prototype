@@ -1,9 +1,9 @@
 {
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit",
-    "source.fixAll.biome": "explicit",
+    "source.fixAll.biome": "explicit"
+  },
     "jest.jestCommandLine": "npm test --",
     "jest.rootPath": "backend",
     "jest.runMode": "on-demand"
   }
-}
