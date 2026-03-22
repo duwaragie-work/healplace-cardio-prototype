@@ -1,17 +1,17 @@
 import {
-  IsIn,
+  IsArray,
+  IsBoolean,
+  IsDecimal,
   IsInt,
+  IsIn,
   IsNotEmpty,
-  IsNumber,
   IsObject,
   IsOptional,
   IsString,
   Matches,
   Max,
-  MaxLength,
   Min,
   registerDecorator,
-  ValidateIf,
   ValidationOptions,
 } from 'class-validator'
 
@@ -40,15 +40,6 @@ function IsDateNotInFuture(validationOptions?: ValidationOptions) {
   }
 }
 
-const VALID_MOODS = [
-  'calm',
-  'anxious',
-  'depressed',
-  'irritable',
-  'energized',
-  'neutral',
-] as const
-
 export class CreateJournalEntryDto {
   @IsNotEmpty({ message: 'entryDate is required' })
   @IsString()
@@ -59,54 +50,46 @@ export class CreateJournalEntryDto {
   entryDate!: string
 
   @IsOptional()
-  @IsNumber(
-    { maxDecimalPlaces: 2 },
-    { message: 'sleepHours must be a number with at most 2 decimal places' },
-  )
-  @Min(0, { message: 'sleepHours must be at least 0' })
-  @Max(24, { message: 'sleepHours must be at most 24' })
-  sleepHours?: number
+  @IsInt()
+  @Min(60)
+  @Max(250)
+  systolicBP?: number
 
   @IsOptional()
-  @IsInt({ message: 'sleepQuality must be an integer' })
-  @Min(1, { message: 'sleepQuality must be at least 1' })
-  @Max(10, { message: 'sleepQuality must be at most 10' })
-  sleepQuality?: number
+  @IsInt()
+  @Min(40)
+  @Max(150)
+  diastolicBP?: number
 
   @IsOptional()
-  @IsInt({ message: 'awakenings must be an integer' })
-  @Min(0, { message: 'awakenings must be at least 0' })
-  awakenings?: number
+  @IsDecimal()
+  weight?: number
 
   @IsOptional()
-  @IsString({ message: 'bedtime must be a string' })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
-    message: 'bedtime must be in HH:MM format (24-hour)',
-  })
-  bedtime?: string
+  @IsBoolean()
+  medicationTaken?: boolean
 
   @IsOptional()
-  @IsString({ message: 'wakeTime must be a string' })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
-    message: 'wakeTime must be in HH:MM format (24-hour)',
-  })
-  wakeTime?: string
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  missedDoses?: number
 
   @IsOptional()
-  @IsObject({ message: 'symptoms must be a JSON object' })
-  symptoms?: Record<string, unknown>
+  @IsArray()
+  @IsString({ each: true })
+  symptoms?: string[]
 
   @IsOptional()
-  @ValidateIf((_o, v) => v !== null)
-  @IsString({ message: 'mood must be a string' })
-  @IsIn(VALID_MOODS, {
-    message: `mood must be one of: ${VALID_MOODS.join(', ')}`,
-  })
-  mood?: (typeof VALID_MOODS)[number] | null
+  @IsString()
+  teachBackAnswer?: string
 
   @IsOptional()
-  @IsString({ message: 'notes must be a string' })
-  @MaxLength(500, { message: 'notes must be at most 500 characters' })
+  @IsBoolean()
+  teachBackCorrect?: boolean
+
+  @IsOptional()
+  @IsString()
   notes?: string
 
   @IsOptional()

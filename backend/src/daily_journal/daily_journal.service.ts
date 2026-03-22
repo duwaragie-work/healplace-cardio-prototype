@@ -6,22 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { Prisma, Mood, EntrySource } from '../generated/prisma/client.js'
+import { Prisma, EntrySource } from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { JOURNAL_EVENTS } from './constants/events.js'
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto.js'
 import { UpdateJournalEntryDto } from './dto/update-journal-entry.dto.js'
 
 type JsonValue = Prisma.JsonValue
-
-const MOOD_MAP: Record<string, Mood> = {
-  calm: Mood.CALM,
-  anxious: Mood.ANXIOUS,
-  depressed: Mood.DEPRESSED,
-  irritable: Mood.IRRITABLE,
-  energized: Mood.ENERGIZED,
-  neutral: Mood.NEUTRAL,
-}
 
 const SOURCE_MAP: Record<string, EntrySource> = {
   manual: EntrySource.MANUAL,
@@ -43,16 +34,14 @@ export class DailyJournalService {
         data: {
           userId,
           entryDate: new Date(dto.entryDate),
-          sleepHours:
-            dto.sleepHours != null
-              ? new Prisma.Decimal(dto.sleepHours)
-              : null,
-          sleepQuality: dto.sleepQuality ?? null,
-          awakenings: dto.awakenings ?? null,
-          bedtime: dto.bedtime ?? null,
-          wakeTime: dto.wakeTime ?? null,
-          symptoms: (dto.symptoms as JsonValue) ?? Prisma.JsonNull,
-          mood: dto.mood ? MOOD_MAP[dto.mood] : null,
+          systolicBP: dto.systolicBP ?? null,
+          diastolicBP: dto.diastolicBP ?? null,
+          weight: dto.weight != null ? new Prisma.Decimal(dto.weight) : null,
+          medicationTaken: dto.medicationTaken ?? null,
+          missedDoses: dto.missedDoses ?? null,
+          symptoms: dto.symptoms ?? [],
+          teachBackAnswer: dto.teachBackAnswer ?? null,
+          teachBackCorrect: dto.teachBackCorrect ?? null,
           notes: dto.notes ?? null,
           source: dto.source ? SOURCE_MAP[dto.source] : EntrySource.MANUAL,
           sourceMetadata: (dto.sourceMetadata as JsonValue) ?? Prisma.JsonNull,
@@ -63,9 +52,10 @@ export class DailyJournalService {
         userId,
         entryId: entry.id,
         entryDate: entry.entryDate,
-        sleepHours: entry.sleepHours != null ? Number(entry.sleepHours) : null,
-        sleepQuality: entry.sleepQuality,
-        awakenings: entry.awakenings,
+        systolicBP: entry.systolicBP,
+        diastolicBP: entry.diastolicBP,
+        weight: entry.weight != null ? Number(entry.weight) : null,
+        medicationTaken: entry.medicationTaken,
       })
 
       return {
@@ -103,19 +93,15 @@ export class DailyJournalService {
       const data: Prisma.JournalEntryUpdateInput = {}
 
       if (dto.entryDate !== undefined) data.entryDate = new Date(dto.entryDate)
-      if (dto.sleepHours !== undefined)
-        data.sleepHours =
-          dto.sleepHours != null ? new Prisma.Decimal(dto.sleepHours) : null
-      if (dto.sleepQuality !== undefined)
-        data.sleepQuality = dto.sleepQuality
-      if (dto.awakenings !== undefined)
-        data.awakenings = dto.awakenings
-      if (dto.bedtime !== undefined) data.bedtime = dto.bedtime
-      if (dto.wakeTime !== undefined) data.wakeTime = dto.wakeTime
-      if (dto.symptoms !== undefined)
-        data.symptoms = (dto.symptoms as JsonValue) ?? Prisma.JsonNull
-      if (dto.mood !== undefined)
-        data.mood = dto.mood ? MOOD_MAP[dto.mood] : null
+      if (dto.systolicBP !== undefined) data.systolicBP = dto.systolicBP
+      if (dto.diastolicBP !== undefined) data.diastolicBP = dto.diastolicBP
+      if (dto.weight !== undefined)
+        data.weight = dto.weight != null ? new Prisma.Decimal(dto.weight) : null
+      if (dto.medicationTaken !== undefined) data.medicationTaken = dto.medicationTaken
+      if (dto.missedDoses !== undefined) data.missedDoses = dto.missedDoses
+      if (dto.symptoms !== undefined) data.symptoms = dto.symptoms ?? []
+      if (dto.teachBackAnswer !== undefined) data.teachBackAnswer = dto.teachBackAnswer
+      if (dto.teachBackCorrect !== undefined) data.teachBackCorrect = dto.teachBackCorrect
       if (dto.notes !== undefined) data.notes = dto.notes
       if (dto.source !== undefined)
         data.source = dto.source ? SOURCE_MAP[dto.source] : EntrySource.MANUAL
@@ -131,10 +117,10 @@ export class DailyJournalService {
         userId,
         entryId: updated.id,
         entryDate: updated.entryDate,
-        sleepHours:
-          updated.sleepHours != null ? Number(updated.sleepHours) : null,
-        sleepQuality: updated.sleepQuality,
-        awakenings: updated.awakenings,
+        systolicBP: updated.systolicBP,
+        diastolicBP: updated.diastolicBP,
+        weight: updated.weight != null ? Number(updated.weight) : null,
+        medicationTaken: updated.medicationTaken,
       })
 
       return {
@@ -187,9 +173,9 @@ export class DailyJournalService {
             select: {
               id: true,
               computedForDate: true,
-              baselineSleepHours: true,
-              baselineSleepQuality: true,
-              baselineAwakenings: true,
+              baselineSystolic: true,
+              baselineDiastolic: true,
+              baselineWeight: true,
             },
           },
           deviationAlerts: {
@@ -215,29 +201,29 @@ export class DailyJournalService {
       data: entries.map((entry) => ({
         id: entry.id,
         entryDate: entry.entryDate,
-        sleepHours:
-          entry.sleepHours != null ? Number(entry.sleepHours) : null,
-        sleepQuality: entry.sleepQuality,
-        awakenings: entry.awakenings,
-        bedtime: entry.bedtime,
-        wakeTime: entry.wakeTime,
+        systolicBP: entry.systolicBP,
+        diastolicBP: entry.diastolicBP,
+        weight: entry.weight != null ? Number(entry.weight) : null,
+        medicationTaken: entry.medicationTaken,
+        missedDoses: entry.missedDoses,
         symptoms: entry.symptoms,
-        mood: entry.mood,
+        teachBackAnswer: entry.teachBackAnswer,
+        teachBackCorrect: entry.teachBackCorrect,
         notes: entry.notes,
         source: entry.source.toLowerCase(),
         sourceMetadata: entry.sourceMetadata,
         baseline: entry.snapshot
           ? {
               id: entry.snapshot.id,
-              baselineSleepHours: entry.snapshot.baselineSleepHours
-                ? Number(entry.snapshot.baselineSleepHours)
-                : 0,
-              baselineSleepQuality: entry.snapshot.baselineSleepQuality
-                ? Number(entry.snapshot.baselineSleepQuality)
-                : 0,
-              baselineAwakenings: entry.snapshot.baselineAwakenings
-                ? Number(entry.snapshot.baselineAwakenings)
-                : 0,
+              baselineSystolic: entry.snapshot.baselineSystolic
+                ? Number(entry.snapshot.baselineSystolic)
+                : null,
+              baselineDiastolic: entry.snapshot.baselineDiastolic
+                ? Number(entry.snapshot.baselineDiastolic)
+                : null,
+              baselineWeight: entry.snapshot.baselineWeight
+                ? Number(entry.snapshot.baselineWeight)
+                : null,
             }
           : null,
         deviations: entry.deviationAlerts.map((a) => ({
@@ -287,9 +273,9 @@ export class DailyJournalService {
           select: {
             id: true,
             entryDate: true,
-            sleepHours: true,
-            sleepQuality: true,
-            awakenings: true,
+            systolicBP: true,
+            diastolicBP: true,
+            weight: true,
           },
         },
       },
@@ -308,8 +294,8 @@ export class DailyJournalService {
         journalEntry: alert.journalEntry
           ? {
               ...alert.journalEntry,
-              sleepHours: alert.journalEntry.sleepHours != null
-                ? Number(alert.journalEntry.sleepHours)
+              weight: alert.journalEntry.weight != null
+                ? Number(alert.journalEntry.weight)
                 : null,
             }
           : null,
@@ -473,14 +459,14 @@ export class DailyJournalService {
         id: snapshot.id,
         userId: snapshot.userId,
         computedForDate: snapshot.computedForDate,
-        baselineSleepHours: snapshot.baselineSleepHours
-          ? Number(snapshot.baselineSleepHours)
+        baselineSystolic: snapshot.baselineSystolic
+          ? Number(snapshot.baselineSystolic)
           : null,
-        baselineSleepQuality: snapshot.baselineSleepQuality
-          ? Number(snapshot.baselineSleepQuality)
+        baselineDiastolic: snapshot.baselineDiastolic
+          ? Number(snapshot.baselineDiastolic)
           : null,
-        baselineAwakenings: snapshot.baselineAwakenings
-          ? Number(snapshot.baselineAwakenings)
+        baselineWeight: snapshot.baselineWeight
+          ? Number(snapshot.baselineWeight)
           : null,
         createdAt: snapshot.createdAt,
       },
@@ -491,13 +477,14 @@ export class DailyJournalService {
     id: string
     userId: string
     entryDate: Date
-    sleepHours: Prisma.Decimal | number | null
-    sleepQuality: number | null
-    awakenings: number | null
-    bedtime: string | null
-    wakeTime: string | null
-    symptoms: JsonValue
-    mood: Mood | null
+    systolicBP: number | null
+    diastolicBP: number | null
+    weight: Prisma.Decimal | number | null
+    medicationTaken: boolean | null
+    missedDoses: number | null
+    symptoms: string[]
+    teachBackAnswer: string | null
+    teachBackCorrect: boolean | null
     notes: string | null
     source: EntrySource
     sourceMetadata: JsonValue
@@ -509,13 +496,14 @@ export class DailyJournalService {
       id: entry.id,
       userId: entry.userId,
       entryDate: entry.entryDate,
-      sleepHours: entry.sleepHours != null ? Number(entry.sleepHours) : null,
-      sleepQuality: entry.sleepQuality,
-      awakenings: entry.awakenings,
-      bedtime: entry.bedtime,
-      wakeTime: entry.wakeTime,
+      systolicBP: entry.systolicBP,
+      diastolicBP: entry.diastolicBP,
+      weight: entry.weight != null ? Number(entry.weight) : null,
+      medicationTaken: entry.medicationTaken,
+      missedDoses: entry.missedDoses,
       symptoms: entry.symptoms,
-      mood: entry.mood ? entry.mood.toLowerCase() : null,
+      teachBackAnswer: entry.teachBackAnswer,
+      teachBackCorrect: entry.teachBackCorrect,
       notes: entry.notes,
       source: entry.source.toLowerCase(),
       sourceMetadata: entry.sourceMetadata,
