@@ -6,10 +6,11 @@ model BaselineSnapshot {
     // The date this baseline was computed for
     computedForDate DateTime @db.Date
 
-    // Rolling averages computed from past 14-day window (min 10 entries required)
-    baselineSleepHours   Decimal? @db.Decimal(5, 2)
-    baselineSleepQuality Decimal? @db.Decimal(4, 2)
-    baselineAwakenings   Decimal? @db.Decimal(4, 2)
+    // Rolling averages computed from past 7-day window
+    baselineSystolic  Decimal? @db.Decimal(5, 2)
+    baselineDiastolic Decimal? @db.Decimal(5, 2)
+    baselineWeight    Decimal? @db.Decimal(6, 2)
+    sampleSize        Int?     @default(7)
 
     createdAt DateTime @default(now())
 

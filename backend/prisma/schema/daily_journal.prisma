@@ -1,7 +1,8 @@
 enum DeviationType {
-    SLEEP_HOURS
-    SLEEP_QUALITY
-    AWAKENINGS
+    SYSTOLIC_BP
+    DIASTOLIC_BP
+    WEIGHT
+    MEDICATION_ADHERENCE
 }
 
 enum DeviationSeverity {
@@ -25,16 +26,11 @@ enum NotificationChannel {
 enum EscalationLevel {
     LEVEL_1
     LEVEL_2
-    LEVEL_3
 }
 
-enum Mood {
-    CALM
-    ANXIOUS
-    DEPRESSED
-    IRRITABLE
-    ENERGIZED
-    NEUTRAL
+enum CommunicationPreference {
+    TEXT_FIRST
+    AUDIO_FIRST
 }
 
 enum EntrySource {
@@ -49,19 +45,16 @@ model JournalEntry {
 
     entryDate DateTime @db.Date
 
-    // Sleep metrics (all optional — user may not fill every field)
-    sleepHours   Decimal? @db.Decimal(4, 2)
-    sleepQuality Int?
-    awakenings   Int?
-    bedtime      String?
-    wakeTime     String?
-
-    // Symptoms stored as flexible JSON
-    symptoms Json?
-
-    // Mood & Notes
-    mood  Mood?
-    notes String? @db.VarChar(500)
+    // Cardiovascular metrics (all optional — user may not fill every field)
+    systolicBP       Int?
+    diastolicBP      Int?
+    weight           Decimal?
+    medicationTaken  Boolean?
+    missedDoses      Int?      @default(0)
+    symptoms         String[]
+    teachBackAnswer  String?
+    teachBackCorrect Boolean?
+    notes            String?
 
     // Data source
     source         EntrySource @default(MANUAL)
