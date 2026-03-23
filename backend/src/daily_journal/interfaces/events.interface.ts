@@ -26,6 +26,7 @@ export interface BaselineComputedEvent {
   baselineWeight: number | null
   systolicBP: number
   diastolicBP: number
+  medicationTaken?: boolean | null
 }
 
 export interface BaselineUnavailableEvent {
@@ -34,6 +35,7 @@ export interface BaselineUnavailableEvent {
   entryDate: Date
   systolicBP: number
   diastolicBP: number
+  medicationTaken?: boolean | null
   reason: string
 }
 

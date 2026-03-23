@@ -9,7 +9,7 @@ import type {
   BaselineUnavailableEvent,
 } from '../interfaces/events.interface.js'
 
-type DeviationType = 'SLEEP_HOURS' | 'SLEEP_QUALITY' | 'AWAKENINGS'
+type DeviationType = 'SYSTOLIC_BP' | 'DIASTOLIC_BP' | 'WEIGHT' | 'MEDICATION_ADHERENCE'
 type DeviationSeverity = 'MEDIUM' | 'HIGH'
 
 interface DetectedDeviation {
@@ -31,18 +31,17 @@ export class DeviationService {
 
   /**
    * When baseline IS available (>= 10 entries in 14-day window):
-   * Check all 3 deviation types using baseline-relative + absolute thresholds.
+   * Check all deviation types using baseline-relative + absolute thresholds.
    */
   @OnEvent(JOURNAL_EVENTS.BASELINE_COMPUTED, { async: true })
   async handleBaselineComputed(payload: BaselineComputedEvent) {
     try {
       const deviations = this.detectDeviations({
-        sleepHours: payload.sleepHours,
-        sleepQuality: payload.sleepQuality,
-        awakenings: payload.awakenings,
-        baselineSleepHours: payload.baselineSleepHours,
-        baselineSleepQuality: payload.baselineSleepQuality,
-        baselineAwakenings: payload.baselineAwakenings,
+        systolicBP: payload.systolicBP,
+        diastolicBP: payload.diastolicBP,
+        medicationTaken: payload.medicationTaken ?? null,
+        baselineSystolic: payload.baselineSystolic,
+        baselineDiastolic: payload.baselineDiastolic,
         hasBaseline: true,
       })
 
@@ -70,19 +69,17 @@ export class DeviationService {
 
   /**
    * When baseline is NOT available (< 10 entries):
-   * Only check the absolute sleep hours threshold (< 5 = HIGH).
-   * Quality and awakening deviations require a baseline, so they're skipped.
+   * Only check absolute BP thresholds and medication adherence.
    */
   @OnEvent(JOURNAL_EVENTS.BASELINE_UNAVAILABLE, { async: true })
   async handleBaselineUnavailable(payload: BaselineUnavailableEvent) {
     try {
       const deviations = this.detectDeviations({
-        sleepHours: payload.sleepHours,
-        sleepQuality: payload.sleepQuality,
-        awakenings: payload.awakenings,
-        baselineSleepHours: 0,
-        baselineSleepQuality: 0,
-        baselineAwakenings: 0,
+        systolicBP: payload.systolicBP,
+        diastolicBP: payload.diastolicBP,
+        medicationTaken: payload.medicationTaken ?? null,
+        baselineSystolic: null,
+        baselineDiastolic: null,
         hasBaseline: false,
       })
 
@@ -170,89 +167,81 @@ export class DeviationService {
   }
 
   /**
-   * Two-track detection:
+   * SYSTOLIC_BP:
+   *   Fires if systolicBP > 160 (absolute) OR systolicBP > baseline + 20
+   *   severity: HIGH if > 180, MEDIUM otherwise
    *
-   * Sleep Hours:
-   *   Track B (absolute) — sleepHours < 5 → always HIGH (works with or without baseline)
-   *   Track A (baseline-relative) — sleepHours < baseline - 1.5 → HIGH if drop >= 2, else MEDIUM
+   * DIASTOLIC_BP:
+   *   Fires if diastolicBP > 100 (absolute) OR diastolicBP > baseline + 15
+   *   severity: HIGH if > 110, MEDIUM otherwise
    *
-   * Sleep Quality (baseline required):
-   *   quality < baseline - 3 → HIGH if drop >= 4, else MEDIUM
-   *
-   * Awakenings (baseline required):
-   *   awakenings >= 3 AND > baseline → HIGH if >= 5, else MEDIUM
+   * MEDICATION_ADHERENCE:
+   *   Fires if medicationTaken === false
+   *   severity: MEDIUM always
    */
   private detectDeviations(params: {
-    sleepHours: number
-    sleepQuality: number
-    awakenings: number
-    baselineSleepHours: number
-    baselineSleepQuality: number
-    baselineAwakenings: number
+    systolicBP: number
+    diastolicBP: number
+    medicationTaken: boolean | null
+    baselineSystolic: number | null
+    baselineDiastolic: number | null
     hasBaseline: boolean
   }): DetectedDeviation[] {
     const deviations: DetectedDeviation[] = []
 
-    // ── Sleep Hours ──────────────────────────────────────────────
+    // ── SYSTOLIC_BP ────────────────────────────────────────────────
+    {
+      const absoluteTrigger = params.systolicBP > 160
+      const relativeTrigger =
+        params.hasBaseline &&
+        params.baselineSystolic != null &&
+        params.systolicBP > params.baselineSystolic + 20
 
-    // Track B — absolute threshold (always active, even without baseline)
-    if (params.sleepHours < 5) {
-      deviations.push({
-        type: 'SLEEP_HOURS',
-        severity: 'HIGH',
-        magnitude: params.hasBaseline
-          ? Math.abs(params.baselineSleepHours - params.sleepHours)
-          : Math.abs(5 - params.sleepHours),
-        baselineValue: params.hasBaseline
-          ? params.baselineSleepHours
-          : null,
-        actualValue: params.sleepHours,
-      })
-    }
-    // Track A — baseline-relative (only when baseline exists, and Track B didn't fire)
-    else if (
-      params.hasBaseline &&
-      params.sleepHours < params.baselineSleepHours - 1.5
-    ) {
-      const drop = params.baselineSleepHours - params.sleepHours
-      deviations.push({
-        type: 'SLEEP_HOURS',
-        severity: drop >= 2 ? 'HIGH' : 'MEDIUM',
-        magnitude: Math.abs(drop),
-        baselineValue: params.baselineSleepHours,
-        actualValue: params.sleepHours,
-      })
-    }
-
-    // ── Sleep Quality (baseline required) ────────────────────────
-    if (params.hasBaseline) {
-      const qualityDrop =
-        params.baselineSleepQuality - params.sleepQuality
-      if (params.sleepQuality < params.baselineSleepQuality - 3) {
+      if (absoluteTrigger || relativeTrigger) {
         deviations.push({
-          type: 'SLEEP_QUALITY',
-          severity: qualityDrop >= 4 ? 'HIGH' : 'MEDIUM',
-          magnitude: Math.abs(qualityDrop),
-          baselineValue: params.baselineSleepQuality,
-          actualValue: params.sleepQuality,
+          type: 'SYSTOLIC_BP',
+          severity: params.systolicBP > 180 ? 'HIGH' : 'MEDIUM',
+          magnitude:
+            params.baselineSystolic != null
+              ? Math.abs(params.systolicBP - params.baselineSystolic)
+              : Math.abs(params.systolicBP - 160),
+          baselineValue: params.baselineSystolic,
+          actualValue: params.systolicBP,
         })
       }
     }
 
-    // ── Awakenings (baseline required) ───────────────────────────
-    if (params.hasBaseline) {
-      if (
-        params.awakenings >= 3 &&
-        params.awakenings > params.baselineAwakenings
-      ) {
+    // ── DIASTOLIC_BP ───────────────────────────────────────────────
+    {
+      const absoluteTrigger = params.diastolicBP > 100
+      const relativeTrigger =
+        params.hasBaseline &&
+        params.baselineDiastolic != null &&
+        params.diastolicBP > params.baselineDiastolic + 15
+
+      if (absoluteTrigger || relativeTrigger) {
         deviations.push({
-          type: 'AWAKENINGS',
-          severity: params.awakenings >= 5 ? 'HIGH' : 'MEDIUM',
-          magnitude: params.awakenings - params.baselineAwakenings,
-          baselineValue: params.baselineAwakenings,
-          actualValue: params.awakenings,
+          type: 'DIASTOLIC_BP',
+          severity: params.diastolicBP > 110 ? 'HIGH' : 'MEDIUM',
+          magnitude:
+            params.baselineDiastolic != null
+              ? Math.abs(params.diastolicBP - params.baselineDiastolic)
+              : Math.abs(params.diastolicBP - 100),
+          baselineValue: params.baselineDiastolic,
+          actualValue: params.diastolicBP,
         })
       }
+    }
+
+    // ── MEDICATION_ADHERENCE ───────────────────────────────────────
+    if (params.medicationTaken === false) {
+      deviations.push({
+        type: 'MEDICATION_ADHERENCE',
+        severity: 'MEDIUM',
+        magnitude: 1,
+        baselineValue: null,
+        actualValue: 0,
+      })
     }
 
     return deviations
@@ -307,7 +296,7 @@ export class DeviationService {
       })
 
       this.logger.log(
-        `Resolved ${openAlerts.length} open alert(s) for user ${userId} — sleep returned to normal`,
+        `Resolved ${openAlerts.length} open alert(s) for user ${userId} — BP returned to normal`,
       )
     }
   }
