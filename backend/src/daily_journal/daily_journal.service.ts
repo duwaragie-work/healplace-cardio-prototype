@@ -440,7 +440,11 @@ export class DailyJournalService {
 
   async getLatestBaseline(userId: string) {
     const snapshot = await this.prisma.baselineSnapshot.findFirst({
-      where: { userId },
+      where: {
+        userId,
+        baselineSystolic: { gt: 0 },
+        baselineDiastolic: { gt: 0 },
+      },
       orderBy: { computedForDate: 'desc' },
     })
 

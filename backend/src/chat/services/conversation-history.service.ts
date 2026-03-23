@@ -19,6 +19,8 @@ export class ConversationHistoryService {
     query: string,
   ): Promise<[string, string][]> {
     try {
+      if (!query?.trim()) return []
+
       const embeddingResponse = await this.mistralService.getEmbeddings(query)
       const queryEmbedding = embeddingResponse.data[0]?.embedding
       if (!queryEmbedding) return []
@@ -68,6 +70,8 @@ export class ConversationHistoryService {
   ): Promise<void> {
     try {
       const memoryContent = `Human: ${userMessage}\nAI: ${aiResponse}`
+      if (!memoryContent.trim()) return
+
       const embeddingResponse = await this.mistralService.getEmbeddings(memoryContent)
       const embedding = embeddingResponse.data[0]?.embedding
 

@@ -17,12 +17,12 @@ describe('DeviationService', () => {
   beforeEach(async () => {
     prisma = {
       deviationAlert: {
-        upsert: jest.fn().mockResolvedValue({ id: 'alert-1', escalated: false }),
-        findMany: jest.fn().mockResolvedValue([]),
-        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        upsert: (jest.fn() as jest.Mock<any>).mockResolvedValue({ id: 'alert-1', escalated: false }),
+        findMany: (jest.fn() as jest.Mock<any>).mockResolvedValue([]),
+        updateMany: (jest.fn() as jest.Mock<any>).mockResolvedValue({ count: 0 }),
       },
       journalEntry: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findUnique: (jest.fn() as jest.Mock<any>).mockResolvedValue(null),
       },
     }
     eventEmitter = { emit: jest.fn() }

@@ -1,10 +1,10 @@
 import {
   IsArray,
   IsBoolean,
-  IsDecimal,
   IsInt,
   IsIn,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -62,7 +62,9 @@ export class CreateJournalEntryDto {
   diastolicBP?: number
 
   @IsOptional()
-  @IsDecimal()
+  @IsNumber()
+  @Min(20)
+  @Max(300)
   weight?: number
 
   @IsOptional()

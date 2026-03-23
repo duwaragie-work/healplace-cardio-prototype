@@ -18,11 +18,11 @@ describe('BaselineService', () => {
   beforeEach(async () => {
     prisma = {
       journalEntry: {
-        findMany: jest.fn().mockResolvedValue([]),
-        update: jest.fn().mockResolvedValue({}),
+        findMany: (jest.fn() as jest.Mock<any>).mockResolvedValue([]),
+        update: (jest.fn() as jest.Mock<any>).mockResolvedValue({}),
       },
       baselineSnapshot: {
-        upsert: jest.fn().mockResolvedValue({ id: 'snapshot-1' }),
+        upsert: (jest.fn() as jest.Mock<any>).mockResolvedValue({ id: 'snapshot-1' }),
       },
     }
     eventEmitter = { emit: jest.fn() }

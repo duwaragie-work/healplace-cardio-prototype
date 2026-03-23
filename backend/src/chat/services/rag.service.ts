@@ -16,6 +16,8 @@ export class RagService {
    */
   async retrieveDocuments(query: string, k = 10): Promise<Document[]> {
     try {
+      if (!query?.trim()) return []
+
       const embeddingResponse = await this.mistralService.getEmbeddings(query)
       const queryEmbedding = embeddingResponse.data[0]?.embedding
       if (!queryEmbedding) {

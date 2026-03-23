@@ -15,17 +15,17 @@ describe('EscalationService', () => {
   beforeEach(async () => {
     prisma = {
       deviationAlert: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: (jest.fn() as jest.Mock<any>).mockResolvedValue({
           journalEntry: {
             systolicBP: 170,
             diastolicBP: 105,
             symptoms: [],
           },
         }),
-        update: jest.fn().mockResolvedValue({}),
+        update: (jest.fn() as jest.Mock<any>).mockResolvedValue({}),
       },
       escalationEvent: {
-        create: jest.fn().mockResolvedValue({ id: 'esc-1' }),
+        create: (jest.fn() as jest.Mock<any>).mockResolvedValue({ id: 'esc-1' }),
       },
     }
     eventEmitter = { emit: jest.fn() }
