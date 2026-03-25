@@ -9,6 +9,7 @@ import {
   shouldShowOnboardingForUser,
 } from "@/lib/onboarding";
 import Image from "next/image";
+import Logo from "@/components/Logo";
 import { CheckCircle2 } from "lucide-react";
 import SpinnerIndicator from "@/components/ui/SpinnerIndicator";
 
@@ -26,7 +27,7 @@ export default function OnboardingPage() {
   const { user, isLoading, logout, markOnboardingComplete } = useAuth();
   const [name, setName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
-  const [stage, setStage] = useState("");
+  const [primaryCondition, setPrimaryCondition] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -34,7 +35,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      router.replace("/welcome");
+      router.replace("/register");
       return;
     }
 
@@ -54,7 +55,7 @@ export default function OnboardingPage() {
         });
       }
       setIsRedirecting(true);
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [user, isLoading, router]);
 
@@ -74,7 +75,7 @@ export default function OnboardingPage() {
     return true;
   }
 
-  const isFormPartiallyFilled = name.trim() !== "" || dateOfBirth !== "" || stage !== "";
+  const isFormPartiallyFilled = name.trim() !== "" || dateOfBirth !== "" || primaryCondition !== "";
 
   if (isLoading || !user || isRedirecting) {
     return <SpinnerIndicator />;
@@ -85,7 +86,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     try {
       if (!user) {
-        router.push("/welcome");
+        router.push("/register");
         return;
       }
       const timezone = getBrowserTimezone();
@@ -109,7 +110,7 @@ export default function OnboardingPage() {
       }
 
       markOnboardingComplete();
-      router.push("/");
+      router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete onboarding");
       setIsSubmitting(false);
@@ -125,14 +126,14 @@ export default function OnboardingPage() {
     await submitProfile({
       name: name.trim() || null,
       dateOfBirth: dateOfBirth || null,
-      menopauseStage: stage || null,
+      primaryCondition: primaryCondition || null,
     });
   }
 
   async function handleSkip() {
     if (isSubmitting) return;
     if (!user) {
-      router.push("/welcome");
+      router.push("/register");
       return;
     }
     if (typeof window !== "undefined") {
@@ -140,7 +141,13 @@ export default function OnboardingPage() {
       console.debug("[onboarding] skip clicked", { userId: user.id });
     }
     markOnboardingSkipped(user.id);
-    router.push("/");
+    // Fire-and-forget: persist skip to backend without blocking navigation
+    fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/auth/profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: null }),
+    }).catch(() => {});
+    router.push("/dashboard");
   }
 
   return (
@@ -150,27 +157,17 @@ export default function OnboardingPage() {
           {/* Left side - Form */}
           <div className="flex-1 w-full max-w-105 lg:max-w-130">
             {/* Logo */}
-            <div className="mb-8 flex items-center gap-3">
-              <Image
-                src="/logo.svg"
-                alt="Healplace logo"
-                width={40}
-                height={40}
-                className="h-10 w-10 lg:h-12 lg:w-12"
-                priority
-              />
-              <span className="font-semibold text-dark-blue-500 text-xl lg:text-3xl tracking-[-0.5px]">
-                Healplace
-              </span>
+            <div className="mb-8">
+              <Logo />
             </div>
 
             {/* Heading */}
             <div className="mb-10">
               <h1 className="font-semibold text-[#171717] text-3xl lg:text-4xl tracking-[-0.04em] mb-3">
-                Basic Profile Info
+                Tell Us About Your Health
               </h1>
               <p className="text-[#4b5563] text-sm lg:text-base leading-relaxed max-w-105">
-                Let&apos;s get to know you better to personalize your experience.
+                Help us personalise your cardiovascular monitoring experience.
               </p>
             </div>
 
@@ -186,7 +183,7 @@ export default function OnboardingPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-dark-blue-500 focus:border-transparent transition-all"
+                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
                 />
               </div>
 
@@ -199,25 +196,26 @@ export default function OnboardingPage() {
                   type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-dark-blue-500 focus:border-transparent transition-all"
+                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
                 />
               </div>
 
-              {/* Menopause stage */}
+              {/* Primary health concern */}
               <div className="w-full max-w-105">
                 <label className="block font-semibold text-[#171717] text-xs lg:text-sm mb-2">
-                  Which stage describes you best?
+                  Primary health concern
                 </label>
                 <select
-                  value={stage}
-                  onChange={(e) => setStage(e.target.value)}
-                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-dark-blue-500 focus:border-transparent transition-all appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%228%22%20viewBox%3D%220%200%2012%208%22%3E%3cpath%20fill%3D%22%23171717%22%20d%3D%22M6%208L0%200h12z%22%2F%3E%3c%2Fsvg%3E')] bg-size-[12px] bg-position-[center_right_1rem] bg-no-repeat"
+                  value={primaryCondition}
+                  onChange={(e) => setPrimaryCondition(e.target.value)}
+                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%228%22%20viewBox%3D%220%200%2012%208%22%3E%3cpath%20fill%3D%22%23171717%22%20d%3D%22M6%208L0%200h12z%22%2F%3E%3c%2Fsvg%3E')] bg-size-[12px] bg-position-[center_right_1rem] bg-no-repeat"
                 >
-                  <option value="">Select your stage</option>
-                  <option value="PERIMENOPAUSE">Perimenopause</option>
-                  <option value="MENOPAUSE">Menopause</option>
-                  <option value="POSTMENOPAUSE">Postmenopause</option>
-                  <option value="UNKNOWN">Unknown</option>
+                  <option value="">Select your condition</option>
+                  <option value="hypertension">Hypertension (High Blood Pressure)</option>
+                  <option value="heart_disease">Heart Disease</option>
+                  <option value="diabetes_cardiac">Diabetes with Cardiac Risk</option>
+                  <option value="high_cholesterol">High Cholesterol</option>
+                  <option value="other">Other cardiovascular concern</option>
                 </select>
               </div>
 
@@ -236,7 +234,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleContinue}
                   disabled={!isFormPartiallyFilled || isSubmitting}
-                  className="w-full h-12 lg:h-14 bg-dark-blue-500 rounded-full shadow-[0px_10px_15px_-3px_rgba(108,0,209,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#5a00b1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full h-12 lg:h-14 bg-[#7B00E0] rounded-full shadow-[0px_10px_15px_rgba(123,0,224,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#6600BC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? "Saving..." : "Continue"}
                 </button>
@@ -257,7 +255,7 @@ export default function OnboardingPage() {
             <div className="bg-linear-to-br from-[#f3e8ff] to-[#e9d5ff] rounded-3xl md:p-6 lg:p-10 md:w-80 md:h-80 lg:w-105 lg:h-auto flex">
               <div className="space-y-4 my-auto w-full">
                 <div className="flex items-center gap-3">
-                  <div className="bg-dark-blue-500 size-12 lg:size-16 rounded-2xl flex items-center justify-center">
+                  <div className="bg-[#7B00E0] size-12 lg:size-16 rounded-2xl flex items-center justify-center">
                     <svg className="w-6 h-6 lg:w-8 lg:h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path
                         strokeLinecap="round"
@@ -267,31 +265,30 @@ export default function OnboardingPage() {
                     </svg>
                   </div>
                   <h3 className="font-bold text-[#170c1d] text-base md:text-lg lg:text-2xl">
-                    Personalized Care
+                    Personalised Cardio Care
                   </h3>
                 </div>
                 <p className="text-[#4b3b55] text-xs md:text-sm lg:text-base leading-relaxed">
-                  We use your profile to provide tailored health insights, symptom tracking, and recommendations designed for your
-                  unique journey.
+                  We use your profile to monitor your cardiovascular health, track blood pressure patterns, and keep your care team informed.
                 </p>
                 <div className="space-y-3 pt-2">
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
-                    <p className="text-[#4b3b55] text-xs md:text-sm">Stage-specific content &amp; resources</p>
+                    <p className="text-[#4b3b55] text-xs md:text-sm">Daily BP monitoring and trend analysis</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
-                    <p className="text-[#4b3b55] text-xs md:text-sm">Customized symptom monitoring</p>
+                    <p className="text-[#4b3b55] text-xs md:text-sm">Medication adherence tracking</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
-                    <p className="text-[#4b3b55] text-xs md:text-sm">Age-appropriate health tips</p>
+                    <p className="text-[#4b3b55] text-xs md:text-sm">Care team alerts when readings are elevated</p>
                   </div>
                 </div>
               </div>

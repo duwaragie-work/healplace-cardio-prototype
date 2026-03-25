@@ -143,7 +143,7 @@ export default function AlertPanel({
           >
             <div className="flex items-start gap-3">
               <div
-                className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
+                className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold shrink-0"
                 style={{ backgroundColor: textColor }}
               >
                 {alert.initials}
@@ -208,7 +208,7 @@ export default function AlertPanel({
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <div
-                      className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0"
+                      className="w-1.5 h-1.5 rounded-full mt-1.75 shrink-0"
                       style={{ backgroundColor: textColor }}
                     />
                     <p
@@ -419,7 +419,7 @@ export default function AlertPanel({
         transition={SPRING}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div
             className="w-10 h-1 rounded-full"
             style={{ backgroundColor: 'var(--brand-border)' }}

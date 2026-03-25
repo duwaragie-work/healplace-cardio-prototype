@@ -225,7 +225,7 @@ export default function ScheduleModal({
                               : 'var(--brand-text-secondary)',
                         }}
                       >
-                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <Icon className="w-4 h-4 shrink-0" />
                         <span className="text-sm font-semibold">{label}</span>
                       </button>
                     ))}
@@ -245,7 +245,7 @@ export default function ScheduleModal({
                       <button
                         key={day.value}
                         onClick={() => setSelectedDate(day.value)}
-                        className="flex-shrink-0 flex flex-col items-center px-3 py-2.5 rounded-xl border-2 transition-all min-w-[64px]"
+                        className="shrink-0 flex flex-col items-center px-3 py-2.5 rounded-xl border-2 transition-all min-w-[64px]"
                         style={{
                           borderColor:
                             selectedDate === day.value

@@ -1037,6 +1037,9 @@ export class AuthService {
     if (dto.preferredLanguage !== undefined) patch.preferredLanguage = dto.preferredLanguage
     if (dto.riskTier !== undefined) patch.riskTier = dto.riskTier
     if (dto.communicationPreference !== undefined) patch.communicationPreference = dto.communicationPreference
+    if (dto.diagnosisDate !== undefined) {
+      patch.diagnosisDate = dto.diagnosisDate ? new Date(dto.diagnosisDate) : null
+    }
 
     return patch
   }
@@ -1059,6 +1062,7 @@ export class AuthService {
         preferredLanguage: true,
         riskTier: true,
         primaryCondition: true,
+        diagnosisDate: true,
         timezone: true,
         createdAt: true,
       },
@@ -1078,6 +1082,9 @@ export class AuthService {
       createdAt: user.createdAt.toISOString(),
       dateOfBirth: user.dateOfBirth
         ? user.dateOfBirth.toISOString().slice(0, 10)
+        : null,
+      diagnosisDate: user.diagnosisDate
+        ? user.diagnosisDate.toISOString().slice(0, 10)
         : null,
       communicationPreference: user.communicationPreference,
       preferredLanguage: user.preferredLanguage,

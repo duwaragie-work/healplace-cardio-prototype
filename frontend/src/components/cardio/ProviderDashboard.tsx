@@ -21,19 +21,11 @@ import {
   Settings,
 } from 'lucide-react';
 import { useState } from 'react';
+import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
 import AlertPanel, { type Alert } from './AlertPanel';
 import ScheduleModal, { type ScheduleDetails } from './ScheduleModal';
 
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 48" fill="none">
-      <rect width="48" height="48" rx="12" fill="#7B00E0" />
-      <path d="M24 14C20 14 17 17.5 17 21c0 7 7 13 7 13s7-6 7-13c0-3.5-3-7-7-7z" fill="white" />
-      <path d="M12 26h6l2-4 3 8 2-6 3 4h8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
 
 const bpTrendData = [
   { day: 'Mon', systolic: 155, id: 1 },
@@ -123,7 +115,7 @@ export default function ProviderDashboard() {
       >
         <div className="p-6">
           <div className="flex items-center gap-3 mb-2">
-            <LogoIcon className="w-10 h-10" />
+            <Image src="/logo.svg" alt="Healplace logo" width={40} height={40} className="w-10 h-10" />
             <span
               className="text-xl font-bold"
               style={{ color: 'var(--brand-primary-purple)' }}
@@ -233,7 +225,7 @@ export default function ProviderDashboard() {
           )}
         </button>
         <div className="flex items-center gap-2">
-          <LogoIcon className="w-8 h-8" />
+          <Image src="/logo.svg" alt="Healplace logo" width={32} height={32} className="w-8 h-8" />
           <span className="font-bold text-lg" style={{ color: 'var(--brand-primary-purple)' }}>
             Healplace
           </span>
@@ -559,7 +551,7 @@ export default function ProviderDashboard() {
               <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Last 7 Days</span>
             </div>
 
-            <div className="h-[200px] relative">
+            <div className="h-50 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={bpTrendData}>
                   <defs>

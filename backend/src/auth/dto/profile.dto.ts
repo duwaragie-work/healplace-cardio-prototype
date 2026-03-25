@@ -63,6 +63,15 @@ export class ProfileDto {
   @IsString()
   primaryCondition?: string
 
+  /** Date of diagnosis as YYYY-MM-DD. Must be a past date. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'diagnosisDate must be in YYYY-MM-DD format',
+  })
+  @IsDateInPast()
+  diagnosisDate?: string | null
+
   /** Preferred language code (e.g. "en", "es"). */
   @IsOptional()
   @IsString()

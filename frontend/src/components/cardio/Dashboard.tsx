@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   AreaChart,
@@ -20,30 +21,6 @@ import {
   User,
 } from 'lucide-react';
 
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="48" height="48" rx="12" fill="#7B00E0" />
-      <path
-        d="M24 14C20 14 17 17.5 17 21c0 7 7 13 7 13s7-6 7-13c0-3.5-3-7-7-7z"
-        fill="white"
-      />
-      <path
-        d="M12 26h6l2-4 3 8 2-6 3 4h8"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
 
 const bpData = [
   { day: 'Mon', systolic: 145, diastolic: 92 },
@@ -69,7 +46,7 @@ export default function Dashboard() {
         style={{ borderBottom: '1px solid var(--brand-border)' }}
       >
         <Link href="/dashboard" className="flex items-center gap-3">
-          <LogoIcon className="w-10 h-10" />
+          <Image src="/logo.svg" alt="Healplace logo" width={40} height={40} className="w-10 h-10" />
           <span
             className="hidden md:block text-xl font-bold"
             style={{ color: 'var(--brand-primary-purple)' }}
@@ -80,8 +57,8 @@ export default function Dashboard() {
 
         {/* Center: Nav Links (Desktop) */}
         <div className="hidden lg:flex items-center gap-8">
-          <a
-            href="#"
+          <Link
+            href="/dashboard"
             className="text-sm pb-1 relative"
             style={{ color: 'var(--brand-primary-purple)', fontWeight: 600 }}
           >
@@ -90,7 +67,7 @@ export default function Dashboard() {
               className="absolute bottom-0 left-0 right-0 h-0.5"
               style={{ backgroundColor: 'var(--brand-primary-purple)' }}
             />
-          </a>
+          </Link>
           <button
             className="text-sm"
             style={{ color: 'var(--brand-text-secondary)', fontWeight: 600 }}
@@ -112,13 +89,13 @@ export default function Dashboard() {
           >
             History
           </a>
-          <a
-            href="#"
+          <Link
+            href="/profile"
             className="text-sm"
             style={{ color: 'var(--brand-text-secondary)', fontWeight: 600 }}
           >
             Profile
-          </a>
+          </Link>
         </div>
 
         {/* Right: Bell + Avatar */}
@@ -135,17 +112,18 @@ export default function Dashboard() {
               1
             </span>
           </button>
-          <div
+          <Link
+            href="/profile"
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
             style={{ backgroundColor: 'var(--brand-primary-purple)' }}
           >
             MJ
-          </div>
+          </Link>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-8">
+      <main className="max-w-300 mx-auto px-4 md:px-8 py-6 md:py-8 pb-24 md:pb-8">
         {/* ROW 1 - Greeting + Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5 mb-5">
           {/* Greeting Card */}
@@ -504,7 +482,7 @@ export default function Dashboard() {
             Chat
           </span>
         </Link>
-        <button className="flex flex-col items-center gap-1">
+        <Link href="/profile" className="flex flex-col items-center gap-1">
           <User
             className="w-5 h-5"
             style={{ color: 'var(--brand-text-muted)' }}
@@ -515,7 +493,7 @@ export default function Dashboard() {
           >
             Profile
           </span>
-        </button>
+        </Link>
       </nav>
     </div>
   );

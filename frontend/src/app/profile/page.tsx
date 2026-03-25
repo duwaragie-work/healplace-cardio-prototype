@@ -10,7 +10,6 @@ import {
   LogOut,
   Pencil,
   Save,
-  Shield,
   Star,
   X,
 } from "lucide-react";
@@ -19,54 +18,46 @@ import SpinnerIndicator from "@/components/ui/SpinnerIndicator";
 import { useAuth } from "@/lib/auth-context";
 import { fetchWithAuth } from "@/lib/services/token";
 
-type MenopauseStage = "PERIMENOPAUSE" | "MENOPAUSE" | "POSTMENOPAUSE" | "UNKNOWN";
+type PrimaryCondition = "hypertension" | "heart_disease" | "diabetes_cardiac" | "high_cholesterol" | "other" | "";
 
-type NotificationPreferences = {
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  reviewReminders: boolean;
-  contentUpdates: boolean;
-  weeklyDigest: boolean;
-  symptomReminders: boolean;
-  sleepReminders: boolean;
-  dailyCheckins: boolean;
-};
+type AccountStatus = "active" | "blocked" | "suspended";
 
 type User = {
-  userId: number;
+  id: string;
   email: string;
-  passwordHash: string;
   createdAt: string;
-  lastLogin: string;
 
   // Demographics & profile
   name: string;
   dateOfBirth: string;
-  menopauseStage: MenopauseStage;
+  primaryCondition: PrimaryCondition;
+  communicationPreference: string | null;
+  preferredLanguage: string;
+  riskTier: string;
   timezone: string;
-  locale: string;
-
-  // Preferences & settings (not returned by GET /profile in Phase 1)
-  notificationPreferences: NotificationPreferences;
-  safeplaceEnabled: boolean;
-  consentResearch: boolean;
+  diagnosisDate: string | null;
 
   // Metadata & audit
-  accountStatus: "active" | "suspended" | "deleted" | "pending_verification";
+  accountStatus: AccountStatus;
   emailVerified: boolean;
   roles: string[];
 };
 
 type ProfileGetResponse = {
+  id?: string;
   email?: string;
   name?: string;
   roles?: string[];
   emailVerified?: boolean;
-  accountStatus?: "active" | "suspended" | "deleted" | "pending_verification";
+  accountStatus?: AccountStatus;
   createdAt?: string;
-  dateOfBirth?: string;
-  menopauseStage?: string;
+  dateOfBirth?: string | null;
+  primaryCondition?: string;
+  communicationPreference?: string | null;
+  preferredLanguage?: string;
+  riskTier?: string;
   timezone?: string;
+  diagnosisDate?: string | null;
   onboardingStatus?: string;
 };
 
@@ -74,34 +65,24 @@ type ProfilePatchResponse = {
   message?: string;
   name?: string;
   dateOfBirth?: string;
-  menopauseStage?: string;
+  primaryCondition?: string;
+  communicationPreference?: string | null;
+  preferredLanguage?: string;
   timezone?: string;
   onboardingStatus?: string;
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-function normalizeMenopauseStage(stage: unknown): MenopauseStage | null {
-  if (typeof stage !== "string") return null;
-  const normalized = stage.toUpperCase();
-  if (normalized === "PERIMENOPAUSE") return "PERIMENOPAUSE";
-  if (normalized === "MENOPAUSE") return "MENOPAUSE";
-  if (normalized === "POSTMENOPAUSE") return "POSTMENOPAUSE";
-  if (normalized === "UNKNOWN") return "UNKNOWN";
-  return null;
-}
-
-function formatMenopauseStage(stage: MenopauseStage): string {
-  switch (stage) {
-    case "PERIMENOPAUSE":
-      return "Perimenopause";
-    case "MENOPAUSE":
-      return "Menopause";
-    case "POSTMENOPAUSE":
-      return "Postmenopause";
-    default:
-      return "Unknown";
-  }
+function formatPrimaryCondition(condition: string): string {
+  const labels: Record<string, string> = {
+    hypertension: "Hypertension (High Blood Pressure)",
+    heart_disease: "Heart Disease",
+    diabetes_cardiac: "Diabetes with Cardiac Risk",
+    high_cholesterol: "High Cholesterol",
+    other: "Other cardiovascular concern",
+  };
+  return labels[condition] || toTitleCase(condition || "N/A");
 }
 
 function toTitleCase(input: string) {
@@ -115,53 +96,61 @@ function formatRoleLabel(role: string) {
   return toTitleCase(role);
 }
 
-function formatAccountStatus(status: User["accountStatus"]) {
-  return toTitleCase(status);
+function formatCommunicationPreference(pref: string | null | undefined): string {
+  if (pref === "TEXT_FIRST") return "Text / Chat";
+  if (pref === "AUDIO_FIRST") return "Audio / Voice";
+  return "Not set";
 }
 
-function accountStatusDotClass(status: User["accountStatus"]) {
+function accountStatusDotClass(status: AccountStatus) {
   if (status === "active") return "bg-[#16a34a]";
   if (status === "suspended") return "bg-[#f59e0b]";
-  if (status === "deleted") return "bg-[#dc2626]";
+  if (status === "blocked") return "bg-[#dc2626]";
   return "bg-[#3b82f6]";
 }
 
+function RiskTierBadge({ tier }: { tier: string | null | undefined }) {
+  if (tier === "HIGH")
+    return (
+      <span className="px-3 py-1 bg-[#dc2626] text-white text-xs font-bold rounded-full">
+        High Risk
+      </span>
+    );
+  if (tier === "ELEVATED")
+    return (
+      <span className="px-3 py-1 bg-[#f59e0b] text-white text-xs font-bold rounded-full">
+        Elevated
+      </span>
+    );
+  return (
+    <span className="px-3 py-1 bg-[#16a34a] text-white text-xs font-bold rounded-full">
+      Standard
+    </span>
+  );
+}
+
 const initialUserData: User = {
-  userId: 9482,
-  email: "jane.doe@example.com",
-  passwordHash: "",
-  createdAt: "2023-01-12T10:30:00Z",
-  lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  id: "",
+  email: "",
+  createdAt: "",
 
-  name: "Jane Alisha Doe",
-  dateOfBirth: "1978-05-14",
-  menopauseStage: "PERIMENOPAUSE",
-  timezone: "America/Los_Angeles",
-  locale: "en-US",
-
-  // Hardcoded UI-only fields (kept until backend provides them)
-  notificationPreferences: {
-    emailNotifications: true,
-    pushNotifications: true,
-    reviewReminders: true,
-    contentUpdates: false,
-    weeklyDigest: true,
-    symptomReminders: true,
-    sleepReminders: true,
-    dailyCheckins: true,
-  },
-  safeplaceEnabled: true,
-  consentResearch: true,
+  name: "",
+  dateOfBirth: "",
+  primaryCondition: "",
+  communicationPreference: null,
+  preferredLanguage: "English",
+  riskTier: "STANDARD",
+  timezone: "",
+  diagnosisDate: null,
 
   accountStatus: "active",
-  emailVerified: true,
-  roles: ["content_admin", "content_editor"],
+  emailVerified: false,
+  roles: [],
 };
 
 export default function Profile() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading, logout, markOnboardingComplete } = useAuth();
-  const isGuest = user?.role === "GUEST";
 
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState<User>(initialUserData);
@@ -174,27 +163,14 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const updateNotificationPreference = (
-    key: keyof NotificationPreferences,
-    value: boolean,
-  ) => {
+  const updatePrimaryCondition = (condition: PrimaryCondition) => {
     setUserData((prev) => ({
       ...prev,
-      notificationPreferences: {
-        ...prev.notificationPreferences,
-        [key]: value,
-      },
+      primaryCondition: condition,
     }));
   };
 
-  const updateMenopauseStage = (stage: MenopauseStage) => {
-    setUserData((prev) => ({
-      ...prev,
-      menopauseStage: stage,
-    }));
-  };
-
-  const formatDate = (dateString?: string) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -211,21 +187,7 @@ export default function Profile() {
     });
   };
 
-  const formatRelativeTime = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-
-    if (diffHours < 1) return "Just now";
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return formatDate(dateString);
-  };
-
-  const toDateInputValue = (raw?: string) => {
+  const toDateInputValue = (raw?: string | null) => {
     if (!raw) return "";
     const d = new Date(raw);
     if (Number.isNaN(d.getTime())) return raw;
@@ -234,11 +196,10 @@ export default function Profile() {
 
   useEffect(() => {
     if (isAuthLoading) return;
-    if (!user || isGuest) {
-      // Keep guests out of the profile screen.
-      router.replace("/");
+    if (!user) {
+      router.replace("/register");
     }
-  }, [isAuthLoading, user, isGuest, router]);
+  }, [isAuthLoading, user, router]);
 
   useEffect(() => {
     // Prefer browser-provided IANA list; only runs client-side.
@@ -269,7 +230,7 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    if (!user || isGuest) return;
+    if (!user) return;
     if (!API_BASE_URL) {
       setLoadError("Missing API configuration.");
       return;
@@ -299,11 +260,9 @@ export default function Profile() {
         const data: ProfileGetResponse = await res.json();
 
         setUserData((prev) => {
-          const nextMenopause =
-            normalizeMenopauseStage(data.menopauseStage) ?? "UNKNOWN";
-
           const next: User = {
             ...prev,
+            id: data.id ?? "",
             email: data.email ?? "",
             name: data.name ?? "",
             roles: Array.isArray(data.roles) ? data.roles : [],
@@ -311,11 +270,15 @@ export default function Profile() {
               typeof data.emailVerified === "boolean"
                 ? data.emailVerified
                 : false,
-            accountStatus: data.accountStatus ?? "pending_verification",
+            accountStatus: data.accountStatus ?? "active",
             createdAt: data.createdAt ?? "",
             dateOfBirth: data.dateOfBirth ?? "",
-            menopauseStage: nextMenopause,
+            primaryCondition: (data.primaryCondition as PrimaryCondition) ?? "",
+            communicationPreference: data.communicationPreference ?? null,
+            preferredLanguage: data.preferredLanguage ?? "English",
+            riskTier: data.riskTier ?? "STANDARD",
             timezone: data.timezone ?? "",
+            diagnosisDate: data.diagnosisDate ?? null,
           };
 
           setServerSnapshot(next);
@@ -332,7 +295,7 @@ export default function Profile() {
 
     void fetchProfile();
     return () => controller.abort();
-  }, [user, isGuest, router]);
+  }, [user, router]);
 
   const handleCancelEdit = () => {
     setSaveError(null);
@@ -363,7 +326,9 @@ export default function Profile() {
       const payload: Record<string, unknown> = {
         name: userData.name,
         dateOfBirth: toDateInputValue(userData.dateOfBirth),
-        menopauseStage: userData.menopauseStage,
+        primaryCondition: userData.primaryCondition,
+        preferredLanguage: userData.preferredLanguage || undefined,
+        communicationPreference: userData.communicationPreference || undefined,
         ...(timezoneLooksValid ? { timezone: userData.timezone } : {}),
       };
 
@@ -386,14 +351,14 @@ export default function Profile() {
       }
 
       const data: ProfilePatchResponse = await res.json();
-      const nextMenopause =
-        normalizeMenopauseStage(data.menopauseStage) ?? userData.menopauseStage;
 
       const next: User = {
         ...userData,
         name: data.name ?? userData.name,
         dateOfBirth: data.dateOfBirth ?? userData.dateOfBirth,
-        menopauseStage: nextMenopause,
+        primaryCondition: (data.primaryCondition as PrimaryCondition) ?? userData.primaryCondition,
+        communicationPreference: data.communicationPreference !== undefined ? data.communicationPreference : userData.communicationPreference,
+        preferredLanguage: data.preferredLanguage ?? userData.preferredLanguage,
         timezone: data.timezone ?? userData.timezone,
       };
 
@@ -438,7 +403,7 @@ export default function Profile() {
           <div className="px-6 lg:px-8 py-6">
             <div className="flex items-end justify-between">
               <h1 className="text-h5 font-bold text-[#0a0a0a] leading-9">
-                My Profile
+                Your Health Profile
               </h1>
               <button
                 onClick={logout}
@@ -472,12 +437,12 @@ export default function Profile() {
                   {/* Info */}
                   <div className="space-y-1">
                     <h2 className="text-2xl font-bold text-[#0f172a]">
-                      {userData.name}
+                      {userData.name || "No name set"}
                     </h2>
-                    <p className="text-base font-medium text-dark-blue-500">
+                    <p className="text-base font-medium text-[#7B00E0]">
                       {userData.roles.length
                         ? userData.roles.map(formatRoleLabel).join(" / ")
-                        : "N/A"}
+                        : "Patient"}
                     </p>
                     <div className="flex items-center gap-4 pt-2">
                       <div className="flex items-center gap-1">
@@ -507,7 +472,7 @@ export default function Profile() {
                           }}
                         />
                         <span className="text-sm text-[#94a3b8]">
-                          {userData.emailVerified ? "Verified Editor" : "Unverified"}
+                          {userData.emailVerified ? "Verified" : "Unverified"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -517,7 +482,7 @@ export default function Profile() {
                           )}`}
                         />
                         <span className="text-sm font-medium text-[#0f172a] capitalize">
-                          {formatAccountStatus(userData.accountStatus)}
+                          {toTitleCase(userData.accountStatus)}
                         </span>
                       </div>
                     </div>
@@ -557,7 +522,7 @@ export default function Profile() {
                       type="button"
                       onClick={() => void handleSaveProfile()}
                       disabled={isSaving}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-dark-blue-500 rounded-lg text-white font-bold hover:bg-dark-blue-500/90 transition-colors disabled:opacity-60"
+                      className="flex items-center gap-2 px-6 py-2.5 bg-[#7B00E0] rounded-lg text-white font-bold hover:bg-[#6600BC] transition-colors disabled:opacity-60"
                     >
                       <Save
                         className="w-4 h-4 text-white opacity-100!"
@@ -603,7 +568,7 @@ export default function Profile() {
                         />
                       ) : (
                         <p className="text-base font-medium text-[#0f172a]">
-                          {userData.name}
+                          {userData.name || "N/A"}
                         </p>
                       )}
                     </div>
@@ -612,28 +577,14 @@ export default function Profile() {
                       <label className="text-sm font-medium text-[#64748b] block mb-1">
                         Email Address
                       </label>
-                      {isEditing ? (
-                        <input
-                          type="email"
-                          value={userData.email}
-                          onChange={(e) =>
-                            setUserData((prev) => ({
-                              ...prev,
-                              email: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:border-[#6c00d1] text-base font-medium text-[#0f172a]"
-                        />
-                      ) : (
-                        <p className="text-base font-medium text-[#0f172a]">
-                          {userData.email || "N/A"}
-                        </p>
-                      )}
+                      <p className="text-base font-medium text-[#0f172a]">
+                        {userData.email || "N/A"}
+                      </p>
                     </div>
 
                     <div>
                       <label className="text-sm font-medium text-[#64748b] block mb-1">
-                        Date of Birthday
+                        Date of Birth
                       </label>
                       {isEditing ? (
                         <input
@@ -689,108 +640,96 @@ export default function Profile() {
                     </div>
 
                     <div>
+                      <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-2">
+                        Primary Condition
+                      </label>
+                      {isEditing ? (
+                        <select
+                          value={userData.primaryCondition}
+                          onChange={(e) =>
+                            updatePrimaryCondition(
+                              e.target.value as PrimaryCondition,
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:border-[#6c00d1] text-base font-medium text-[#0f172a] bg-white"
+                        >
+                          <option value="">Select your condition</option>
+                          <option value="hypertension">Hypertension (High Blood Pressure)</option>
+                          <option value="heart_disease">Heart Disease</option>
+                          <option value="diabetes_cardiac">Diabetes with Cardiac Risk</option>
+                          <option value="high_cholesterol">High Cholesterol</option>
+                          <option value="other">Other cardiovascular concern</option>
+                        </select>
+                      ) : (
+                        <p className="text-base font-medium text-[#0f172a]">
+                          {formatPrimaryCondition(userData.primaryCondition)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
                       <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
-                        Locale
+                        Diagnosis Date
+                      </label>
+                      <p className="text-base font-medium text-[#0f172a]">
+                        {userData.diagnosisDate ? formatDate(userData.diagnosisDate) : "Not provided"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
+                        Communication Preference
+                      </label>
+                      {isEditing ? (
+                        <select
+                          value={userData.communicationPreference ?? ""}
+                          onChange={(e) =>
+                            setUserData((prev) => ({
+                              ...prev,
+                              communicationPreference: e.target.value || null,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:border-[#6c00d1] text-base font-medium text-[#0f172a] bg-white"
+                        >
+                          <option value="">Not set</option>
+                          <option value="TEXT_FIRST">Text / Chat</option>
+                          <option value="AUDIO_FIRST">Audio / Voice</option>
+                        </select>
+                      ) : (
+                        <p className="text-base font-medium text-[#0f172a]">
+                          {formatCommunicationPreference(userData.communicationPreference)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
+                        Preferred Language
                       </label>
                       {isEditing ? (
                         <input
                           type="text"
-                          value={userData.locale}
+                          value={userData.preferredLanguage}
                           onChange={(e) =>
                             setUserData((prev) => ({
                               ...prev,
-                              locale: e.target.value,
+                              preferredLanguage: e.target.value,
                             }))
                           }
                           className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:border-[#6c00d1] text-base font-medium text-[#0f172a]"
                         />
                       ) : (
                         <p className="text-base font-medium text-[#0f172a]">
-                          {userData.locale || "N/A"}
+                          {userData.preferredLanguage || "English"}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-2">
-                        Menopause State
+                      <label className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
+                        Risk Tier
                       </label>
-                      {isEditing ? (
-                        <select
-                          value={userData.menopauseStage}
-                          onChange={(e) =>
-                            updateMenopauseStage(
-                              e.target.value as MenopauseStage,
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg focus:outline-none focus:border-[#6c00d1] text-base font-medium text-[#0f172a] bg-white"
-                        >
-                          <option value="PERIMENOPAUSE">Perimenopause</option>
-                          <option value="MENOPAUSE">Menopause</option>
-                          <option value="POSTMENOPAUSE">Postmenopause</option>
-                          <option value="UNKNOWN">Unknown</option>
-                        </select>
-                      ) : (
-                        <p className="text-base font-medium text-[#0f172a]">
-                          {formatMenopauseStage(userData.menopauseStage)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity & Contributions */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden">
-                  <div className="bg-[rgba(108,0,209,0.05)] border-b border-[rgba(108,0,209,0.1)] px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4.5 h-4.5 text-[#6C00D1]" />
-                      <h3 className="text-base font-bold text-[#0f172a]">
-                        Activity & Contributions
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="grid grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="text-h4 font-bold text-dark-blue-500 leading-none mb-2">
-                          247
-                        </div>
-                        <div className="text-xs font-medium text-[#64748b] uppercase tracking-wider">
-                          Articles Edited
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-h4 font-bold text-dark-blue-500 leading-none mb-2">
-                          89
-                        </div>
-                        <div className="text-xs font-medium text-[#64748b] uppercase tracking-wider">
-                          Reviews Done
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-h4 font-bold text-dark-blue-500 leading-none mb-2">
-                          12
-                        </div>
-                        <div className="text-xs font-medium text-[#64748b] uppercase tracking-wider">
-                          Pending Tasks
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-[#e2e8f0]">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm font-medium text-[#0f172a]">
-                          Completion Rate
-                        </span>
-                        <span className="text-sm font-bold text-dark-blue-500">
-                          94%
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-[rgba(108,0,209,0.1)] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-dark-blue-500 rounded-full"
-                          style={{ width: "94%" }}
-                        />
-                      </div>
+                      <RiskTierBadge tier={userData.riskTier} />
                     </div>
                   </div>
                 </div>
@@ -812,7 +751,7 @@ export default function Profile() {
                         className="flex items-center justify-between p-4 bg-[rgba(108,0,209,0.05)] border border-[rgba(108,0,209,0.1)] rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-dark-blue-500 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-[#7B00E0] flex items-center justify-center">
                             <Star className="w-5 h-5 text-white" />
                           </div>
                           <div>
@@ -821,7 +760,7 @@ export default function Profile() {
                             </p>
                             <p className="text-xs text-[#64748b]">
                               Full access to{" "}
-                              {role.includes("admin") ? "admin" : "editor"}{" "}
+                              {role.includes("admin") ? "admin" : role.includes("provider") ? "provider" : "user"}{" "}
                               features
                             </p>
                           </div>
@@ -831,149 +770,15 @@ export default function Profile() {
                         </span>
                       </div>
                     ))}
+                    {(!userData.roles || userData.roles.length === 0) && (
+                      <p className="text-sm text-[#64748b]">No roles assigned</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Right Column */}
               <div className="space-y-6">
-                {/* Preferences */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden">
-                  <div className="bg-[rgba(108,0,209,0.05)] border-b border-[rgba(108,0,209,0.1)] px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4.5 h-4.5 text-[#6C00D1]" />
-                      <h3 className="text-base font-bold text-[#0f172a]">
-                        Preferences
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="p-6 space-y-6">
-                    {/* Safeplace Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-[#0f172a]">
-                          Safeplace Enabled
-                        </p>
-                        <p className="text-xs text-[#64748b]">
-                          Privacy shielding mode
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setUserData((prev) => ({
-                            ...prev,
-                            safeplaceEnabled: !prev.safeplaceEnabled,
-                          }))
-                        }
-                        className="relative"
-                        aria-pressed={userData.safeplaceEnabled}
-                      >
-                        <div
-                          className={`w-11 h-6 rounded-full transition-colors ${
-                            userData.safeplaceEnabled ? "bg-[#6c00d1]" : "bg-gray-300"
-                          }`}
-                        />
-                        <div
-                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                            userData.safeplaceEnabled ? "translate-x-5" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Research Consent Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-[#0f172a]">
-                          Research Consent
-                        </p>
-                        <p className="text-xs text-[#64748b]">
-                          Anonymized data sharing
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setUserData((prev) => ({
-                            ...prev,
-                            consentResearch: !prev.consentResearch,
-                          }))
-                        }
-                        className="relative"
-                        aria-pressed={userData.consentResearch}
-                      >
-                        <div
-                          className={`w-11 h-6 rounded-full transition-colors ${
-                            userData.consentResearch ? "bg-[#6c00d1]" : "bg-gray-300"
-                          }`}
-                        />
-                        <div
-                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                            userData.consentResearch ? "translate-x-5" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Notification Types */}
-                    <div className="pt-6 border-t border-[rgba(108,0,209,0.05)] space-y-4">
-                      <h4 className="text-xs font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider">
-                        Notification Types
-                      </h4>
-
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={userData.notificationPreferences.dailyCheckins}
-                          onChange={(e) =>
-                            updateNotificationPreference(
-                              "dailyCheckins",
-                              e.target.checked,
-                            )
-                          }
-                          className="w-5 h-5 rounded border-2 border-[rgba(108,0,209,0.2)] text-[#6c00d1] focus:ring-[#6c00d1]"
-                        />
-                        <span className="text-sm font-medium text-[#0f172a]">
-                          Daily Summary
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={userData.notificationPreferences.weeklyDigest}
-                          onChange={(e) =>
-                            updateNotificationPreference(
-                              "weeklyDigest",
-                              e.target.checked,
-                            )
-                          }
-                          className="w-5 h-5 rounded border-2 border-[rgba(108,0,209,0.2)] text-[#6c00d1] focus:ring-[#6c00d1]"
-                        />
-                        <span className="text-sm font-medium text-[#0f172a]">
-                          Weekly Reports
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={userData.notificationPreferences.emailNotifications}
-                          onChange={(e) =>
-                            updateNotificationPreference(
-                              "emailNotifications",
-                              e.target.checked,
-                            )
-                          }
-                          className="w-5 h-5 rounded border-2 border-[rgba(108,0,209,0.2)] text-[#6c00d1] focus:ring-[#6c00d1]"
-                        />
-                        <span className="text-sm font-medium text-[#0f172a]">
-                          Security Alerts
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Metadata */}
                 <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-sm overflow-hidden">
                   <div className="bg-[rgba(108,0,209,0.05)] border-b border-[rgba(108,0,209,0.1)] px-6 py-4">
@@ -990,7 +795,7 @@ export default function Profile() {
                         User ID
                       </label>
                       <p className="text-xs font-mono text-[#0f172a]">
-                        USR-{userData.userId}-AD32-B821
+                        {userData.id || "N/A"}
                       </p>
                     </div>
 
@@ -1005,21 +810,12 @@ export default function Profile() {
 
                     <div>
                       <label className="text-[10px] font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
-                        Last Login
-                      </label>
-                      <p className="text-sm text-[#0f172a]">
-                        {formatRelativeTime(userData.lastLogin)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-[rgba(108,0,209,0.6)] uppercase tracking-wider block mb-1">
                         Email Status
                       </label>
                       <div className="flex items-center gap-2">
                         <CheckCircle2
                           className="w-3.5 h-3.5 text-[#16a34a] opacity-100! inline-block! visible!"
-                          color="#16a34a"
+                          color={userData.emailVerified ? "#16a34a" : "#94a3b8"}
                           strokeWidth={3}
                           style={{
                             visibility: "visible",
@@ -1027,7 +823,7 @@ export default function Profile() {
                             opacity: 1,
                           }}
                         />
-                        <span className="text-sm font-bold text-[#16a34a]">
+                        <span className={`text-sm font-bold ${userData.emailVerified ? "text-[#16a34a]" : "text-[#94a3b8]"}`}>
                           {userData.emailVerified ? "Verified" : "Unverified"}
                         </span>
                       </div>
@@ -1050,15 +846,19 @@ export default function Profile() {
                       <span className="text-sm font-medium text-[#0f172a]">
                         Status
                       </span>
-                      <span className="px-3 py-1 bg-[#16a34a] text-white text-xs font-bold rounded-full capitalize">
-                        {userData.accountStatus}
+                      <span className={`px-3 py-1 text-white text-xs font-bold rounded-full capitalize ${
+                        userData.accountStatus === "active" ? "bg-[#16a34a]" :
+                        userData.accountStatus === "suspended" ? "bg-[#f59e0b]" :
+                        "bg-[#dc2626]"
+                      }`}>
+                        {toTitleCase(userData.accountStatus)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-[#0f172a]">
                         Two-Factor Auth
                       </span>
-                      <span className="px-3 py-1 bg-dark-blue-500 text-white text-xs font-bold rounded-full">
+                      <span className="px-3 py-1 bg-[#7B00E0] text-white text-xs font-bold rounded-full">
                         Enabled
                       </span>
                     </div>
@@ -1085,4 +885,3 @@ export default function Profile() {
     </AdminLayout>
   );
 }
-

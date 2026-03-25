@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Check,
@@ -53,15 +54,6 @@ const STEPS = [
   { label: 'Symptoms', icon: Stethoscope },
 ];
 
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 48" fill="none">
-      <rect width="48" height="48" rx="12" fill="#7B00E0" />
-      <path d="M24 14C20 14 17 17.5 17 21c0 7 7 13 7 13s7-6 7-13c0-3.5-3-7-7-7z" fill="white" />
-      <path d="M12 26h6l2-4 3 8 2-6 3 4h8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
 
 // ─── Step Progress Bar (desktop) ─────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -74,7 +66,7 @@ function StepBar({ current }: { current: number }) {
           <div key={i} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0"
                 style={{
                   backgroundColor: done ? 'var(--brand-primary-purple)' : 'transparent',
                   border: done
@@ -318,7 +310,7 @@ function Step1Date({
         className="rounded-xl p-4 flex items-start gap-3"
         style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}
       >
-        <CalendarDays className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--brand-primary-purple)' }} />
+        <CalendarDays className="w-5 h-5 mt-0.5 shrink-0" style={{ color: 'var(--brand-primary-purple)' }} />
         <p className="text-[13px] leading-relaxed" style={{ color: 'var(--brand-text-primary)' }}>
           Recording daily readings helps your care team at Cedar Hill track your cardiovascular health trends accurately.
         </p>
@@ -431,7 +423,7 @@ function Step2BP({
             }}
           >
             <div
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse"
+              className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
               style={{
                 backgroundColor: isCritical
                   ? 'var(--brand-alert-red)'
@@ -612,7 +604,7 @@ function Step3Weight({
       </div>
 
       <div className="rounded-xl p-4 flex gap-3" style={{ backgroundColor: 'var(--brand-accent-teal-light)' }}>
-        <Scale className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--brand-accent-teal)' }} />
+        <Scale className="w-5 h-5 mt-0.5 shrink-0" style={{ color: 'var(--brand-accent-teal)' }} />
         <div>
           <p className="text-[13px] font-semibold mb-0.5" style={{ color: 'var(--brand-accent-teal)' }}>
             Why weight matters
@@ -921,11 +913,11 @@ export default function CheckIn() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--brand-background)' }}>
       {/* Top Nav */}
       <nav
-        className="bg-white h-16 flex items-center justify-between px-4 md:px-8 flex-shrink-0 sticky top-0 z-30"
+        className="bg-white h-16 flex items-center justify-between px-4 md:px-8 shrink-0 sticky top-0 z-30"
         style={{ borderBottom: '1px solid var(--brand-border)' }}
       >
         <Link href="/dashboard" className="flex items-center gap-3">
-          <LogoIcon className="w-9 h-9" />
+          <Image src="/logo.svg" alt="Healplace logo" width={36} height={36} className="w-9 h-9" />
           <span className="hidden md:block font-bold text-lg" style={{ color: 'var(--brand-primary-purple)' }}>
             Healplace Cardio
           </span>
@@ -957,7 +949,7 @@ export default function CheckIn() {
         </div>
 
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
           style={{ backgroundColor: 'var(--brand-primary-purple)' }}
         >
           MJ
@@ -965,7 +957,7 @@ export default function CheckIn() {
       </nav>
 
       {/* Body */}
-      <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-8 pt-5 md:pt-8 pb-24 lg:pb-10">
+      <div className="flex-1 w-full max-w-300 mx-auto px-4 md:px-8 pt-5 md:pt-8 pb-24 lg:pb-10">
         <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">
           {/* Left: Form column */}
           <div className="w-full lg:flex-1 flex flex-col min-w-0">
@@ -1075,7 +1067,7 @@ export default function CheckIn() {
 
               {/* Desktop nav buttons */}
               <div
-                className="hidden lg:flex flex-shrink-0 items-center justify-between px-8 py-5"
+                className="hidden lg:flex shrink-0 items-center justify-between px-8 py-5"
                 style={{ borderTop: '1px solid var(--brand-border)' }}
               >
                 <motion.button
@@ -1113,7 +1105,7 @@ export default function CheckIn() {
           </div>
 
           {/* Right: Context panel — desktop only */}
-          <div className="hidden lg:block w-[360px] flex-shrink-0">
+          <div className="hidden lg:block w-90 shrink-0">
             <ContextPanel />
           </div>
         </div>
@@ -1126,7 +1118,7 @@ export default function CheckIn() {
       >
         <button
           onClick={goBack}
-          className="h-12 px-5 rounded-full border-2 text-sm font-semibold flex items-center gap-1.5 flex-shrink-0"
+          className="h-12 px-5 rounded-full border-2 text-sm font-semibold flex items-center gap-1.5 shrink-0"
           style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
         >
           <ArrowLeft className="w-4 h-4" />

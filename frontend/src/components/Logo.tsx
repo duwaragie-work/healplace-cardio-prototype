@@ -1,26 +1,19 @@
-'use client';
+import Image from "next/image";
 
-export default function Logo({ className }: { className?: string }) {
+export default function Logo() {
   return (
-    <svg
-      className={className || 'w-10 h-10'}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="48" height="48" rx="12" fill="#7B00E0" />
-      <path
-        d="M24 14C20 14 17 17.5 17 21c0 7 7 13 7 13s7-6 7-13c0-3.5-3-7-7-7z"
-        fill="white"
-      />
-      <path
-        d="M12 26h6l2-4 3 8 2-6 3 4h8"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
+    <div className="flex items-center gap-3 justify-center lg:justify-start">
+            <Image
+              src="/logo.svg"
+              alt="Healplace logo"
+              width={40}
+              height={40}
+              className="h-10 w-10 lg:h-12 lg:w-12"
+              priority
+            />
+            {/* <span className="font-semibold text-dark-blue-500 text-xl lg:text-3xl tracking-[-0.5px]">
+              Healplace
+            </span> */}
+          </div>
   );
 }

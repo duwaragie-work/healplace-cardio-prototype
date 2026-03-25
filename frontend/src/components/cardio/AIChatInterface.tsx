@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Send,
@@ -72,22 +73,13 @@ const SESSIONS: Session[] = [
   { id: 3, title: 'Medication questions', time: 'Mar 22, 10:12 AM', active: false },
 ];
 
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 48" fill="none">
-      <rect width="48" height="48" rx="12" fill="#7B00E0" />
-      <path d="M24 14C20 14 17 17.5 17 21c0 7 7 13 7 13s7-6 7-13c0-3.5-3-7-7-7z" fill="white" />
-      <path d="M12 26h6l2-4 3 8 2-6 3 4h8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
   return (
     <div className="flex items-end gap-2">
       <div
-        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mb-1"
+        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-1"
         style={{ backgroundColor: 'var(--brand-primary-purple)' }}
       >
         <Heart className="w-3.5 h-3.5 text-white" />
@@ -155,7 +147,7 @@ function MessageBubble({ msg }: { msg: Message }) {
         transition={{ duration: 0.25 }}
       >
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mb-1"
+          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-1"
           style={{ backgroundColor: 'var(--brand-primary-purple)' }}
         >
           <Heart className="w-3.5 h-3.5 text-white" />
@@ -193,7 +185,7 @@ function MessageBubble({ msg }: { msg: Message }) {
       transition={{ duration: 0.25 }}
     >
       <div
-        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mb-1"
+        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mb-1"
         style={{ backgroundColor: 'var(--brand-primary-purple)' }}
       >
         <Heart className="w-3.5 h-3.5 text-white" />
@@ -229,19 +221,19 @@ function Sidebar({
 }) {
   return (
     <div
-      className="hidden lg:flex flex-col w-[280px] flex-shrink-0 h-full"
+      className="hidden lg:flex flex-col w-70 shrink-0 h-full"
       style={{ backgroundColor: 'white', borderRight: '1px solid var(--brand-border)' }}
     >
       <div className="p-5 flex-1 flex flex-col overflow-hidden">
-        <h2 className="text-[16px] font-semibold mb-4 flex-shrink-0" style={{ color: 'var(--brand-text-primary)' }}>
+        <h2 className="text-[16px] font-semibold mb-4 shrink-0" style={{ color: 'var(--brand-text-primary)' }}>
           Conversations
         </h2>
 
         {/* Patient context card */}
-        <div className="rounded-xl p-3.5 mb-4 flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}>
+        <div className="rounded-xl p-3.5 mb-4 shrink-0" style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}>
           <div className="flex items-center gap-2.5 mb-2">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
               style={{ backgroundColor: 'var(--brand-primary-purple)' }}
             >
               MJ
@@ -286,7 +278,7 @@ function Sidebar({
         </div>
 
         <button
-          className="mt-4 flex-shrink-0 flex items-center gap-1.5 text-[13px] font-semibold transition hover:opacity-80"
+          className="mt-4 shrink-0 flex items-center gap-1.5 text-[13px] font-semibold transition hover:opacity-80"
           style={{ color: 'var(--brand-accent-teal)' }}
         >
           <Plus className="w-4 h-4" />
@@ -359,11 +351,11 @@ export default function AIChatInterface() {
     <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--brand-background)' }}>
       {/* Top Nav */}
       <nav
-        className="bg-white h-16 flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-30"
+        className="bg-white h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-30"
         style={{ borderBottom: '1px solid var(--brand-border)' }}
       >
         <Link href="/dashboard" className="flex items-center gap-3">
-          <LogoIcon className="w-9 h-9" />
+          <Image src="/logo.svg" alt="Healplace logo" width={36} height={36} className="w-9 h-9" />
           <span className="hidden md:block font-bold text-lg" style={{ color: 'var(--brand-primary-purple)' }}>
             Healplace Cardio
           </span>
@@ -400,7 +392,7 @@ export default function AIChatInterface() {
             Sessions
           </button>
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
             style={{ backgroundColor: 'var(--brand-primary-purple)' }}
           >
             MJ
@@ -432,7 +424,7 @@ export default function AIChatInterface() {
                 transition={{ type: 'spring', stiffness: 340, damping: 30 }}
               >
                 <div
-                  className="h-16 flex items-center px-5 flex-shrink-0"
+                  className="h-16 flex items-center px-5 shrink-0"
                   style={{ borderBottom: '1px solid var(--brand-border)' }}
                 >
                   <h2 className="text-[16px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
@@ -440,7 +432,7 @@ export default function AIChatInterface() {
                   </h2>
                 </div>
                 <div className="p-4 flex-1 flex flex-col overflow-hidden">
-                  <div className="rounded-xl p-3.5 mb-4 flex-shrink-0" style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}>
+                  <div className="rounded-xl p-3.5 mb-4 shrink-0" style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}>
                     <div className="flex items-center gap-2.5 mb-2">
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
@@ -482,7 +474,7 @@ export default function AIChatInterface() {
                     })}
                   </div>
                   <button
-                    className="mt-4 flex-shrink-0 flex items-center gap-1.5 text-[13px] font-semibold"
+                    className="mt-4 shrink-0 flex items-center gap-1.5 text-[13px] font-semibold"
                     style={{ color: 'var(--brand-accent-teal)' }}
                   >
                     <Plus className="w-4 h-4" />
@@ -498,15 +490,15 @@ export default function AIChatInterface() {
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Chat header */}
           <div
-            className="bg-white flex items-center justify-between px-5 lg:px-6 py-4 flex-shrink-0"
+            className="bg-white flex items-center justify-between px-5 lg:px-6 py-4 shrink-0"
             style={{ borderBottom: '1px solid var(--brand-border)' }}
           >
             <div className="flex items-center gap-3">
               <div
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                 style={{ backgroundColor: 'var(--brand-primary-purple)' }}
               >
-                <Heart className="w-[18px] h-[18px] text-white" />
+                <Heart className="w-4.5 h-4.5 text-white" />
               </div>
               <div>
                 <p className="text-[15px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
@@ -546,7 +538,7 @@ export default function AIChatInterface() {
 
           {/* Audio mode banner */}
           <div
-            className="flex-shrink-0 flex items-center justify-between px-5 lg:px-6 py-2.5"
+            className="shrink-0 flex items-center justify-between px-5 lg:px-6 py-2.5"
             style={{
               backgroundColor: 'var(--brand-primary-purple-ultra-light)',
               borderTop: '1px solid var(--brand-border)',
@@ -554,7 +546,7 @@ export default function AIChatInterface() {
             }}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-primary-purple)' }} />
+              <Volume2 className="w-4 h-4 shrink-0" style={{ color: 'var(--brand-primary-purple)' }} />
               <div className="min-w-0">
                 <span className="text-[13px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
                   Audio mode available
@@ -565,7 +557,7 @@ export default function AIChatInterface() {
               </div>
             </div>
             <button
-              className="flex-shrink-0 flex items-center gap-1 text-[13px] font-semibold ml-3 transition hover:opacity-80"
+              className="shrink-0 flex items-center gap-1 text-[13px] font-semibold ml-3 transition hover:opacity-80"
               style={{ color: 'var(--brand-primary-purple)' }}
             >
               Switch to audio
@@ -575,7 +567,7 @@ export default function AIChatInterface() {
 
           {/* Input bar */}
           <div
-            className="flex-shrink-0 bg-white px-4 lg:px-6 pt-3 pb-4"
+            className="shrink-0 bg-white px-4 lg:px-6 pt-3 pb-4"
             style={{ borderTop: '1px solid var(--brand-border)' }}
           >
             <div className="flex items-center gap-3">
@@ -588,7 +580,7 @@ export default function AIChatInterface() {
                   backgroundColor: 'white',
                 }}
               >
-                <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-text-muted)' }} />
+                <Paperclip className="w-4 h-4 shrink-0" style={{ color: 'var(--brand-text-muted)' }} />
                 <input
                   type="text"
                   value={inputValue}
@@ -598,13 +590,13 @@ export default function AIChatInterface() {
                   className="flex-1 outline-none bg-transparent text-[14px] min-w-0"
                   style={{ color: 'var(--brand-text-primary)' }}
                 />
-                <button className="flex-shrink-0 transition hover:opacity-70">
+                <button className="shrink-0 transition hover:opacity-70">
                   <Mic className="w-4 h-4" style={{ color: 'var(--brand-primary-purple)' }} />
                 </button>
               </div>
               <motion.button
                 onClick={sendMessage}
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                 style={{
                   backgroundColor: inputValue.trim() ? 'var(--brand-primary-purple)' : 'var(--brand-border)',
                   boxShadow: inputValue.trim() ? 'var(--brand-shadow-button)' : 'none',

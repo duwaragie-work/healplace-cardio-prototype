@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Apple, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useAuth, type OtpVerifyResponse } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
@@ -35,8 +34,6 @@ export default function RegisterPage() {
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const resendTimerRef = useRef<number | null>(null);
 
   const emailIsValid = useMemo(() => isEmailValid(email.trim()), [email]);
@@ -47,7 +44,7 @@ export default function RegisterPage() {
       if (user.onboardingRequired) {
         router.replace("/onboarding");
       } else {
-        router.replace("/");
+        router.replace("/dashboard");
       }
     }
   }, [isLoading, user, router]);
@@ -152,36 +149,16 @@ export default function RegisterPage() {
         setErrorMessage(data.message || "Verification failed.");
         throw new Error(data.message || "Verification failed.");
       }
-      setStatusMessage("Sucessfully verified");
       login(data as OtpVerifyResponse);
+      if (data.onboarding_required) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Invalid OTP. Please try again.");
     } finally {
       setIsVerifyingOtp(false);
-    }
-  }
-
-  async function handleSocialLogin(provider: "google" | "apple") {
-    setErrorMessage("");
-    setStatusMessage("");
-    provider === "google" ? setIsGoogleLoading(true) : setIsAppleLoading(true);
-
-    try {
-      const deviceId = getOrCreateDeviceId();
-      const timezone = getBrowserTimezone();
-      const endpoint =
-        provider === "google"
-          ? `${process.env.NEXT_PUBLIC_API_URL}/api/v2/auth/google/callback?deviceId=${encodeURIComponent(
-              deviceId,
-            )}${timezone ? `&timezone=${encodeURIComponent(timezone)}` : ""}`
-          : `${process.env.NEXT_PUBLIC_API_URL}/api/v2/auth/apple/web?deviceId=${encodeURIComponent(
-              deviceId,
-            )}${timezone ? `&timezone=${encodeURIComponent(timezone)}` : ""}`;
-
-      window.location.href = endpoint;
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Social login failed.");
-      provider === "google" ? setIsGoogleLoading(false) : setIsAppleLoading(false);
     }
   }
 
@@ -191,18 +168,17 @@ export default function RegisterPage() {
         <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
           {/* Left side - Form */}
           <div className="flex-1 w-full max-w-105 lg:max-w-130">
-            {/* Logo */}
+            {/* Logo + Heading */}
             <div className="mb-8 flex items-center gap-3">
               <Logo />
+              <h2 className="font-bold leading-[1.2] text-[#170c1d] text-[26px] lg:text-[33px] tracking-[-0.4px]">
+                Sign in to Healplace Cardio
+              </h2>
             </div>
 
-            {/* Heading */}
             <div className="mb-10 w-full">
-              <h2 className="font-bold leading-[1.2] text-[#170c1d] text-[26px] lg:text-[33px] tracking-[-0.4px] mb-4">
-                Join Healplace
-              </h2>
               <p className="font-normal leading-[28.5px] text-[#4b5563] text-label lg:text-[18px]">
-                Join Healplace. We&apos;ll send you a code to verify your email.
+                Enter your email address to receive a secure one-time login code
               </p>
             </div>
 
@@ -221,7 +197,7 @@ export default function RegisterPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="user@example.com"
                     autoComplete="email"
-                    className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-dark-blue-500 focus:border-transparent transition-all"
+                    className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
                   />
 
                   <button
@@ -242,7 +218,7 @@ export default function RegisterPage() {
                         type="button"
                         onClick={handleResendOtp}
                         disabled={resendCooldown > 0 || isResendingOtp}
-                        className="font-medium text-dark-blue-500 text-xs lg:text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="font-medium text-[#7B00E0] text-xs lg:text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isResendingOtp
                           ? "Resending..."
@@ -257,7 +233,7 @@ export default function RegisterPage() {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
                       placeholder="••••••"
                       maxLength={OTP_LENGTH}
-                      className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-dark-blue-500 focus:border-transparent transition-all mb-3"
+                      className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all mb-3"
                     />
 
                     {/* Feedback */}
@@ -291,7 +267,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={handleVerifyOtp}
                   disabled={!canVerifyOtp || isVerifyingOtp}
-                  className="w-full h-12 lg:h-14 bg-dark-blue-500 rounded-full shadow-[0px_10px_15px_-3px_rgba(108,0,209,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#5a00b1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full h-12 lg:h-14 bg-[#7B00E0] rounded-full shadow-[0px_10px_15px_rgba(123,0,224,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#6600BC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isVerifyingOtp ? "Verifying..." : "Continue"}
                 </button>
@@ -303,14 +279,14 @@ export default function RegisterPage() {
                   By creating an account, you agree to our{" "}
                   <a
                     href="#"
-                    className="font-medium text-dark-blue-500 hover:underline"
+                    className="font-medium text-[#7B00E0] hover:underline"
                   >
                     Terms of Service
                   </a>{" "}
                   and{" "} <br />
                   <a
                     href="#"
-                    className="font-medium text-dark-blue-500 hover:underline"
+                    className="font-medium text-[#7B00E0] hover:underline"
                   >
                     Privacy Policy
                   </a>
@@ -325,40 +301,39 @@ export default function RegisterPage() {
             <div className="bg-linear-to-br from-[#f3e8ff] to-[#e9d5ff] rounded-3xl md:p-6 lg:p-10 md:w-80 md:h-80 lg:w-105 lg:h-auto flex">
               <div className="space-y-4 my-auto w-full">
                 <div className="flex items-center gap-3">
-                  <div className="bg-dark-blue-500 size-12 lg:size-16 rounded-2xl flex items-center justify-center">
+                  <div className="bg-[#7B00E0] size-12 lg:size-16 rounded-2xl flex items-center justify-center">
                     <CheckCircle2 className="w-6 h-6 lg:w-8 lg:h-8 text-white" strokeWidth={2} />
                   </div>
                   <h3 className="font-bold text-[#170c1d] text-base md:text-lg lg:text-2xl">
-                    Secure &amp; Private
+                    Secure Access
                   </h3>
                 </div>
                 <p className="text-[#4b3b55] text-xs md:text-sm lg:text-base leading-relaxed">
-                  Your health data is encrypted and protected. We never share your personal information without your
-                  consent.
+                  We use a one-time code sent to your email to keep your health data secure. No passwords to remember.
                 </p>
                 <div className="space-y-3 pt-2">
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
                     <p className="text-[#4b3b55] text-xs md:text-sm">
-                      Track symptoms &amp; sleep patterns
+                      No password required
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
                     <p className="text-[#4b3b55] text-xs md:text-sm">
-                      Get AI-powered personalized insights
+                      Code expires in 10 minutes
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="bg-white rounded-full p-1 mt-1">
-                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-dark-blue-500" strokeWidth={2.5} />
+                      <CheckCircle2 className="w-3 h-3 lg:w-4 lg:h-4 text-[#7B00E0]" strokeWidth={2.5} />
                     </div>
                     <p className="text-[#4b3b55] text-xs md:text-sm">
-                      Access health recommendations
+                      Your data is encrypted and HIPAA-aligned
                     </p>
                   </div>
                 </div>

@@ -1,7 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export async function fetchWithAuth(
-  path: string,
+  url: string,
   options: RequestInit = {},
 ): Promise<Response> {
   const token =
@@ -18,8 +16,15 @@ export async function fetchWithAuth(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  return fetch(`${API_URL}${path}`, {
+  const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  if (response.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('healplace_token');
+    window.location.href = '/';
+  }
+
+  return response;
 }
