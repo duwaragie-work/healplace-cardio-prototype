@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/cardio/theme.css";
 
 :root {
   --background: #ffffff;
