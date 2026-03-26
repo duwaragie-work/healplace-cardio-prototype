@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,6 +13,7 @@ import {
   Pill,
   Stethoscope,
   CalendarDays,
+  ChevronRight,
 } from 'lucide-react';
 import { createJournalEntry, getJournalEntries, getLatestBaseline } from '@/lib/services/journal.service';
 
@@ -146,20 +148,44 @@ const slideVariants = {
 };
 const slideTransition = { type: 'spring' as const, stiffness: 340, damping: 30 };
 
+// ─── Reading skeleton row ─────────────────────────────────────────────────────
+function ReadingSkeletonRow({ last }: { last?: boolean }) {
+  return (
+    <div
+      className="grid items-center py-2.5"
+      style={{
+        gridTemplateColumns: '1fr 1fr 1fr 1fr',
+        borderBottom: last ? 'none' : '1px solid var(--brand-border)',
+      }}
+    >
+      {[60, 36, 36, 52].map((w, i) => (
+        <div key={i} className={i > 0 ? 'flex justify-center' : ''}>
+          <div
+            className="animate-pulse rounded-md"
+            style={{ width: w, height: 12, backgroundColor: '#EDE9F6' }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Context Panel (Right side, desktop) ──────────────────────────────────────
 function ContextPanel({
   recentReadings,
   baseline,
+  readingsLoading,
 }: {
   recentReadings: RecentReading[];
   baseline: Baseline | null;
+  readingsLoading: boolean;
 }) {
   const baselineStr =
     baseline?.baselineSystolic && baseline?.baselineDiastolic
       ? `${Math.round(Number(baseline.baselineSystolic))} / ${Math.round(Number(baseline.baselineDiastolic))}`
       : '-- / --';
 
-  const displayReadings = recentReadings.slice(0, 7);
+  const displayReadings = recentReadings.slice(0, 3);
 
   return (
     <div className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
@@ -167,9 +193,14 @@ function ContextPanel({
         <h3 className="text-[15px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
           Your Recent Readings
         </h3>
-        <span className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
-          Last {displayReadings.length} entries
-        </span>
+        <Link
+          href="/readings"
+          className="flex items-center gap-0.5 text-[12px] font-semibold transition hover:opacity-75"
+          style={{ color: 'var(--brand-primary-purple)' }}
+        >
+          View All
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       <div className="w-full">
@@ -186,65 +217,72 @@ function ContextPanel({
           <span className="text-center">Diastolic</span>
           <span className="text-right">Status</span>
         </div>
-        {displayReadings.length === 0 && (
+        {readingsLoading ? (
+          <>
+            <ReadingSkeletonRow />
+            <ReadingSkeletonRow />
+            <ReadingSkeletonRow last />
+          </>
+        ) : displayReadings.length === 0 ? (
           <p className="text-[12px] py-3" style={{ color: 'var(--brand-text-muted)' }}>
             No readings yet — this is your first check-in!
           </p>
-        )}
-        {displayReadings.map((r, i) => (
-          <div
-            key={i}
-            className="grid items-center py-2.5 text-[13px]"
-            style={{
-              gridTemplateColumns: '1fr 1fr 1fr 1fr',
-              borderBottom:
-                i < displayReadings.length - 1
-                  ? '1px solid var(--brand-border)'
-                  : 'none',
-            }}
-          >
-            <span style={{ color: 'var(--brand-text-secondary)' }}>{r.date}</span>
-            <span
-              className="text-center font-semibold"
+        ) : (
+          displayReadings.map((r, i) => (
+            <div
+              key={i}
+              className="grid items-center py-2.5 text-[13px]"
               style={{
-                color:
-                  r.color === 'amber'
-                    ? 'var(--brand-warning-amber)'
-                    : 'var(--brand-success-green)',
+                gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                borderBottom:
+                  i < displayReadings.length - 1
+                    ? '1px solid var(--brand-border)'
+                    : 'none',
               }}
             >
-              {r.sys}
-            </span>
-            <span
-              className="text-center font-semibold"
-              style={{
-                color:
-                  r.color === 'amber'
-                    ? 'var(--brand-warning-amber)'
-                    : 'var(--brand-success-green)',
-              }}
-            >
-              {r.dia}
-            </span>
-            <div className="flex justify-end">
+              <span style={{ color: 'var(--brand-text-secondary)' }}>{r.date}</span>
               <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                className="text-center font-semibold"
                 style={{
-                  backgroundColor:
-                    r.color === 'amber'
-                      ? 'var(--brand-warning-amber-light)'
-                      : 'var(--brand-success-green-light)',
                   color:
                     r.color === 'amber'
                       ? 'var(--brand-warning-amber)'
                       : 'var(--brand-success-green)',
                 }}
               >
-                {r.status}
+                {r.sys}
               </span>
+              <span
+                className="text-center font-semibold"
+                style={{
+                  color:
+                    r.color === 'amber'
+                      ? 'var(--brand-warning-amber)'
+                      : 'var(--brand-success-green)',
+                }}
+              >
+                {r.dia}
+              </span>
+              <div className="flex justify-end">
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  style={{
+                    backgroundColor:
+                      r.color === 'amber'
+                        ? 'var(--brand-warning-amber-light)'
+                        : 'var(--brand-success-green-light)',
+                    color:
+                      r.color === 'amber'
+                        ? 'var(--brand-warning-amber)'
+                        : 'var(--brand-success-green)',
+                  }}
+                >
+                  {r.status}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="h-px my-5" style={{ backgroundColor: 'var(--brand-border)' }} />
@@ -869,6 +907,7 @@ export default function CheckIn() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [recentReadings, setRecentReadings] = useState<RecentReading[]>([]);
+  const [readingsLoading, setReadingsLoading] = useState(true);
   const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [form, setForm] = useState<FormData>({
     date: `${yyyy}-${mm}-${dd}`,
@@ -883,26 +922,30 @@ export default function CheckIn() {
 
   // Load recent readings and baseline for context panel
   useEffect(() => {
-    getJournalEntries({ limit: 7 }).then((entries) => {
-      const arr = Array.isArray(entries) ? entries : [];
-      const sorted = [...arr].sort(
-        (a: { entryDate: string }, b: { entryDate: string }) =>
-          new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime(),
-      );
-      const readings: RecentReading[] = sorted
-        .filter((e: { systolicBP?: number; diastolicBP?: number }) => e.systolicBP && e.diastolicBP)
-        .map((e: { entryDate: string; systolicBP: number; diastolicBP: number }) => {
-          const { label, color } = getBpStatus(e.systolicBP, e.diastolicBP);
-          return {
-            date: formatReadingDate(e.entryDate),
-            sys: e.systolicBP,
-            dia: e.diastolicBP,
-            status: label,
-            color,
-          };
-        });
-      setRecentReadings(readings);
-    }).catch(() => {});
+    setReadingsLoading(true);
+    getJournalEntries({ limit: 3 })
+      .then((entries) => {
+        const arr = Array.isArray(entries) ? entries : [];
+        const sorted = [...arr].sort(
+          (a: { entryDate: string }, b: { entryDate: string }) =>
+            new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime(),
+        );
+        const readings: RecentReading[] = sorted
+          .filter((e: { systolicBP?: number; diastolicBP?: number }) => e.systolicBP && e.diastolicBP)
+          .map((e: { entryDate: string; systolicBP: number; diastolicBP: number }) => {
+            const { label, color } = getBpStatus(e.systolicBP, e.diastolicBP);
+            return {
+              date: formatReadingDate(e.entryDate),
+              sys: e.systolicBP,
+              dia: e.diastolicBP,
+              status: label,
+              color,
+            };
+          });
+        setRecentReadings(readings);
+      })
+      .catch(() => {})
+      .finally(() => setReadingsLoading(false));
 
     getLatestBaseline().then((b) => setBaseline(b ?? null)).catch(() => {});
   }, []);
@@ -1001,7 +1044,14 @@ export default function CheckIn() {
                     <h3 className="text-[13px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
                       Your Recent Readings
                     </h3>
-                    <span className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>Last 5 entries</span>
+                    <Link
+                      href="/readings"
+                      className="flex items-center gap-0.5 text-[11px] font-semibold transition hover:opacity-75"
+                      style={{ color: 'var(--brand-primary-purple)' }}
+                    >
+                      View All
+                      <ChevronRight className="w-3 h-3" />
+                    </Link>
                   </div>
                   <div className="w-full">
                     <div
@@ -1017,38 +1067,45 @@ export default function CheckIn() {
                       <span className="text-center">Dia</span>
                       <span className="text-right">Status</span>
                     </div>
-                    {recentReadings.length === 0 && (
+                    {readingsLoading ? (
+                      <>
+                        <ReadingSkeletonRow />
+                        <ReadingSkeletonRow />
+                        <ReadingSkeletonRow last />
+                      </>
+                    ) : recentReadings.length === 0 ? (
                       <p className="text-[12px] py-2" style={{ color: 'var(--brand-text-muted)' }}>No readings yet</p>
-                    )}
-                    {recentReadings.slice(0, 5).map((r, i) => (
-                      <div
-                        key={i}
-                        className="grid items-center py-1.5 text-[12px]"
-                        style={{
-                          gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                          borderBottom: i < recentReadings.slice(0, 5).length - 1 ? '1px solid var(--brand-border)' : 'none',
-                        }}
-                      >
-                        <span style={{ color: 'var(--brand-text-secondary)' }}>{r.date}</span>
-                        <span className="text-center font-semibold" style={{ color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)' }}>
-                          {r.sys}
-                        </span>
-                        <span className="text-center font-semibold" style={{ color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)' }}>
-                          {r.dia}
-                        </span>
-                        <div className="flex justify-end">
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                            style={{
-                              backgroundColor: r.color === 'amber' ? 'var(--brand-warning-amber-light)' : 'var(--brand-success-green-light)',
-                              color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)',
-                            }}
-                          >
-                            {r.status}
+                    ) : (
+                      recentReadings.slice(0, 3).map((r, i) => (
+                        <div
+                          key={i}
+                          className="grid items-center py-1.5 text-[12px]"
+                          style={{
+                            gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                            borderBottom: i < recentReadings.slice(0, 3).length - 1 ? '1px solid var(--brand-border)' : 'none',
+                          }}
+                        >
+                          <span style={{ color: 'var(--brand-text-secondary)' }}>{r.date}</span>
+                          <span className="text-center font-semibold" style={{ color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)' }}>
+                            {r.sys}
                           </span>
+                          <span className="text-center font-semibold" style={{ color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)' }}>
+                            {r.dia}
+                          </span>
+                          <div className="flex justify-end">
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                              style={{
+                                backgroundColor: r.color === 'amber' ? 'var(--brand-warning-amber-light)' : 'var(--brand-success-green-light)',
+                                color: r.color === 'amber' ? 'var(--brand-warning-amber)' : 'var(--brand-success-green)',
+                              }}
+                            >
+                              {r.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -1153,7 +1210,7 @@ export default function CheckIn() {
 
           {/* Right: Context panel — desktop only */}
           <div className="hidden lg:block w-90 shrink-0">
-            <ContextPanel recentReadings={recentReadings} baseline={baseline} />
+            <ContextPanel recentReadings={recentReadings} baseline={baseline} readingsLoading={readingsLoading} />
           </div>
         </div>
       </div>
