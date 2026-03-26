@@ -15,6 +15,12 @@ import {
   Volume2,
   ArrowRight,
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import {
+  sendMessage as sendChatMessage,
+  getChatSessions,
+  getSessionHistory,
+} from '@/lib/services/chat.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MessageType = 'ai' | 'patient' | 'teachback';
@@ -27,52 +33,47 @@ interface Message {
 }
 
 interface Session {
-  id: number;
+  id: string;
   title: string;
   time: string;
   active: boolean;
 }
 
-// ─── Static data ─────────────────────────────────────────────────────────────
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: 1,
-    type: 'ai',
-    text: "Good morning Marcus! I've reviewed your recent readings. Your blood pressure on March 22nd was 185/115 mmHg — that's above your target range. How are you feeling today?",
-    time: '9:02 AM',
-  },
-  {
-    id: 2,
-    type: 'patient',
-    text: "I've been having some headaches",
-    time: '9:03 AM',
-  },
-  {
-    id: 3,
-    type: 'ai',
-    text: 'I understand. Headaches can sometimes be related to elevated blood pressure. Are you experiencing any chest pain, vision changes, or sudden numbness along with the headache?',
-    time: '9:03 AM',
-  },
-  {
-    id: 4,
-    type: 'patient',
-    text: 'No, just the headache',
-    time: '9:04 AM',
-  },
-  {
-    id: 5,
-    type: 'teachback',
-    text: "That's reassuring to hear. Quick question to check your understanding: What blood pressure reading should prompt you to call your doctor right away?",
-    time: '9:04 AM',
-  },
-];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function formatSessionTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) {
+      return `Today, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    } else if (d.toDateString() === yesterday.toDateString()) {
+      return `Yesterday, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
 
-const SESSIONS: Session[] = [
-  { id: 1, title: 'Blood pressure concerns', time: 'Today, 9:02 AM', active: true },
-  { id: 2, title: 'Dietary advice', time: 'Yesterday, 8:45 AM', active: false },
-  { id: 3, title: 'Medication questions', time: 'Mar 22, 10:12 AM', active: false },
-];
+function formatMsgTime(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch {
+    return '';
+  }
+}
 
+function getUserInitials(name: string | null | undefined): string {
+  if (!name) return 'U';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
@@ -214,11 +215,26 @@ function Sidebar({
   sessions,
   activeId,
   onSelect,
+  onNewConversation,
+  userInitials,
+  userName,
+  riskTier,
 }: {
   sessions: Session[];
-  activeId: number;
-  onSelect: (id: number) => void;
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onNewConversation: () => void;
+  userInitials: string;
+  userName: string;
+  riskTier: string;
 }) {
+  const riskColor =
+    riskTier === 'HIGH'
+      ? { bg: 'var(--brand-alert-red-light)', text: 'var(--brand-alert-red)' }
+      : riskTier === 'ELEVATED'
+      ? { bg: 'var(--brand-warning-amber-light)', text: 'var(--brand-warning-amber)' }
+      : { bg: 'var(--brand-success-green-light)', text: 'var(--brand-success-green)' };
+
   return (
     <div
       className="hidden lg:flex flex-col w-70 shrink-0 h-full"
@@ -236,23 +252,28 @@ function Sidebar({
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
               style={{ backgroundColor: 'var(--brand-primary-purple)' }}
             >
-              MJ
+              {userInitials}
             </div>
             <div>
-              <p className="text-[13px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>Marcus Johnson</p>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--brand-accent-teal)' }}>142/88 mmHg today</p>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>{userName}</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--brand-accent-teal)' }}>Patient</p>
             </div>
           </div>
           <span
             className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-            style={{ backgroundColor: 'var(--brand-success-green-light)', color: 'var(--brand-success-green)' }}
+            style={{ backgroundColor: riskColor.bg, color: riskColor.text }}
           >
-            STANDARD risk
+            {riskTier} risk
           </span>
         </div>
 
         {/* Session list */}
         <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+          {sessions.length === 0 && (
+            <p className="text-[12px] px-2" style={{ color: 'var(--brand-text-muted)' }}>
+              No conversations yet
+            </p>
+          )}
           {sessions.map((s) => {
             const isActive = s.id === activeId;
             return (
@@ -278,6 +299,7 @@ function Sidebar({
         </div>
 
         <button
+          onClick={onNewConversation}
           className="mt-4 shrink-0 flex items-center gap-1.5 text-[13px] font-semibold transition hover:opacity-80"
           style={{ color: 'var(--brand-accent-teal)' }}
         >
@@ -292,51 +314,149 @@ function Sidebar({
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AIChatInterface() {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const { user } = useAuth();
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
-  const [activeSession, setActiveSession] = useState(1);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [showSessions, setShowSessions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const userInitials = getUserInitials(user?.name);
+  const userName = user?.name ?? 'Patient';
+  const riskTier = user?.riskTier ?? 'STANDARD';
+
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Load sessions on mount
   useEffect(() => {
-    const t = setTimeout(() => setIsTyping(false), 2500);
-    return () => clearTimeout(t);
+    getChatSessions()
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : [];
+        const mapped: Session[] = arr.map((s: { id: string; title: string; updatedAt: string; createdAt: string }) => ({
+          id: s.id,
+          title: s.title || 'Conversation',
+          time: formatSessionTime(s.updatedAt ?? s.createdAt),
+          active: false,
+        }));
+        setSessions(mapped);
+        if (mapped.length > 0 && !activeSessionId) {
+          setActiveSessionId(mapped[0].id);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const sendMessage = () => {
+  // Load history when session changes
+  useEffect(() => {
+    if (!activeSessionId) {
+      setMessages([]);
+      return;
+    }
+    getSessionHistory(activeSessionId)
+      .then((history) => {
+        const arr = Array.isArray(history) ? history : [];
+        const msgs: Message[] = [];
+        arr.forEach((item: { id: string; userMessage: string; aiResponse: string; timestamp: string }, idx: number) => {
+          msgs.push({
+            id: idx * 2,
+            type: 'patient',
+            text: item.userMessage,
+            time: formatMsgTime(item.timestamp),
+          });
+          msgs.push({
+            id: idx * 2 + 1,
+            type: 'ai',
+            text: item.aiResponse,
+            time: formatMsgTime(item.timestamp),
+          });
+        });
+        setMessages(msgs);
+      })
+      .catch(() => {
+        setMessages([]);
+      });
+  }, [activeSessionId]);
+
+  const handleSend = async () => {
     const text = inputValue.trim();
-    if (!text) return;
+    if (!text || isSending) return;
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-    const newMsg: Message = { id: Date.now(), type: 'patient', text, time: timeStr };
-    setMessages((prev) => [...prev, newMsg]);
+    const userMsg: Message = { id: Date.now(), type: 'patient', text, time: timeStr };
+    setMessages((prev) => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
+    setIsSending(true);
 
-    setTimeout(() => {
+    try {
+      const response = await sendChatMessage(text, activeSessionId ?? undefined);
       setIsTyping(false);
-      const aiReply: Message = {
+
+      // If a new session was created, update state and refresh sessions
+      if (!activeSessionId && response.sessionId) {
+        setActiveSessionId(response.sessionId);
+        getChatSessions()
+          .then((data) => {
+            const arr = Array.isArray(data) ? data : [];
+            setSessions(
+              arr.map((s: { id: string; title: string; updatedAt: string; createdAt: string }) => ({
+                id: s.id,
+                title: s.title || 'Conversation',
+                time: formatSessionTime(s.updatedAt ?? s.createdAt),
+                active: false,
+              })),
+            );
+          })
+          .catch(() => {});
+      }
+
+      const aiMsg: Message = {
         id: Date.now() + 1,
-        type: 'ai',
-        text: "Thank you for sharing that. I'll flag this for your care team at Cedar Hill Medical. In the meantime, make sure you're taking your Lisinopril as prescribed and try to rest in a quiet, dark room if the headache worsens.",
+        type: response.isEmergency ? 'teachback' : 'ai',
+        text: response.data,
         time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       };
-      setMessages((prev) => [...prev, aiReply]);
-    }, 2200);
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch {
+      setIsTyping(false);
+      const errMsg: Message = {
+        id: Date.now() + 1,
+        type: 'ai',
+        text: 'Sorry, I had trouble connecting. Please try again.',
+        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      void handleSend();
     }
+  };
+
+  const handleNewConversation = () => {
+    setActiveSessionId(null);
+    setMessages([]);
+    setShowSessions(false);
+  };
+
+  const handleSelectSession = (id: string) => {
+    setActiveSessionId(id);
+    setShowSessions(false);
   };
 
   const navItems = ['Home', 'Check-In', 'Chat', 'History'];
@@ -395,14 +515,22 @@ export default function AIChatInterface() {
             className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
             style={{ backgroundColor: 'var(--brand-primary-purple)' }}
           >
-            MJ
+            {userInitials}
           </div>
         </div>
       </nav>
 
       {/* Split layout */}
       <div className="flex flex-1 min-h-0">
-        <Sidebar sessions={SESSIONS} activeId={activeSession} onSelect={(id) => setActiveSession(id)} />
+        <Sidebar
+          sessions={sessions}
+          activeId={activeSessionId}
+          onSelect={handleSelectSession}
+          onNewConversation={handleNewConversation}
+          userInitials={userInitials}
+          userName={userName}
+          riskTier={riskTier}
+        />
 
         {/* Mobile sessions drawer */}
         <AnimatePresence>
@@ -438,27 +566,32 @@ export default function AIChatInterface() {
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
                         style={{ backgroundColor: 'var(--brand-primary-purple)' }}
                       >
-                        MJ
+                        {userInitials}
                       </div>
                       <div>
-                        <p className="text-[13px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>Marcus Johnson</p>
-                        <p className="text-[12px] font-semibold" style={{ color: 'var(--brand-accent-teal)' }}>142/88 mmHg today</p>
+                        <p className="text-[13px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>{userName}</p>
+                        <p className="text-[12px] font-semibold" style={{ color: 'var(--brand-accent-teal)' }}>Patient</p>
                       </div>
                     </div>
                     <span
                       className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
                       style={{ backgroundColor: 'var(--brand-success-green-light)', color: 'var(--brand-success-green)' }}
                     >
-                      STANDARD risk
+                      {riskTier} risk
                     </span>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-1">
-                    {SESSIONS.map((s) => {
-                      const isActive = s.id === activeSession;
+                    {sessions.length === 0 && (
+                      <p className="text-[12px] px-2" style={{ color: 'var(--brand-text-muted)' }}>
+                        No conversations yet
+                      </p>
+                    )}
+                    {sessions.map((s) => {
+                      const isActive = s.id === activeSessionId;
                       return (
                         <button
                           key={s.id}
-                          onClick={() => { setActiveSession(s.id); setShowSessions(false); }}
+                          onClick={() => { setActiveSessionId(s.id); setShowSessions(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg"
                           style={{
                             backgroundColor: isActive ? 'var(--brand-primary-purple-light)' : 'transparent',
@@ -474,6 +607,7 @@ export default function AIChatInterface() {
                     })}
                   </div>
                   <button
+                    onClick={handleNewConversation}
                     className="mt-4 shrink-0 flex items-center gap-1.5 text-[13px] font-semibold"
                     style={{ color: 'var(--brand-accent-teal)' }}
                   >
@@ -523,6 +657,24 @@ export default function AIChatInterface() {
             className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4 min-h-0"
             style={{ backgroundColor: 'var(--brand-background)' }}
           >
+            {messages.length === 0 && !isTyping && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}
+                  >
+                    <Heart className="w-8 h-8" style={{ color: 'var(--brand-primary-purple)' }} />
+                  </div>
+                  <p className="text-[15px] font-semibold mb-1" style={{ color: 'var(--brand-text-primary)' }}>
+                    How can I help you today?
+                  </p>
+                  <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>
+                    Ask me about your blood pressure, medications, or symptoms.
+                  </p>
+                </div>
+              </div>
+            )}
             {messages.map((msg) => (
               <MessageBubble key={msg.id} msg={msg} />
             ))}
@@ -589,14 +741,16 @@ export default function AIChatInterface() {
                   placeholder="Type a message..."
                   className="flex-1 outline-none bg-transparent text-[14px] min-w-0"
                   style={{ color: 'var(--brand-text-primary)' }}
+                  disabled={isSending}
                 />
                 <button className="shrink-0 transition hover:opacity-70">
                   <Mic className="w-4 h-4" style={{ color: 'var(--brand-primary-purple)' }} />
                 </button>
               </div>
               <motion.button
-                onClick={sendMessage}
-                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                onClick={() => void handleSend()}
+                disabled={isSending || !inputValue.trim()}
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 disabled:opacity-50"
                 style={{
                   backgroundColor: inputValue.trim() ? 'var(--brand-primary-purple)' : 'var(--brand-border)',
                   boxShadow: inputValue.trim() ? 'var(--brand-shadow-button)' : 'none',

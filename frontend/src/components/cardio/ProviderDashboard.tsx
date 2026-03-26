@@ -9,25 +9,18 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
-import {
-  Users,
-  Activity,
-  Bell,
-  Heart,
-  Menu,
-  X,
-  BarChart3,
-  FileText,
-  Settings,
-} from 'lucide-react';
-import { useState } from 'react';
-import Image from 'next/image';
+import { Users, Activity, Bell, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import AlertPanel, { type Alert } from './AlertPanel';
 import ScheduleModal, { type ScheduleDetails } from './ScheduleModal';
-
+import {
+  getProviderStats,
+  getProviderAlerts,
+  acknowledgeProviderAlert,
+} from '@/lib/services/provider.service';
 
 const bpTrendData = [
   { day: 'Mon', systolic: 155, id: 1 },
@@ -39,49 +32,86 @@ const bpTrendData = [
   { day: 'Sun', systolic: 185, id: 7 },
 ];
 
-const alerts: Alert[] = [
-  {
-    id: '1',
-    initials: 'MJ',
-    name: 'Marcus Johnson',
-    location: 'Ward 7 · 20019',
-    reading: '185/115 mmHg',
-    type: 'SYSTOLIC_BP',
-    severity: 'HIGH',
-    level: 'L2',
-    color: 'red',
-  },
-  {
-    id: '2',
-    initials: 'DW',
-    name: 'Diane Williams',
-    location: 'Ward 8 · 20020',
-    reading: '168/96 mmHg',
-    type: 'SYSTOLIC_BP',
-    severity: 'MEDIUM',
-    level: 'L1',
-    color: 'amber',
-  },
-  {
-    id: '3',
-    initials: 'RC',
-    name: 'Robert Carter',
-    location: 'Ward 7 · 20032',
-    reading: 'Missed 2 days',
-    type: 'MEDICATION',
-    severity: 'MEDIUM',
-    level: 'L1',
-    color: 'amber',
-  },
-];
+interface ProviderStats {
+  totalPatients: number;
+  monthlyInteractions: number;
+  activeAlerts: number;
+  bpControlledPercent: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformAlert(raw: any): Alert {
+  const name: string = raw.patientName ?? raw.user?.name ?? raw.patient?.name ?? 'Unknown';
+  const parts = name.trim().split(/\s+/);
+  const initials =
+    parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+
+  const rawSeverity: string = (raw.severity ?? '').toUpperCase();
+  const severity: 'HIGH' | 'MEDIUM' =
+    rawSeverity === 'HIGH' || rawSeverity === 'CRITICAL' ? 'HIGH' : 'MEDIUM';
+  const escalated: boolean = Boolean(raw.escalated);
+  const level: 'L1' | 'L2' = escalated ? 'L2' : 'L1';
+  const color: 'red' | 'amber' = severity === 'HIGH' ? 'red' : 'amber';
+
+  let reading: string = raw.reading ?? '';
+  if (!reading) {
+    if (raw.systolicBP && raw.diastolicBP) {
+      reading = `${raw.systolicBP}/${raw.diastolicBP} mmHg`;
+    } else if ((raw.type ?? raw.deviationType ?? '').includes('MEDICATION')) {
+      reading = 'Missed medication';
+    } else {
+      reading = '—';
+    }
+  }
+
+  return {
+    id: String(raw.id),
+    initials,
+    name,
+    location: raw.location ?? raw.ward ?? '—',
+    reading,
+    type: raw.type ?? raw.deviationType ?? '',
+    severity,
+    level,
+    color,
+  };
+}
 
 export default function ProviderDashboard() {
   const { user } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [scheduleAlert, setScheduleAlert] = useState<Alert | null>(null);
-  const [alertsList] = useState<Alert[]>(alerts);
+  const [alertsList, setAlertsList] = useState<Alert[]>([]);
+  const [stats, setStats] = useState<ProviderStats>({
+    totalPatients: 0,
+    monthlyInteractions: 0,
+    activeAlerts: 0,
+    bpControlledPercent: 0,
+  });
+
+  useEffect(() => {
+    Promise.all([getProviderStats(), getProviderAlerts()]).then(
+      ([statsData, alertsData]) => {
+        setStats({
+          totalPatients: statsData.totalPatients ?? statsData.patients ?? 0,
+          monthlyInteractions:
+            statsData.monthlyInteractions ?? statsData.interactions ?? 0,
+          activeAlerts: statsData.activeAlerts ?? statsData.alerts ?? 0,
+          bpControlledPercent:
+            statsData.bpControlledPercent ?? statsData.bpControlled ?? 0,
+        });
+        const rawAlerts: Alert[] = Array.isArray(alertsData)
+          ? alertsData.map(transformAlert)
+          : [];
+        setAlertsList(rawAlerts);
+      },
+    ).catch(() => {
+      // keep defaults on error
+    });
+  }, []);
 
   if (!user?.roles?.includes('SUPER_ADMIN')) {
     return (
@@ -119,7 +149,12 @@ export default function ProviderDashboard() {
 
   const activeAlerts = alertsList.filter((a) => !reviewedIds.has(a.id));
 
-  const handleReview = (id: string) => {
+  const handleReview = async (id: string) => {
+    try {
+      await acknowledgeProviderAlert(id);
+    } catch {
+      // best-effort — still remove from local view
+    }
     setReviewedIds((prev) => new Set([...prev, id]));
     setSelectedAlert(null);
   };
@@ -134,188 +169,13 @@ export default function ProviderDashboard() {
     }, 1600);
   };
 
-  const openAlertsPanel = () => {
-    if (activeAlerts.length > 0) {
-      setSelectedAlert(activeAlerts[0]);
-    }
-  };
-
   return (
     <div
-      className="min-h-screen flex"
+      className="min-h-screen"
       style={{ backgroundColor: 'var(--brand-background)' }}
     >
-      {/* Desktop Sidebar */}
-      <aside
-        className="hidden lg:flex lg:flex-col w-60 bg-white h-screen sticky top-0"
-        style={{ borderRight: '1px solid var(--brand-border)' }}
-      >
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Image src="/logo.svg" alt="Healplace logo" width={40} height={40} className="w-10 h-10" />
-            <span
-              className="text-xl font-bold"
-              style={{ color: 'var(--brand-primary-purple)' }}
-            >
-              Healplace Cardio
-            </span>
-          </div>
-          <div
-            className="text-[11px] uppercase tracking-wider mb-2"
-            style={{ color: 'var(--brand-text-muted)', letterSpacing: '0.1em' }}
-          >
-            Care Team Portal
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4">
-          <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 font-semibold text-sm relative"
-            style={{
-              backgroundColor: 'var(--brand-primary-purple-light)',
-              color: 'var(--brand-primary-purple)',
-              borderLeft: '3px solid var(--brand-primary-purple)',
-            }}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Dashboard
-          </button>
-
-          <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 text-sm hover:bg-gray-50 transition"
-            style={{ color: 'var(--brand-text-secondary)' }}
-          >
-            <Users className="w-4 h-4" />
-            Patients
-          </button>
-
-          <button
-            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg mb-1 text-sm hover:bg-gray-50 transition"
-            style={{ color: 'var(--brand-text-secondary)' }}
-            onClick={openAlertsPanel}
-          >
-            <div className="flex items-center gap-3">
-              <Bell className="w-4 h-4" />
-              Alerts
-            </div>
-            {activeAlerts.length > 0 && (
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                style={{ backgroundColor: 'var(--brand-alert-red)' }}
-              >
-                {activeAlerts.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 text-sm hover:bg-gray-50 transition"
-            style={{ color: 'var(--brand-text-secondary)' }}
-          >
-            <FileText className="w-4 h-4" />
-            Reports
-          </button>
-
-          <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 text-sm hover:bg-gray-50 transition"
-            style={{ color: 'var(--brand-text-secondary)' }}
-          >
-            <Settings className="w-4 h-4" />
-            Settings
-          </button>
-        </nav>
-
-        <div className="p-4 mt-auto" style={{ borderTop: '1px solid var(--brand-border)' }}>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-              style={{ backgroundColor: 'var(--brand-primary-purple)' }}
-            >
-              SC
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>
-                Dr. Sarah Chen
-              </div>
-              <div className="text-[11px] truncate" style={{ color: 'var(--brand-text-muted)' }}>
-                Cedar Hill Medical
-              </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-success-green)' }} />
-                <span className="text-[10px]" style={{ color: 'var(--brand-success-green)' }}>On duty</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Mobile Header */}
-      <div
-        className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white z-50 flex items-center justify-between px-4"
-        style={{ borderBottom: '1px solid var(--brand-border)' }}
-      >
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          {mobileMenuOpen ? (
-            <X className="w-6 h-6" style={{ color: 'var(--brand-text-primary)' }} />
-          ) : (
-            <Menu className="w-6 h-6" style={{ color: 'var(--brand-text-primary)' }} />
-          )}
-        </button>
-        <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Healplace logo" width={32} height={32} className="w-8 h-8" />
-          <span className="font-bold text-lg" style={{ color: 'var(--brand-primary-purple)' }}>
-            Healplace
-          </span>
-        </div>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs"
-          style={{ backgroundColor: 'var(--brand-primary-purple)' }}
-        >
-          SC
-        </div>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 bg-white z-40 pt-16">
-          <nav className="p-4">
-            {[
-              { icon: BarChart3, label: 'Dashboard', active: true },
-              { icon: Users, label: 'Patients' },
-              { icon: Bell, label: 'Alerts', badge: 3 },
-              { icon: FileText, label: 'Reports' },
-              { icon: Settings, label: 'Settings' },
-            ].map((item) => (
-              <button
-                key={item.label}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg mb-2 text-sm"
-                style={{
-                  backgroundColor: item.active ? 'var(--brand-primary-purple-light)' : 'transparent',
-                  color: item.active ? 'var(--brand-primary-purple)' : 'var(--brand-text-secondary)',
-                  fontWeight: item.active ? 600 : 400,
-                }}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </div>
-                {item.badge && (
-                  <span
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                    style={{ backgroundColor: 'var(--brand-alert-red)' }}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-      )}
-
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 mt-16 lg:mt-0 mb-16 lg:mb-0">
+      <main className="p-4 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--brand-text-primary)' }}>
@@ -340,7 +200,7 @@ export default function ProviderDashboard() {
               <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Patients</span>
               <Users className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
             </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>47</div>
+            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.totalPatients}</div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
                 &uarr; +3 this week
@@ -359,7 +219,7 @@ export default function ProviderDashboard() {
               <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Monthly Interactions</span>
               <Activity className="w-5 h-5" style={{ color: 'var(--brand-accent-teal)' }} />
             </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>1,247</div>
+            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.monthlyInteractions.toLocaleString()}</div>
             <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
               &uarr; 18% vs last month
             </span>
@@ -370,9 +230,10 @@ export default function ProviderDashboard() {
               <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Alerts</span>
               <Bell className="w-5 h-5" style={{ color: 'var(--brand-alert-red)' }} />
             </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-alert-red)' }}>3</div>
+            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-alert-red)' }}>{activeAlerts.length}</div>
             <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
-              2x Level 1 &middot; 1x Level 2
+              {activeAlerts.filter((a) => a.level === 'L1').length}x Level 1 &middot;{' '}
+              {activeAlerts.filter((a) => a.level === 'L2').length}x Level 2
             </span>
           </div>
 
@@ -381,7 +242,7 @@ export default function ProviderDashboard() {
               <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>BP Controlled</span>
               <Heart className="w-5 h-5" style={{ color: 'var(--brand-success-green)' }} />
             </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-success-green)' }}>68%</div>
+            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-success-green)' }}>{stats.bpControlledPercent}%</div>
             <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>Target: &gt;70%</span>
           </div>
         </div>
@@ -649,35 +510,6 @@ export default function ProviderDashboard() {
           </div>
         </div>
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white h-16 flex items-center justify-around z-40"
-        style={{ borderTop: '1px solid var(--brand-border)', boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' }}
-      >
-        <button className="flex flex-col items-center gap-1">
-          <BarChart3 className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
-          <span className="text-[10px] font-semibold" style={{ color: 'var(--brand-primary-purple)' }}>Dashboard</span>
-        </button>
-        <button className="flex flex-col items-center gap-1">
-          <Users className="w-5 h-5" style={{ color: 'var(--brand-text-muted)' }} />
-          <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>Patients</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 relative">
-          <Bell className="w-5 h-5" style={{ color: 'var(--brand-text-muted)' }} />
-          <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>Alerts</span>
-          <span
-            className="absolute -top-1 right-2 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-            style={{ backgroundColor: 'var(--brand-alert-red)' }}
-          >
-            3
-          </span>
-        </button>
-        <button className="flex flex-col items-center gap-1">
-          <Settings className="w-5 h-5" style={{ color: 'var(--brand-text-muted)' }} />
-          <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>Settings</span>
-        </button>
-      </nav>
 
       {/* Alert Panel */}
       <AnimatePresence>

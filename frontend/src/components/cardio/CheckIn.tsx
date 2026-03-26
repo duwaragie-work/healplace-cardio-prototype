@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Check,
@@ -15,6 +13,7 @@ import {
   Stethoscope,
   CalendarDays,
 } from 'lucide-react';
+import { createJournalEntry, getJournalEntries, getLatestBaseline } from '@/lib/services/journal.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormData {
@@ -28,15 +27,20 @@ interface FormData {
   notes: string;
 }
 
-// ─── Static data ─────────────────────────────────────────────────────────────
-const RECENT_READINGS = [
-  { date: 'Mar 21', sys: 168, dia: 96, status: 'Elevated', color: 'amber' },
-  { date: 'Mar 20', sys: 165, dia: 95, status: 'Elevated', color: 'amber' },
-  { date: 'Mar 19', sys: 162, dia: 94, status: 'Elevated', color: 'amber' },
-  { date: 'Mar 18', sys: 158, dia: 92, status: 'Normal', color: 'green' },
-  { date: 'Mar 17', sys: 142, dia: 88, status: 'Normal', color: 'green' },
-];
+interface RecentReading {
+  date: string;
+  sys: number;
+  dia: number;
+  status: string;
+  color: 'amber' | 'green';
+}
 
+interface Baseline {
+  baselineSystolic?: number | string;
+  baselineDiastolic?: number | string;
+}
+
+// ─── Static data ─────────────────────────────────────────────────────────────
 const SYMPTOM_OPTIONS = [
   'Chest Pain',
   'Severe Headache',
@@ -54,6 +58,19 @@ const STEPS = [
   { label: 'Symptoms', icon: Stethoscope },
 ];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function formatReadingDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function getBpStatus(sys: number, dia: number): { label: string; color: 'amber' | 'green' } {
+  if (sys >= 140 || dia >= 90) return { label: 'Elevated', color: 'amber' };
+  return { label: 'Normal', color: 'green' };
+}
 
 // ─── Step Progress Bar (desktop) ─────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -121,25 +138,6 @@ function StepBar({ current }: { current: number }) {
 }
 
 // ─── Dot progress (mobile) ────────────────────────────────────────────────────
-function DotProgress({ current }: { current: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      {STEPS.map((_, i) => (
-        <div
-          key={i}
-          className="rounded-full transition-all duration-300"
-          style={{
-            width: i === current ? 20 : 8,
-            height: 8,
-            backgroundColor: i <= current ? 'var(--brand-primary-purple)' : 'var(--brand-border)',
-            opacity: i > current ? 0.5 : 1,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ─── Slide variants ───────────────────────────────────────────────────────────
 const slideVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
@@ -149,7 +147,20 @@ const slideVariants = {
 const slideTransition = { type: 'spring' as const, stiffness: 340, damping: 30 };
 
 // ─── Context Panel (Right side, desktop) ──────────────────────────────────────
-function ContextPanel() {
+function ContextPanel({
+  recentReadings,
+  baseline,
+}: {
+  recentReadings: RecentReading[];
+  baseline: Baseline | null;
+}) {
+  const baselineStr =
+    baseline?.baselineSystolic && baseline?.baselineDiastolic
+      ? `${Math.round(Number(baseline.baselineSystolic))} / ${Math.round(Number(baseline.baselineDiastolic))}`
+      : '-- / --';
+
+  const displayReadings = recentReadings.slice(0, 7);
+
   return (
     <div className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
       <div className="flex items-center justify-between mb-4">
@@ -157,7 +168,7 @@ function ContextPanel() {
           Your Recent Readings
         </h3>
         <span className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
-          Last 7 entries
+          Last {displayReadings.length} entries
         </span>
       </div>
 
@@ -175,14 +186,19 @@ function ContextPanel() {
           <span className="text-center">Diastolic</span>
           <span className="text-right">Status</span>
         </div>
-        {RECENT_READINGS.map((r, i) => (
+        {displayReadings.length === 0 && (
+          <p className="text-[12px] py-3" style={{ color: 'var(--brand-text-muted)' }}>
+            No readings yet — this is your first check-in!
+          </p>
+        )}
+        {displayReadings.map((r, i) => (
           <div
             key={i}
             className="grid items-center py-2.5 text-[13px]"
             style={{
               gridTemplateColumns: '1fr 1fr 1fr 1fr',
               borderBottom:
-                i < RECENT_READINGS.length - 1
+                i < displayReadings.length - 1
                   ? '1px solid var(--brand-border)'
                   : 'none',
             }}
@@ -239,7 +255,7 @@ function ContextPanel() {
           Your Baseline
         </p>
         <p className="text-[26px] font-bold mb-1" style={{ color: 'var(--brand-text-primary)' }}>
-          138 / 85{' '}
+          {baselineStr}{' '}
           <span className="text-[14px] font-semibold" style={{ color: 'var(--brand-text-muted)' }}>
             mmHg
           </span>
@@ -445,7 +461,7 @@ function Step2BP({
               {isCritical
                 ? 'Critical range — your care team will be notified immediately'
                 : isElevated
-                ? 'Elevated — above your baseline of 138/85 mmHg'
+                ? 'Elevated — above your target range'
                 : 'Within normal range for you'}
             </p>
           </motion.div>
@@ -794,6 +810,8 @@ function Step5Symptoms({
 
 // ─── Success screen ───────────────────────────────────────────────────────────
 function SuccessScreen({ onDone }: { onDone: () => void }) {
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   return (
     <motion.div
       className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
@@ -819,7 +837,7 @@ function SuccessScreen({ onDone }: { onDone: () => void }) {
           Your readings have been submitted to your care team.
         </p>
         <p className="text-[13px] mb-8" style={{ color: 'var(--brand-text-muted)' }}>
-          Reviewed by Cedar Hill Medical &middot; March 25, 2026
+          Reviewed by Cedar Hill Medical &middot; {dateLabel}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <motion.button
@@ -840,7 +858,7 @@ function SuccessScreen({ onDone }: { onDone: () => void }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function CheckIn() {
   const router = useRouter();
-  const today = new Date(2026, 2, 25);
+  const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const dd = String(today.getDate()).padStart(2, '0');
@@ -848,6 +866,10 @@ export default function CheckIn() {
   const [step, setStep] = useState(0);
   const [direction, setDir] = useState(1);
   const [submitted, setSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [recentReadings, setRecentReadings] = useState<RecentReading[]>([]);
+  const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [form, setForm] = useState<FormData>({
     date: `${yyyy}-${mm}-${dd}`,
     systolic: '',
@@ -858,6 +880,32 @@ export default function CheckIn() {
     weightUnit: 'lbs',
     notes: '',
   });
+
+  // Load recent readings and baseline for context panel
+  useEffect(() => {
+    getJournalEntries({ limit: 7 }).then((entries) => {
+      const arr = Array.isArray(entries) ? entries : [];
+      const sorted = [...arr].sort(
+        (a: { entryDate: string }, b: { entryDate: string }) =>
+          new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime(),
+      );
+      const readings: RecentReading[] = sorted
+        .filter((e: { systolicBP?: number; diastolicBP?: number }) => e.systolicBP && e.diastolicBP)
+        .map((e: { entryDate: string; systolicBP: number; diastolicBP: number }) => {
+          const { label, color } = getBpStatus(e.systolicBP, e.diastolicBP);
+          return {
+            date: formatReadingDate(e.entryDate),
+            sys: e.systolicBP,
+            dia: e.diastolicBP,
+            status: label,
+            color,
+          };
+        });
+      setRecentReadings(readings);
+    }).catch(() => {});
+
+    getLatestBaseline().then((b) => setBaseline(b ?? null)).catch(() => {});
+  }, []);
 
   const onChange = (key: keyof FormData, value: string) => {
     setForm((prev) => {
@@ -871,12 +919,37 @@ export default function CheckIn() {
     });
   };
 
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const payload: Parameters<typeof createJournalEntry>[0] = {
+        entryDate: form.date,
+      };
+      if (form.systolic) payload.systolicBP = parseInt(form.systolic, 10);
+      if (form.diastolic) payload.diastolicBP = parseInt(form.diastolic, 10);
+      if (form.weight) payload.weight = parseFloat(form.weight);
+      if (form.medication !== null) payload.medicationTaken = form.medication === 'yes';
+      const cleanedSymptoms = form.symptoms.filter((s) => s !== 'None of these');
+      if (cleanedSymptoms.length > 0) payload.symptoms = cleanedSymptoms;
+      if (form.notes.trim()) payload.notes = form.notes.trim();
+
+      await createJournalEntry(payload);
+      setSubmit(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const goNext = () => {
     if (step < 4) {
       setDir(1);
       setStep((s) => s + 1);
     } else {
-      setSubmit(true);
+      void handleSubmit();
     }
   };
 
@@ -902,7 +975,7 @@ export default function CheckIn() {
     'Next: Weight',
     'Next: Medication',
     'Next: Symptoms',
-    'Submit Check-In',
+    isSubmitting ? 'Submitting...' : 'Submit Check-In',
   ];
 
   if (submitted) {
@@ -911,51 +984,6 @@ export default function CheckIn() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--brand-background)' }}>
-      {/* Top Nav */}
-      <nav
-        className="bg-white h-16 flex items-center justify-between px-4 md:px-8 shrink-0 sticky top-0 z-30"
-        style={{ borderBottom: '1px solid var(--brand-border)' }}
-      >
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <Image src="/logo.svg" alt="Healplace logo" width={36} height={36} className="w-9 h-9" />
-          <span className="hidden md:block font-bold text-lg" style={{ color: 'var(--brand-primary-purple)' }}>
-            Healplace Cardio
-          </span>
-        </Link>
-
-        <div className="hidden lg:flex items-center gap-8">
-          {['Home', 'Check-In', 'History', 'Messages'].map((item) => (
-            <span
-              key={item}
-              className="text-sm font-semibold pb-1 relative transition"
-              style={{
-                color: item === 'Check-In' ? 'var(--brand-primary-purple)' : 'var(--brand-text-secondary)',
-                fontWeight: item === 'Check-In' ? 700 : 600,
-              }}
-            >
-              {item}
-              {item === 'Check-In' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: 'var(--brand-primary-purple)' }} />
-              )}
-            </span>
-          ))}
-        </div>
-
-        <div className="lg:hidden flex items-center gap-3">
-          <DotProgress current={step} />
-          <span className="text-[13px] font-semibold" style={{ color: 'var(--brand-text-muted)' }}>
-            {step + 1} / 5
-          </span>
-        </div>
-
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
-          style={{ backgroundColor: 'var(--brand-primary-purple)' }}
-        >
-          MJ
-        </div>
-      </nav>
-
       {/* Body */}
       <div className="flex-1 w-full max-w-300 mx-auto px-4 md:px-8 pt-5 md:pt-8 pb-24 lg:pb-10">
         <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">
@@ -989,13 +1017,16 @@ export default function CheckIn() {
                       <span className="text-center">Dia</span>
                       <span className="text-right">Status</span>
                     </div>
-                    {RECENT_READINGS.map((r, i) => (
+                    {recentReadings.length === 0 && (
+                      <p className="text-[12px] py-2" style={{ color: 'var(--brand-text-muted)' }}>No readings yet</p>
+                    )}
+                    {recentReadings.slice(0, 5).map((r, i) => (
                       <div
                         key={i}
                         className="grid items-center py-1.5 text-[12px]"
                         style={{
                           gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                          borderBottom: i < RECENT_READINGS.length - 1 ? '1px solid var(--brand-border)' : 'none',
+                          borderBottom: i < recentReadings.slice(0, 5).length - 1 ? '1px solid var(--brand-border)' : 'none',
                         }}
                       >
                         <span style={{ color: 'var(--brand-text-secondary)' }}>{r.date}</span>
@@ -1034,7 +1065,13 @@ export default function CheckIn() {
                     </p>
                   </div>
                   <p className="text-[26px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>
-                    138<span className="text-[16px] font-semibold mx-1" style={{ color: 'var(--brand-text-muted)' }}>/</span>85
+                    {baseline?.baselineSystolic
+                      ? Math.round(Number(baseline.baselineSystolic))
+                      : '--'}
+                    <span className="text-[16px] font-semibold mx-1" style={{ color: 'var(--brand-text-muted)' }}>/</span>
+                    {baseline?.baselineDiastolic
+                      ? Math.round(Number(baseline.baselineDiastolic))
+                      : '--'}
                     <span className="text-[12px] font-medium ml-1" style={{ color: 'var(--brand-text-muted)' }}>mmHg</span>
                   </p>
                 </div>
@@ -1065,6 +1102,15 @@ export default function CheckIn() {
                 </AnimatePresence>
               </div>
 
+              {/* Submit error */}
+              {submitError && (
+                <div className="px-6 pb-2">
+                  <p className="text-[13px] text-center" style={{ color: 'var(--brand-alert-red)' }}>
+                    {submitError}
+                  </p>
+                </div>
+              )}
+
               {/* Desktop nav buttons */}
               <div
                 className="hidden lg:flex shrink-0 items-center justify-between px-8 py-5"
@@ -1083,7 +1129,8 @@ export default function CheckIn() {
 
                 <motion.button
                   onClick={goNext}
-                  className="h-11 px-8 rounded-full text-white font-bold text-sm flex items-center gap-2"
+                  disabled={isSubmitting}
+                  className="h-11 px-8 rounded-full text-white font-bold text-sm flex items-center gap-2 disabled:opacity-60"
                   style={{
                     backgroundColor: 'var(--brand-primary-purple)',
                     boxShadow: 'var(--brand-shadow-button)',
@@ -1106,7 +1153,7 @@ export default function CheckIn() {
 
           {/* Right: Context panel — desktop only */}
           <div className="hidden lg:block w-90 shrink-0">
-            <ContextPanel />
+            <ContextPanel recentReadings={recentReadings} baseline={baseline} />
           </div>
         </div>
       </div>
@@ -1126,11 +1173,12 @@ export default function CheckIn() {
         </button>
         <motion.button
           onClick={goNext}
-          className="flex-1 h-12 rounded-full text-white font-bold text-sm"
+          disabled={isSubmitting}
+          className="flex-1 h-12 rounded-full text-white font-bold text-sm disabled:opacity-60"
           style={{ backgroundColor: 'var(--brand-primary-purple)', boxShadow: 'var(--brand-shadow-button)' }}
           whileTap={{ scale: 0.97 }}
         >
-          {step === 4 ? 'Submit' : 'Next'}
+          {step === 4 ? (isSubmitting ? 'Submitting...' : 'Submit') : 'Next'}
         </motion.button>
       </div>
     </div>
