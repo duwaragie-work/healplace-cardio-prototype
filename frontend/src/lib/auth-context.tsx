@@ -113,10 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function rehydrate() {
       const accessToken = stored;
 
-      // 1. Try /me with the existing access token
+      // 1. Try /profile with the existing access token (returns full user incl. name)
       if (accessToken) {
         try {
-          const res = await fetch(`${API_URL}/api/v2/auth/me`, {
+          const res = await fetch(`${API_URL}/api/v2/auth/profile`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (res.ok) {
@@ -128,6 +128,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: data.email,
               name: data.name,
               roles: data.roles,
+              isVerified: data.isVerified,
+              riskTier: data.riskTier,
+              accountStatus: data.accountStatus,
+              onboardingStatus: data.onboardingStatus,
             });
             return;
           }
@@ -158,18 +162,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
               }
 
-              // Fetch user profile with the fresh token
-              const meRes = await fetch(`${API_URL}/api/v2/auth/me`, {
+              // Fetch full profile with the fresh token
+              const profileRes = await fetch(`${API_URL}/api/v2/auth/profile`, {
                 headers: { Authorization: `Bearer ${newAccess}` },
               });
-              if (meRes.ok) {
-                const meData = await meRes.json();
+              if (profileRes.ok) {
+                const profileData = await profileRes.json();
                 setToken(newAccess);
                 setUser({
-                  id: meData.id,
-                  email: meData.email,
-                  name: meData.name,
-                  roles: meData.roles,
+                  id: profileData.id,
+                  email: profileData.email,
+                  name: profileData.name,
+                  roles: profileData.roles,
+                  isVerified: profileData.isVerified,
+                  riskTier: profileData.riskTier,
+                  accountStatus: profileData.accountStatus,
+                  onboardingStatus: profileData.onboardingStatus,
                 });
                 return;
               }

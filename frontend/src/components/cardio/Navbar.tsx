@@ -30,11 +30,6 @@ export default function Navbar() {
       .catch(() => {});
   }, [isAuthenticated]);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-
   const userInitials =
     user?.name
       ?.split(' ')
@@ -60,7 +55,7 @@ export default function Navbar() {
         }}
       >
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
           <Image
             src="/logo.svg"
             alt="Healplace logo"
@@ -129,7 +124,7 @@ export default function Navbar() {
 
           <Link
             href="/profile"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
             style={{ backgroundColor: 'var(--brand-primary-purple)' }}
           >
             {userInitials}
