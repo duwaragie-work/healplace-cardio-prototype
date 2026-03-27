@@ -364,11 +364,11 @@ function SidebarContent({
                 <button
                   key={s.id}
                   onClick={() => onSelect(s.id)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl transition-all"
+                  className={`w-full text-left px-3 py-2.5 rounded-xl transition-all cursor-pointer ${!isActive ? 'hover:bg-[#F3EEFB]' : ''}`}
                   style={{
                     backgroundColor: isActive
                       ? 'var(--brand-primary-purple-light)'
-                      : 'transparent',
+                      : undefined,
                     borderLeft: isActive
                       ? '2px solid var(--brand-primary-purple)'
                       : '2px solid transparent',
@@ -412,6 +412,7 @@ export default function AIChatInterface() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [showSessions, setShowSessions] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const userInitials = getUserInitials(user?.name);
@@ -438,9 +439,6 @@ export default function AIChatInterface() {
           }),
         );
         setSessions(mapped);
-        if (mapped.length > 0 && !activeSessionId) {
-          setActiveSessionId(mapped[0].id);
-        }
       })
       .catch(() => {})
       .finally(() => setIsLoadingSessions(false));
@@ -453,6 +451,8 @@ export default function AIChatInterface() {
       setMessages([]);
       return;
     }
+    setIsLoadingHistory(true);
+    setMessages([]);
     getSessionHistory(activeSessionId)
       .then((history) => {
         const arr = Array.isArray(history) ? history : [];
@@ -478,7 +478,8 @@ export default function AIChatInterface() {
         );
         setMessages(msgs);
       })
-      .catch(() => setMessages([]));
+      .catch(() => setMessages([]))
+      .finally(() => setIsLoadingHistory(false));
   }, [activeSessionId]);
 
   const handleSend = async () => {
@@ -717,7 +718,40 @@ export default function AIChatInterface() {
           className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-4 min-h-0"
           style={{ backgroundColor: 'var(--brand-background)' }}
         >
-          {messages.length === 0 && !isTyping && (
+          {isLoadingHistory && (
+            <div className="space-y-4 py-4">
+              {/* Skeleton: patient message */}
+              <div className="flex justify-end">
+                <div className="animate-pulse rounded-2xl px-4 py-3" style={{ backgroundColor: 'var(--brand-primary-purple-light)', width: '65%' }}>
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#E9D5FF', width: '80%', marginLeft: 'auto' }} />
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#E9D5FF', width: '50%', marginLeft: 'auto' }} />
+                </div>
+              </div>
+              {/* Skeleton: AI message */}
+              <div className="flex justify-start">
+                <div className="animate-pulse rounded-2xl px-4 py-3 bg-white" style={{ width: '75%', boxShadow: '0 1px 8px rgba(123,0,224,0.06)' }}>
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '90%' }} />
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '70%' }} />
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: '40%' }} />
+                </div>
+              </div>
+              {/* Skeleton: patient message */}
+              <div className="flex justify-end">
+                <div className="animate-pulse rounded-2xl px-4 py-3" style={{ backgroundColor: 'var(--brand-primary-purple-light)', width: '55%' }}>
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#E9D5FF', width: '60%', marginLeft: 'auto' }} />
+                </div>
+              </div>
+              {/* Skeleton: AI message */}
+              <div className="flex justify-start">
+                <div className="animate-pulse rounded-2xl px-4 py-3 bg-white" style={{ width: '70%', boxShadow: '0 1px 8px rgba(123,0,224,0.06)' }}>
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '85%' }} />
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: '55%' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {messages.length === 0 && !isTyping && !isLoadingHistory && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-xs mx-auto">
                 <div
