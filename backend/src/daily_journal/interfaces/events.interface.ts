@@ -64,4 +64,7 @@ export interface EscalationCreatedEvent {
   escalationLevel: string
   deviationType: string
   reason: string
+  symptoms?: string[]
+  patientMessage: string
+  careTeamMessage: string
 }

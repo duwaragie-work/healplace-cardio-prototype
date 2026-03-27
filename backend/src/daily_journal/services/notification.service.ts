@@ -3,7 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter'
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { JOURNAL_EVENTS } from '../constants/events.js'
 import type { EscalationCreatedEvent } from '../interfaces/events.interface.js'
-import { SLEEP_TIPS } from '../utils/tips.js'
+import { CARDIO_TIPS } from '../utils/tips.js'
 
 @Injectable()
 export class JournalNotificationService {
@@ -50,38 +50,21 @@ export class JournalNotificationService {
     body: string
   } {
     const titles: Record<string, string> = {
-      LEVEL_1: 'Sleep Pattern Notice',
-      LEVEL_2: 'Sleep Warning',
-      LEVEL_3: 'Urgent Sleep Alert',
-    }
-
-    const bodies: Record<string, string> = {
-      LEVEL_1:
-        'We noticed a change in your sleep pattern. Keep an eye on it.',
-      LEVEL_2:
-        'Your sleep has been off for 2 days in a row. Consider reviewing your habits.',
-      LEVEL_3:
-        'Your sleep quality has been consistently poor. We strongly recommend taking action.',
+      LEVEL_1: 'Blood Pressure Notice',
+      LEVEL_2: 'Urgent Blood Pressure Alert',
     }
 
     return {
-      title: titles[payload.escalationLevel] ?? 'Sleep Alert',
-      body:
-        bodies[payload.escalationLevel] ??
-        payload.reason,
+      title: titles[payload.escalationLevel] ?? 'Health Alert',
+      body: payload.patientMessage ?? payload.reason,
     }
   }
 
   private selectTips(payload: EscalationCreatedEvent): string[] {
     const deviationType = payload.deviationType ?? ''
-    const typeTips = SLEEP_TIPS[deviationType] ?? []
+    const typeTips = CARDIO_TIPS[deviationType] ?? []
 
-    const tipCount =
-      payload.escalationLevel === 'LEVEL_3'
-        ? 4
-        : payload.escalationLevel === 'LEVEL_2'
-          ? 3
-          : 2
+    const tipCount = payload.escalationLevel === 'LEVEL_2' ? 4 : 2
 
     if (typeTips.length >= tipCount) {
       return typeTips.slice(0, tipCount)
@@ -89,7 +72,7 @@ export class JournalNotificationService {
 
     const allTips = [
       ...typeTips,
-      ...Object.entries(SLEEP_TIPS)
+      ...Object.entries(CARDIO_TIPS)
         .filter(([key]) => key !== deviationType)
         .flatMap(([, tips]) => tips),
     ]

@@ -1,0 +1,785 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft,
+  Bell,
+  AlertTriangle,
+  Activity,
+  Pill,
+  Scale,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  CheckCheck,
+  Zap,
+} from 'lucide-react';
+import {
+  getAlerts,
+  acknowledgeAlert,
+  getNotifications,
+  markNotificationRead,
+} from '@/lib/services/journal.service';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type AlertType = 'SYSTOLIC_BP' | 'DIASTOLIC_BP' | 'WEIGHT' | 'MEDICATION_ADHERENCE';
+type AlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+type Alert = {
+  id: string;
+  type: AlertType;
+  severity: AlertSeverity;
+  magnitude: number;
+  baselineValue?: number;
+  actualValue?: number;
+  status: AlertStatus;
+  escalated: boolean;
+  createdAt: string;
+  acknowledgedAt?: string;
+  journalEntry?: {
+    id: string;
+    entryDate: string;
+    systolicBP?: number;
+    diastolicBP?: number;
+    weight?: number;
+  };
+};
+
+type Notif = {
+  id: string;
+  title: string;
+  body: string;
+  tips: string[];
+  sentAt: string;
+  watched: boolean;
+  channel?: string;
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const TYPE_META: Record<AlertType, { label: string; icon: typeof Activity }> = {
+  SYSTOLIC_BP: { label: 'Elevated Systolic BP', icon: Activity },
+  DIASTOLIC_BP: { label: 'Elevated Diastolic BP', icon: Activity },
+  WEIGHT: { label: 'Weight Change Detected', icon: Scale },
+  MEDICATION_ADHERENCE: { label: 'Missed Medication', icon: Pill },
+};
+
+const SEVERITY_META = {
+  HIGH: { label: 'Urgent', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
+  MEDIUM: { label: 'Moderate', bg: '#FFF7ED', text: '#EA580C', border: '#FED7AA' },
+  LOW: { label: 'Low', bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
+};
+
+function timeAgo(dateStr: string): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function formatAlertDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+// ─── Skeleton helpers ─────────────────────────────────────────────────────────
+function Bone({
+  w,
+  h,
+  rounded = 'rounded-lg',
+  className = '',
+}: {
+  w: number | string;
+  h: number;
+  rounded?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`animate-pulse ${rounded} shrink-0 ${className}`}
+      style={{ width: w, height: h, backgroundColor: '#EDE9F6' }}
+    />
+  );
+}
+
+function AlertSkeleton() {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ border: '1px solid #EDE9F6', backgroundColor: 'white' }}
+    >
+      <div className="p-4 flex items-start gap-3">
+        <Bone w={40} h={40} rounded="rounded-xl" />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <Bone w={100} h={13} />
+            <Bone w={56} h={20} rounded="rounded-full" />
+          </div>
+          <Bone w="75%" h={11} />
+          <div className="flex gap-2 mt-1">
+            <Bone w={80} h={28} rounded="rounded-xl" />
+            <Bone w={80} h={28} rounded="rounded-xl" />
+          </div>
+        </div>
+      </div>
+      <div className="px-4 pb-4">
+        <Bone w="100%" h={36} rounded="rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+function NotifSkeleton({ delay = 0 }: { delay?: number }) {
+  return (
+    <div
+      className="flex items-start gap-3 p-4 rounded-2xl"
+      style={{ backgroundColor: 'white', animationDelay: `${delay}ms` }}
+    >
+      <Bone w={40} h={40} rounded="rounded-full" />
+      <div className="flex-1 space-y-2">
+        <div className="flex items-start justify-between">
+          <Bone w="55%" h={13} />
+          <Bone w={40} h={11} className="ml-2" />
+        </div>
+        <Bone w="88%" h={11} />
+        <Bone w="65%" h={11} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Alert Card ───────────────────────────────────────────────────────────────
+function AlertCard({
+  alert,
+  onAcknowledge,
+  acknowledging,
+}: {
+  alert: Alert;
+  onAcknowledge: (id: string) => void;
+  acknowledging: string | null;
+}) {
+  const meta = TYPE_META[alert.type] ?? { label: alert.type, icon: AlertTriangle };
+  const sevMeta = SEVERITY_META[alert.severity] ?? SEVERITY_META.LOW;
+  const Icon = meta.icon;
+  const isOpen = alert.status === 'OPEN';
+  const isAcking = acknowledging === alert.id;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      className="rounded-2xl overflow-hidden"
+      style={{
+        border: `1px solid ${sevMeta.border}`,
+        backgroundColor: 'white',
+        boxShadow: `0 2px 16px ${sevMeta.bg}`,
+      }}
+    >
+      {/* Top accent strip */}
+      <div
+        className="h-1 w-full"
+        style={{ backgroundColor: sevMeta.text, opacity: 0.7 }}
+      />
+
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: sevMeta.bg }}
+          >
+            <Icon className="w-5 h-5" style={{ color: sevMeta.text }} />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span
+                className="text-[14px] font-bold"
+                style={{ color: 'var(--brand-text-primary)' }}
+              >
+                {meta.label}
+              </span>
+              <span
+                className="px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0"
+                style={{ backgroundColor: sevMeta.bg, color: sevMeta.text }}
+              >
+                {sevMeta.label}
+              </span>
+              {alert.escalated && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-600 text-white shrink-0 flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Escalated
+                </span>
+              )}
+            </div>
+
+            {/* Values */}
+            {alert.actualValue != null && alert.baselineValue != null && (
+              <p className="text-[12px] mb-2" style={{ color: 'var(--brand-text-muted)' }}>
+                Recorded{' '}
+                <span className="font-semibold" style={{ color: sevMeta.text }}>
+                  {Number(alert.actualValue).toFixed(0)}
+                </span>{' '}
+                vs your baseline of{' '}
+                <span className="font-semibold" style={{ color: 'var(--brand-text-secondary)' }}>
+                  {Number(alert.baselineValue).toFixed(0)}
+                </span>
+                {alert.type.includes('BP') ? ' mmHg' : alert.type === 'WEIGHT' ? ' lbs' : ''}
+              </p>
+            )}
+
+            {/* Entry date */}
+            {alert.journalEntry?.entryDate && (
+              <p className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>
+                {formatAlertDate(alert.journalEntry.entryDate)}
+              </p>
+            )}
+          </div>
+
+          {/* Status badge */}
+          {!isOpen && (
+            <div className="shrink-0 flex items-center gap-1" style={{ color: '#16A34A' }}>
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-[11px] font-semibold">Done</span>
+            </div>
+          )}
+        </div>
+
+        {/* Acknowledge button */}
+        {isOpen && (
+          <motion.button
+            onClick={() => onAcknowledge(alert.id)}
+            disabled={isAcking}
+            className="mt-3 w-full h-10 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition disabled:opacity-60"
+            style={{ backgroundColor: sevMeta.bg, color: sevMeta.text, border: `1px solid ${sevMeta.border}` }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {isAcking ? (
+              <>Acknowledging…</>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                Acknowledge — I&apos;ve seen this
+              </>
+            )}
+          </motion.button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Notification Card ────────────────────────────────────────────────────────
+function NotifCard({
+  notif,
+  onRead,
+}: {
+  notif: Notif;
+  onRead: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasTips = notif.tips && notif.tips.length > 0;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="rounded-2xl overflow-hidden cursor-pointer"
+      style={{
+        backgroundColor: 'white',
+        border: notif.watched
+          ? '1px solid var(--brand-border)'
+          : '1px solid var(--brand-primary-purple)',
+        boxShadow: notif.watched
+          ? '0 1px 8px rgba(0,0,0,0.04)'
+          : '0 2px 16px rgba(123,0,224,0.08)',
+      }}
+      onClick={() => {
+        if (!notif.watched) onRead(notif.id);
+      }}
+    >
+      {/* Unread indicator strip */}
+      {!notif.watched && (
+        <div
+          className="h-0.5 w-full"
+          style={{ backgroundColor: 'var(--brand-primary-purple)', opacity: 0.6 }}
+        />
+      )}
+
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              backgroundColor: notif.watched
+                ? 'var(--brand-background)'
+                : 'var(--brand-primary-purple-light)',
+            }}
+          >
+            <Bell
+              className="w-4 h-4"
+              style={{
+                color: notif.watched
+                  ? 'var(--brand-text-muted)'
+                  : 'var(--brand-primary-purple)',
+              }}
+            />
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p
+                className="text-[14px] leading-snug"
+                style={{
+                  color: 'var(--brand-text-primary)',
+                  fontWeight: notif.watched ? 500 : 700,
+                }}
+              >
+                {notif.title}
+              </p>
+              <span
+                className="text-[11px] shrink-0 mt-0.5"
+                style={{ color: 'var(--brand-text-muted)' }}
+              >
+                {timeAgo(notif.sentAt)}
+              </span>
+            </div>
+            <p
+              className="text-[13px] mt-0.5 leading-relaxed"
+              style={{ color: 'var(--brand-text-secondary)' }}
+            >
+              {notif.body}
+            </p>
+
+            {/* Unread dot */}
+            {!notif.watched && (
+              <span
+                className="inline-block mt-1.5 text-[11px] font-semibold"
+                style={{ color: 'var(--brand-primary-purple)' }}
+              >
+                Tap to mark as read
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Tips expand/collapse */}
+        {hasTips && (
+          <div className="mt-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+                if (!notif.watched) onRead(notif.id);
+              }}
+              className="flex items-center gap-1.5 text-[12px] font-semibold transition hover:opacity-75"
+              style={{ color: 'var(--brand-accent-teal)' }}
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                  Hide tips
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  {notif.tips.length} care tip{notif.tips.length > 1 ? 's' : ''}
+                </>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {expanded && (
+                <motion.ul
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="overflow-hidden mt-2 space-y-1.5"
+                >
+                  {notif.tips.map((tip, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-[12px] leading-relaxed"
+                      style={{ color: 'var(--brand-text-secondary)' }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                        style={{ backgroundColor: 'var(--brand-accent-teal)' }}
+                      />
+                      {tip}
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Tab bar ─────────────────────────────────────────────────────────────────
+type Tab = 'all' | 'unread' | 'read';
+
+function TabBar({ active, onChange, unreadCount }: { active: Tab; onChange: (t: Tab) => void; unreadCount: number }) {
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'unread', label: 'Unread' },
+    { id: 'read', label: 'Read' },
+  ];
+  return (
+    <div
+      className="flex items-center gap-1 p-1 rounded-xl"
+      style={{ backgroundColor: 'var(--brand-background)' }}
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          className="relative flex-1 h-8 rounded-lg text-[13px] font-semibold transition"
+          style={{
+            backgroundColor: active === tab.id ? 'white' : 'transparent',
+            color: active === tab.id ? 'var(--brand-primary-purple)' : 'var(--brand-text-muted)',
+            boxShadow: active === tab.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+          }}
+        >
+          {tab.label}
+          {tab.id === 'unread' && unreadCount > 0 && (
+            <span
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+              style={{ backgroundColor: 'var(--brand-primary-purple)' }}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Section header ───────────────────────────────────────────────────────────
+function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-3 mt-1">
+      <span
+        className="text-[12px] font-bold uppercase tracking-wide"
+        style={{ color: 'var(--brand-text-muted)' }}
+      >
+        {children}
+      </span>
+      {count != null && count > 0 && (
+        <span
+          className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: 'var(--brand-primary-purple)' }}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="text-center py-12">
+      <div
+        className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+        style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}
+      >
+        <Bell className="w-7 h-7" style={{ color: 'var(--brand-primary-purple)' }} />
+      </div>
+      <p className="text-[14px] font-semibold" style={{ color: 'var(--brand-text-secondary)' }}>
+        {message}
+      </p>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function NotificationsPage() {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [notifs, setNotifs] = useState<Notif[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>('all');
+  const [acknowledging, setAcknowledging] = useState<string | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [alertData, notifData] = await Promise.all([
+        getAlerts().catch(() => []),
+        getNotifications('all').catch(() => []),
+      ]);
+      const alertArr: Alert[] = Array.isArray(alertData) ? alertData : [];
+      const notifArr: Notif[] = Array.isArray(notifData) ? notifData : [];
+      setAlerts(alertArr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setNotifs(notifArr.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleAcknowledge(id: string) {
+    setAcknowledging(id);
+    try {
+      await acknowledgeAlert(id);
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: 'ACKNOWLEDGED' as AlertStatus } : a)),
+      );
+    } catch {
+      // leave open
+    } finally {
+      setAcknowledging(null);
+    }
+  }
+
+  async function handleRead(id: string) {
+    try {
+      await markNotificationRead(id, true);
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, watched: true } : n)));
+    } catch {
+      // optimistic update is fine to keep
+    }
+  }
+
+  async function handleMarkAllRead() {
+    const unread = notifs.filter((n) => !n.watched);
+    if (unread.length === 0) return;
+    setMarkingAll(true);
+    try {
+      await Promise.all(unread.map((n) => markNotificationRead(n.id, true)));
+      setNotifs((prev) => prev.map((n) => ({ ...n, watched: true })));
+    } catch {
+      // partial update is ok
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  const openAlerts = alerts.filter((a) => a.status === 'OPEN');
+  const pastAlerts = alerts.filter((a) => a.status !== 'OPEN');
+  const unreadCount = notifs.filter((n) => !n.watched).length;
+
+  const filteredNotifs =
+    tab === 'unread'
+      ? notifs.filter((n) => !n.watched)
+      : tab === 'read'
+        ? notifs.filter((n) => n.watched)
+        : notifs;
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--brand-background)' }}>
+      {/* Page header */}
+      <div
+        className="sticky top-16 z-30 bg-white/90 backdrop-blur-sm px-4 md:px-8 py-4"
+        style={{ borderBottom: '1px solid var(--brand-border)' }}
+      >
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition hover:opacity-75"
+              style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}
+            >
+              <ArrowLeft className="w-4 h-4" style={{ color: 'var(--brand-primary-purple)' }} />
+            </Link>
+            <div>
+              <h1
+                className="text-[18px] font-bold leading-tight"
+                style={{ color: 'var(--brand-text-primary)' }}
+              >
+                Notifications
+              </h1>
+              {!loading && (
+                <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
+                  {openAlerts.length > 0
+                    ? `${openAlerts.length} action${openAlerts.length > 1 ? 's' : ''} needed · ${unreadCount} unread`
+                    : unreadCount > 0
+                      ? `${unreadCount} unread`
+                      : 'All caught up'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-semibold transition hover:opacity-80 disabled:opacity-50"
+              style={{
+                backgroundColor: 'var(--brand-primary-purple-light)',
+                color: 'var(--brand-primary-purple)',
+              }}
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              {markingAll ? 'Marking…' : 'Mark all read'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-5 space-y-6">
+        {loading ? (
+          <>
+            {/* Alert skeletons */}
+            <div className="space-y-3">
+              <Bone w={120} h={12} rounded="rounded-md" />
+              <AlertSkeleton />
+              <AlertSkeleton />
+            </div>
+            {/* Notif skeletons */}
+            <div className="space-y-3">
+              <Bone w={100} h={12} rounded="rounded-md" />
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ border: '1px solid var(--brand-border)' }}
+              >
+                {[0, 120, 240, 360].map((delay) => (
+                  <div
+                    key={delay}
+                    style={{ borderBottom: delay < 360 ? '1px solid var(--brand-border)' : 'none' }}
+                  >
+                    <NotifSkeleton delay={delay} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* ── Action Required ── */}
+            {openAlerts.length > 0 && (
+              <div>
+                <SectionLabel count={openAlerts.length}>Action Required</SectionLabel>
+                <div className="space-y-3">
+                  <AnimatePresence mode="popLayout">
+                    {openAlerts.map((alert) => (
+                      <AlertCard
+                        key={alert.id}
+                        alert={alert}
+                        onAcknowledge={handleAcknowledge}
+                        acknowledging={acknowledging}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+
+            {/* ── Notifications ── */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <SectionLabel count={unreadCount > 0 ? unreadCount : undefined}>
+                  Messages
+                </SectionLabel>
+              </div>
+
+              <TabBar active={tab} onChange={setTab} unreadCount={unreadCount} />
+
+              <div className="mt-3 space-y-2">
+                <AnimatePresence mode="popLayout">
+                  {filteredNotifs.length === 0 ? (
+                    <EmptyState
+                      message={
+                        tab === 'unread'
+                          ? 'No unread messages'
+                          : tab === 'read'
+                            ? 'No read messages yet'
+                            : 'No messages yet'
+                      }
+                    />
+                  ) : (
+                    filteredNotifs.map((notif) => (
+                      <NotifCard key={notif.id} notif={notif} onRead={handleRead} />
+                    ))
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* ── Past Alerts (collapsible) ── */}
+            {pastAlerts.length > 0 && (
+              <PastAlerts alerts={pastAlerts} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Past Alerts (collapsible section) ───────────────────────────────────────
+function PastAlerts({ alerts }: { alerts: Alert[] }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide transition hover:opacity-75"
+        style={{ color: 'var(--brand-text-muted)' }}
+      >
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        Past Alerts ({alerts.length})
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: 'easeOut' }}
+            className="overflow-hidden mt-3 space-y-2"
+          >
+            {alerts.map((alert) => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                onAcknowledge={() => {}}
+                acknowledging={null}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
