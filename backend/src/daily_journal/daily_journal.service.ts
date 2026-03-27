@@ -352,7 +352,7 @@ export class DailyJournalService {
     userId: string,
     status: 'all' | 'unread' | 'read' = 'all',
   ) {
-    const where: Prisma.NotificationWhereInput = { userId }
+    const where: Prisma.NotificationWhereInput = { userId, channel: 'PUSH' }
 
     if (status === 'unread') {
       where.readAt = null
@@ -504,6 +504,20 @@ export class DailyJournalService {
 
     const { entryDate, snapshotId } = entry
     const hadBPData = entry.systolicBP != null && entry.diastolicBP != null
+
+    // Delete notifications linked to this entry's alerts before cascade orphans them
+    const alertIds = (
+      await this.prisma.deviationAlert.findMany({
+        where: { journalEntryId: id },
+        select: { id: true },
+      })
+    ).map((a) => a.id)
+
+    if (alertIds.length > 0) {
+      await this.prisma.notification.deleteMany({
+        where: { alertId: { in: alertIds } },
+      })
+    }
 
     await this.prisma.journalEntry.delete({ where: { id } })
 

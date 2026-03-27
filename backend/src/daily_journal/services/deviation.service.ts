@@ -287,13 +287,26 @@ export class DeviationService {
     })
 
     if (openAlerts.length > 0) {
-      await this.prisma.deviationAlert.updateMany({
-        where: {
-          userId,
-          status: { in: ['OPEN', 'ACKNOWLEDGED'] },
-        },
-        data: { status: 'RESOLVED' },
-      })
+      const alertIds = openAlerts.map((a) => a.id)
+
+      await Promise.all([
+        this.prisma.deviationAlert.updateMany({
+          where: {
+            userId,
+            status: { in: ['OPEN', 'ACKNOWLEDGED'] },
+          },
+          data: { status: 'RESOLVED' },
+        }),
+        // Mark stale notifications as read so they don't appear as active
+        this.prisma.notification.updateMany({
+          where: {
+            alertId: { in: alertIds },
+            channel: 'PUSH',
+            readAt: null,
+          },
+          data: { readAt: new Date() },
+        }),
+      ])
 
       this.logger.log(
         `Resolved ${openAlerts.length} open alert(s) for user ${userId} — BP returned to normal`,

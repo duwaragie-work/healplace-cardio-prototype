@@ -22,6 +22,12 @@ export class JournalNotificationService {
       const { title, body } = this.generateContent(payload)
       const tips = this.selectTips(payload)
 
+      // Mark any existing unread PUSH notifications for this alert as read
+      await this.prisma.notification.updateMany({
+        where: { alertId: payload.alertId, channel: 'PUSH', readAt: null },
+        data: { readAt: new Date() },
+      })
+
       const notification = await this.prisma.notification.create({
         data: {
           userId: payload.userId,

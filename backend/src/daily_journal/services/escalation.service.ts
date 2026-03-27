@@ -28,6 +28,13 @@ export class EscalationService {
         return
       }
 
+      if (payload.escalated) {
+        this.logger.log(
+          `Alert ${payload.alertId}: already escalated — skipping duplicate escalation`,
+        )
+        return
+      }
+
       // Fetch journal entry data for clinical context
       const alert = await this.prisma.deviationAlert.findUnique({
         where: { id: payload.alertId },
