@@ -43,15 +43,6 @@ interface Baseline {
 }
 
 // ─── Static data ─────────────────────────────────────────────────────────────
-const SYMPTOM_OPTIONS = [
-  'Chest Pain',
-  'Severe Headache',
-  'Shortness of Breath',
-  'Dizziness',
-  'Blurred Vision',
-  'None of these',
-];
-
 const STEPS = [
   { label: 'Date', icon: CalendarDays },
   { label: 'Blood Pressure', icon: Heart },
@@ -540,45 +531,6 @@ function Step2BP({
         </div>
       </div>
 
-      <div className="h-px" style={{ backgroundColor: 'var(--brand-border)' }} />
-
-      {/* Symptoms chips */}
-      <div>
-        <p className="text-[15px] font-semibold mb-1" style={{ color: 'var(--brand-text-primary)' }}>
-          Any symptoms today?
-        </p>
-        <p className="text-[12px] mb-3" style={{ color: 'var(--brand-text-muted)' }}>
-          Select all that apply
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {SYMPTOM_OPTIONS.map((symptom) => {
-            const selected = form.symptoms.includes(symptom);
-            return (
-              <motion.button
-                key={symptom}
-                onClick={() => {
-                  const updated = selected
-                    ? form.symptoms.filter((s) => s !== symptom)
-                    : symptom === 'None of these'
-                    ? ['None of these']
-                    : [...form.symptoms.filter((s) => s !== 'None of these'), symptom];
-                  onChange('symptoms', JSON.stringify(updated));
-                }}
-                className="h-10 rounded-full text-[12px] font-semibold transition-all border-2 px-2"
-                style={{
-                  backgroundColor: selected ? 'var(--brand-primary-purple)' : 'white',
-                  borderColor: selected ? 'var(--brand-primary-purple)' : 'var(--brand-border)',
-                  color: selected ? 'white' : 'var(--brand-text-secondary)',
-                }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.96 }}
-              >
-                {symptom}
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1175,7 +1127,7 @@ export default function CheckIn() {
               >
                 <motion.button
                   onClick={goBack}
-                  className="h-11 px-6 rounded-full border-2 text-sm font-semibold flex items-center gap-2 transition"
+                  className="h-11 px-6 rounded-full border-2 text-sm font-semibold flex items-center gap-2 transition cursor-pointer"
                   style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
@@ -1187,7 +1139,7 @@ export default function CheckIn() {
                 <motion.button
                   onClick={goNext}
                   disabled={isSubmitting}
-                  className="h-11 px-8 rounded-full text-white font-bold text-sm flex items-center gap-2 disabled:opacity-60"
+                  className="h-11 px-8 rounded-full text-white font-bold text-sm flex items-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed transition"
                   style={{
                     backgroundColor: 'var(--brand-primary-purple)',
                     boxShadow: 'var(--brand-shadow-button)',
