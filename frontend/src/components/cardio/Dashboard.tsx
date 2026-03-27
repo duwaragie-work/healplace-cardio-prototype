@@ -72,7 +72,7 @@ interface DeviationAlert {
 // ─── Skeleton bone ───────────────────────────────────────────────────────────
 function Bone({ w, h = 14, r = 8, color = '#EDE9F6' }: { w: number | string; h?: number; r?: number; color?: string }) {
   return (
-    <div className="animate-pulse flex-shrink-0"
+    <span className="animate-pulse flex-shrink-0 inline-block"
       style={{ width: w, height: h, borderRadius: r, backgroundColor: color }} />
   );
 }
