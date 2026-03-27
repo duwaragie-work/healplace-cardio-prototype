@@ -747,7 +747,7 @@ export default function NotificationsPage() {
 
 // ─── Past Alerts (collapsible section) ───────────────────────────────────────
 function PastAlerts({ alerts }: { alerts: Alert[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <div>
