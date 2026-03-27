@@ -502,7 +502,54 @@ export class DailyJournalService {
       throw new NotFoundException('Journal entry not found')
     }
 
+    const { entryDate, snapshotId } = entry
+    const hadBPData = entry.systolicBP != null && entry.diastolicBP != null
+
     await this.prisma.journalEntry.delete({ where: { id } })
+
+    // Clean up orphaned BaselineSnapshot if no other entries reference it
+    if (snapshotId) {
+      const otherRefs = await this.prisma.journalEntry.count({
+        where: { snapshotId },
+      })
+      if (otherRefs === 0) {
+        await this.prisma.baselineSnapshot
+          .delete({ where: { id: snapshotId } })
+          .catch((err) => {
+            this.logger.warn(
+              `Failed to clean up orphaned snapshot ${snapshotId}`,
+              err,
+            )
+          })
+      }
+    }
+
+    // Recompute baselines only if the deleted entry had BP data
+    // (entries without BP never contributed to any baseline)
+    if (hadBPData) {
+      const affectedWindowEnd = new Date(entryDate)
+      affectedWindowEnd.setDate(affectedWindowEnd.getDate() + 7)
+
+      const affectedEntries = await this.prisma.journalEntry.findMany({
+        where: {
+          userId,
+          entryDate: { gte: entryDate, lte: affectedWindowEnd },
+          systolicBP: { not: null },
+          diastolicBP: { not: null },
+        },
+      })
+
+      for (const affected of affectedEntries) {
+        this.eventEmitter.emit(JOURNAL_EVENTS.ENTRY_UPDATED, {
+          userId: affected.userId,
+          entryId: affected.id,
+          entryDate: affected.entryDate,
+          systolicBP: affected.systolicBP,
+          diastolicBP: affected.diastolicBP,
+          weight: affected.weight != null ? Number(affected.weight) : null,
+        })
+      }
+    }
 
     return {
       statusCode: 200,

@@ -10,6 +10,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { REFRESH_TOKEN_KEY } from '@/lib/services/token';
 
+const REFRESH_ENDPOINT = '/api/v2/auth/refresh';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const TOKEN_KEY = 'healplace_token';
 
@@ -92,44 +94,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Start as false when there's nothing to rehydrate; true only when we have a stored token/refresh token
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return !!(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
+  });
 
-  // On mount: rehydrate from localStorage token via GET /me
+  // On mount: rehydrate session — try access token first, then refresh token
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
-    if (!stored) {
-      setIsLoading(false);
+    const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+    if (!stored && !storedRefresh) {
+      // isLoading already initialized to false when no tokens exist
       return;
     }
 
-    fetch(`${API_URL}/api/v2/auth/me`, {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Unauthorized');
-        return res.json();
-      })
-      .then(
-        (data: { id: string; email?: string | null; name?: string | null; roles?: string[] }) => {
-          setToken(stored);
-          setAuthCookie(stored);
-          setUser({
-            id: data.id,
-            email: data.email,
-            name: data.name,
-            roles: data.roles,
+    async function rehydrate() {
+      const accessToken = stored;
+
+      // 1. Try /me with the existing access token
+      if (accessToken) {
+        try {
+          const res = await fetch(`${API_URL}/api/v2/auth/me`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
-        },
-      )
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        clearAuthCookie();
-        setToken(null);
-        setUser(null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+          if (res.ok) {
+            const data = await res.json();
+            setToken(accessToken);
+            setAuthCookie(accessToken);
+            setUser({
+              id: data.id,
+              email: data.email,
+              name: data.name,
+              roles: data.roles,
+            });
+            return;
+          }
+        } catch {
+          // access token failed — fall through to refresh
+        }
+      }
+
+      // 2. Access token expired or missing — try refresh
+      if (storedRefresh) {
+        try {
+          const res = await fetch(`${API_URL}${REFRESH_ENDPOINT}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: storedRefresh }),
+          });
+
+          if (res.ok) {
+            const data: { accessToken?: string; refreshToken?: string } = await res.json();
+            const newAccess = data.accessToken;
+
+            if (newAccess) {
+              localStorage.setItem(TOKEN_KEY, newAccess);
+              setAuthCookie(newAccess);
+
+              if (data.refreshToken) {
+                localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+              }
+
+              // Fetch user profile with the fresh token
+              const meRes = await fetch(`${API_URL}/api/v2/auth/me`, {
+                headers: { Authorization: `Bearer ${newAccess}` },
+              });
+              if (meRes.ok) {
+                const meData = await meRes.json();
+                setToken(newAccess);
+                setUser({
+                  id: meData.id,
+                  email: meData.email,
+                  name: meData.name,
+                  roles: meData.roles,
+                });
+                return;
+              }
+            }
+          }
+        } catch {
+          // refresh failed — clear everything
+        }
+      }
+
+      // 3. Both access and refresh failed — clear session
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      clearAuthCookie();
+      setToken(null);
+      setUser(null);
+    }
+
+    rehydrate().finally(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   const login = (response: OtpVerifyResponse) => {

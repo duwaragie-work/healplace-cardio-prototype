@@ -45,7 +45,7 @@ export class BaselineService {
       const entries = await this.prisma.journalEntry.findMany({
         where: {
           userId: payload.userId,
-          entryDate: { gte: sevenDaysAgo },
+          entryDate: { gte: sevenDaysAgo, lte: new Date(payload.entryDate) },
           systolicBP: { not: null },
           diastolicBP: { not: null },
         },
@@ -105,6 +105,78 @@ export class BaselineService {
         where: { id: payload.entryId },
         data: { snapshotId: snapshot.id },
       })
+
+      // Recompute affected future baselines
+      const entryDate = new Date(payload.entryDate)
+      const sevenDaysLater = new Date(entryDate)
+      sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+
+      const affectedSnapshots = await this.prisma.baselineSnapshot.findMany({
+        where: {
+          userId: payload.userId,
+          computedForDate: {
+            gt: entryDate,
+            lte: sevenDaysLater,
+          },
+        },
+      })
+
+      for (const affectedSnapshot of affectedSnapshots) {
+        const snapshotDate = new Date(affectedSnapshot.computedForDate)
+        const windowStart = new Date(snapshotDate)
+        windowStart.setDate(windowStart.getDate() - 7)
+
+        const windowEntries = await this.prisma.journalEntry.findMany({
+          where: {
+            userId: payload.userId,
+            systolicBP: { not: null },
+            diastolicBP: { not: null },
+            entryDate: {
+              gte: windowStart,
+              lte: snapshotDate,
+            },
+          },
+          select: {
+            systolicBP: true,
+            diastolicBP: true,
+            weight: true,
+          },
+        })
+
+        if (windowEntries.length < 3) continue
+
+        const reAvgSystolic =
+          windowEntries.reduce((sum, e) => sum + Number(e.systolicBP), 0) /
+          windowEntries.length
+        const reAvgDiastolic =
+          windowEntries.reduce((sum, e) => sum + Number(e.diastolicBP), 0) /
+          windowEntries.length
+        const reWeightEntries = windowEntries.filter((e) => e.weight != null)
+        const reAvgWeight =
+          reWeightEntries.length > 0
+            ? reWeightEntries.reduce((sum, e) => sum + Number(e.weight), 0) /
+              reWeightEntries.length
+            : null
+
+        await this.prisma.baselineSnapshot.update({
+          where: { id: affectedSnapshot.id },
+          data: {
+            baselineSystolic: new Prisma.Decimal(reAvgSystolic.toFixed(2)),
+            baselineDiastolic: new Prisma.Decimal(reAvgDiastolic.toFixed(2)),
+            baselineWeight:
+              reAvgWeight != null
+                ? new Prisma.Decimal(reAvgWeight.toFixed(2))
+                : null,
+            sampleSize: windowEntries.length,
+          },
+        })
+
+        this.logger.log(
+          `Recomputed baseline for ${affectedSnapshot.computedForDate.toISOString().split('T')[0]} ` +
+            `after new entry on ${payload.entryDate}: ` +
+            `systolic=${reAvgSystolic.toFixed(2)}, diastolic=${reAvgDiastolic.toFixed(2)}`,
+        )
+      }
 
       if (baselineMet) {
         this.logger.log(

@@ -23,6 +23,8 @@ describe('BaselineService', () => {
       },
       baselineSnapshot: {
         upsert: (jest.fn() as jest.Mock<any>).mockResolvedValue({ id: 'snapshot-1' }),
+        findMany: (jest.fn() as jest.Mock<any>).mockResolvedValue([]),
+        update: (jest.fn() as jest.Mock<any>).mockResolvedValue({}),
       },
     }
     eventEmitter = { emit: jest.fn() }
@@ -127,6 +129,29 @@ describe('BaselineService', () => {
           baselineWeight: null,
           systolicBP: 130,
           diastolicBP: 85,
+        }),
+      )
+    })
+
+    it('does not include entries after entryDate in the 7-day window', async () => {
+      const entryDate = new Date('2026-03-20')
+
+      prisma.journalEntry.findMany.mockResolvedValue([
+        { systolicBP: 120, diastolicBP: 80, weight: 78 },
+        { systolicBP: 130, diastolicBP: 85, weight: 80 },
+        { systolicBP: 140, diastolicBP: 90, weight: 82 },
+      ])
+
+      await service.handleEntryCreated({ ...basePayload, entryDate })
+
+      expect(prisma.journalEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            entryDate: {
+              gte: expect.any(Date),
+              lte: entryDate,
+            },
+          }),
         }),
       )
     })
