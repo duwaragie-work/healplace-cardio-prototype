@@ -270,12 +270,12 @@ export default function ProviderDashboard() {
               DC Wards 7 &amp; 8 &middot; March 2026
             </p>
           </div>
-          <button
+          {/* <button
             className="h-10 px-6 rounded-full text-white font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
             style={{ backgroundColor: 'var(--brand-primary-purple)', boxShadow: 'var(--brand-shadow-button)' }}
           >
             + Add Patient
-          </button>
+          </button> */}
         </div>
 
         {/* Stat Cards Row */}

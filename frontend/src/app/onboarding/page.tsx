@@ -8,7 +8,6 @@ import {
   markOnboardingSkipped,
   shouldShowOnboardingForUser,
 } from "@/lib/onboarding";
-import Image from "next/image";
 import Logo from "@/components/Logo";
 import { CheckCircle2 } from "lucide-react";
 import SpinnerIndicator from "@/components/ui/SpinnerIndicator";
