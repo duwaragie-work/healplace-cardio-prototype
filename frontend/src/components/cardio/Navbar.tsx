@@ -44,6 +44,7 @@ export default function Navbar() {
       ? [
           { label: 'Provider', href: '/provider/dashboard' },
           { label: 'Patients', href: '/provider/patients' },
+          { label: 'Calls', href: '/provider/scheduled-calls' },
         ]
       : []),
   ];
