@@ -8,7 +8,14 @@
 # Or run everything with Docker:
 #   make docker-up
 
-.PHONY: adk backend frontend docker-up docker-down install
+.PHONY: adk backend frontend docker-up docker-down install dev
+
+# ── Run all services (opens 3 terminals) ─────────────────────────────────────
+
+dev:
+	powershell -Command "Start-Process cmd '/k cd /d C:/git/work/healplace-cardio/backend & npm run start:dev'"
+	powershell -Command "Start-Process cmd '/k cd /d C:/git/work/healplace-cardio/frontend & npm run dev'"
+	powershell -Command "Start-Process cmd '/k cd /d C:/git/work/healplace-cardio/adk-service & .venv\Scripts\activate.bat & python main.py'"
 
 # ── Individual service commands ───────────────────────────────────────────────
 
