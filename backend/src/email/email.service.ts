@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import * as dns from 'dns'
 import * as nodemailer from 'nodemailer'
+
+dns.setDefaultResultOrder('ipv4first')
 
 @Injectable()
 export class EmailService {
@@ -9,13 +12,17 @@ export class EmailService {
   private readonly from: string
 
   constructor(private readonly config: ConfigService) {
+    const port = Number(this.config.get<string>('SMTP_PORT', '465'))
     this.transporter = nodemailer.createTransport({
       host: this.config.get<string>('SMTP_HOST'),
-      port: Number(this.config.get<string>('SMTP_PORT', '587')),
+      port,
+      secure: port === 465,
       auth: {
         user: this.config.get<string>('SMTP_USER'),
         pass: this.config.get<string>('SMTP_PASS'),
       },
+      connectionTimeout: 10_000,
+      socketTimeout: 10_000,
     })
 
     this.from = this.config.get<string>(
