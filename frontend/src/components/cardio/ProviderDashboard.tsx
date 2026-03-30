@@ -87,6 +87,7 @@ export default function ProviderDashboard() {
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [scheduleAlert, setScheduleAlert] = useState<Alert | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [alertsList, setAlertsList] = useState<Alert[]>([]);
   const [stats, setStats] = useState<ProviderStats>({
     totalPatients: 0,
@@ -97,7 +98,7 @@ export default function ProviderDashboard() {
 
   useEffect(() => {
     if (isLoading || !user) return;
-
+    setDataLoading(true);
     Promise.all([getProviderStats(), getProviderAlerts()]).then(
       ([statsData, alertsData]) => {
         setStats({
@@ -115,7 +116,7 @@ export default function ProviderDashboard() {
       },
     ).catch(() => {
       // keep defaults on error
-    });
+    }).finally(() => setDataLoading(false));
   }, [user, isLoading]);
 
   const handleSelectAlert = useCallback(async (alert: Alert) => {
@@ -280,60 +281,129 @@ export default function ProviderDashboard() {
 
         {/* Stat Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Patients</span>
-              <Users className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
-            </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.totalPatients}</div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
-                &uarr; +3 this week
-              </span>
-            </div>
-            <div
-              className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold"
-              style={{ backgroundColor: 'var(--brand-accent-teal-light)', color: 'var(--brand-accent-teal)' }}
-            >
-              CPT 99454 eligible
-            </div>
-          </div>
+          {dataLoading ? (
+            [0, 1, 2, 3].map((i) => (
+              <div key={i} className="bg-white p-5 rounded-2xl animate-pulse" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: 90 }} />
+                  <div className="w-5 h-5 rounded" style={{ backgroundColor: '#EDE9F6' }} />
+                </div>
+                <div className="h-9 rounded-lg mb-3" style={{ backgroundColor: '#EDE9F6', width: 80 }} />
+                <div className="h-3 rounded-full" style={{ backgroundColor: '#F3EEFB', width: 110 }} />
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Patients</span>
+                  <Users className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
+                </div>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.totalPatients}</div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
+                    &uarr; +3 this week
+                  </span>
+                </div>
+                <div
+                  className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold"
+                  style={{ backgroundColor: 'var(--brand-accent-teal-light)', color: 'var(--brand-accent-teal)' }}
+                >
+                  CPT 99454 eligible
+                </div>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Monthly Interactions</span>
-              <Activity className="w-5 h-5" style={{ color: 'var(--brand-accent-teal)' }} />
-            </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.monthlyInteractions.toLocaleString()}</div>
-            <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
-              &uarr; 18% vs last month
-            </span>
-          </div>
+              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Monthly Interactions</span>
+                  <Activity className="w-5 h-5" style={{ color: 'var(--brand-accent-teal)' }} />
+                </div>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.monthlyInteractions.toLocaleString()}</div>
+                <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
+                  &uarr; 18% vs last month
+                </span>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Alerts</span>
-              <Bell className="w-5 h-5" style={{ color: 'var(--brand-alert-red)' }} />
-            </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-alert-red)' }}>{activeAlerts.length}</div>
-            <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
-              {activeAlerts.filter((a) => a.level === 'L1').length}x Level 1 &middot;{' '}
-              {activeAlerts.filter((a) => a.level === 'L2').length}x Level 2
-            </span>
-          </div>
+              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>Active Alerts</span>
+                  <Bell className="w-5 h-5" style={{ color: 'var(--brand-alert-red)' }} />
+                </div>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-alert-red)' }}>{activeAlerts.length}</div>
+                <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
+                  {activeAlerts.filter((a) => a.level === 'L1').length}x Level 1 &middot;{' '}
+                  {activeAlerts.filter((a) => a.level === 'L2').length}x Level 2
+                </span>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>BP Controlled</span>
-              <Heart className="w-5 h-5" style={{ color: 'var(--brand-success-green)' }} />
-            </div>
-            <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-success-green)' }}>{stats.bpControlledPercent}%</div>
-            <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>Target: &gt;70%</span>
-          </div>
+              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>BP Controlled</span>
+                  <Heart className="w-5 h-5" style={{ color: 'var(--brand-success-green)' }} />
+                </div>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-success-green)' }}>{stats.bpControlledPercent}%</div>
+                <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>Target: &gt;70%</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Content Row */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+          {dataLoading ? (
+            <>
+              {/* Alert Queue Skeleton */}
+              <div className="lg:col-span-3 bg-white p-6 rounded-2xl animate-pulse" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="h-4 rounded-full" style={{ backgroundColor: '#EDE9F6', width: 160 }} />
+                  <div className="h-6 rounded-full" style={{ backgroundColor: '#FEF3C7', width: 100 }} />
+                </div>
+                <div className="space-y-0">
+                  {/* Table header skeleton */}
+                  <div className="hidden md:grid grid-cols-6 gap-4 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FAFBFF' }}>
+                    {[70, 80, 50, 55, 40, 55].map((w, i) => (
+                      <div key={i} className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: w }} />
+                    ))}
+                  </div>
+                  {/* Table rows skeleton */}
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-4 px-4 py-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <div className="w-8 h-8 rounded-full shrink-0" style={{ backgroundColor: '#EDE9F6' }} />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 rounded-full" style={{ backgroundColor: '#EDE9F6', width: `${55 + i * 5}%` }} />
+                        <div className="h-2.5 rounded-full" style={{ backgroundColor: '#F3EEFB', width: `${30 + i * 3}%` }} />
+                      </div>
+                      <div className="hidden md:block h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: 60 }} />
+                      <div className="hidden md:block h-5 rounded-full" style={{ backgroundColor: '#FEE2E2', width: 48 }} />
+                      <div className="hidden md:block h-7 rounded-lg" style={{ backgroundColor: '#F3EEFB', width: 64 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* BP Trend Skeleton */}
+              <div className="lg:col-span-2 bg-white p-6 rounded-2xl animate-pulse" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="h-4 rounded-full" style={{ backgroundColor: '#EDE9F6', width: 140 }} />
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#F3EEFB', width: 70 }} />
+                </div>
+                {/* Fake chart area */}
+                <div className="h-48 flex items-end gap-1 px-2 pb-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  {[40, 55, 35, 65, 50, 70, 45].map((h, i) => (
+                    <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, backgroundColor: '#EDE9F6' }} />
+                  ))}
+                </div>
+                <div className="flex justify-between mt-3">
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((_, i) => (
+                    <div key={i} className="h-2.5 rounded-full" style={{ backgroundColor: '#F3EEFB', width: 14 }} />
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+
           {/* Alert Queue */}
           <div className="lg:col-span-3 bg-white p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
@@ -640,6 +710,8 @@ export default function ProviderDashboard() {
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </main>
 
