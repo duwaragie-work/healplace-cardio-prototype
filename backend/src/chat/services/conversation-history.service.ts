@@ -167,6 +167,90 @@ export class ConversationHistoryService {
     }
   }
 
+  /**
+   * Save individual voice transcript lines as separate Conversation rows
+   * (for frontend display) AND update the rolling session summary
+   * (for system prompt context).
+   */
+  async saveVoiceTranscriptLines(
+    sessionId: string,
+    lines: Array<{ speaker: 'user' | 'agent'; text: string }>,
+  ): Promise<void> {
+    if (lines.length === 0) return
+
+    try {
+      // Group consecutive lines by speaker into turns
+      const turns: Array<{ userMessage: string; aiSummary: string }> = []
+      let currentUser = ''
+      let currentAgent = ''
+
+      for (const line of lines) {
+        if (line.speaker === 'user') {
+          // If we had agent text, flush the turn
+          if (currentAgent) {
+            turns.push({ userMessage: currentUser || '[voice]', aiSummary: currentAgent })
+            currentUser = ''
+            currentAgent = ''
+          }
+          currentUser += (currentUser ? ' ' : '') + line.text
+        } else {
+          currentAgent += (currentAgent ? ' ' : '') + line.text
+        }
+      }
+      // Flush remaining
+      if (currentUser || currentAgent) {
+        turns.push({
+          userMessage: currentUser || '[voice]',
+          aiSummary: currentAgent || '[voice response]',
+        })
+      }
+
+      // Save each turn as a Conversation row with embedding
+      for (const turn of turns) {
+        const content = `Patient: ${turn.userMessage}\nAI: ${turn.aiSummary}`
+        let embeddingString: string | null = null
+        try {
+          const embeddingResponse = await this.mistralService.getEmbeddings(content)
+          const embedding = embeddingResponse.data[0]?.embedding
+          if (embedding) {
+            embeddingString = `[${embedding.join(',')}]`
+          }
+        } catch {
+          // Continue without embedding
+        }
+
+        if (embeddingString) {
+          await (this.prisma as any).$executeRawUnsafe(
+            `INSERT INTO "Conversation" (id, "sessionId", "userMessage", "aiSummary", source, embedding)
+             VALUES (gen_random_uuid(), $1, $2, $3, 'voice', $4::vector)`,
+            sessionId,
+            turn.userMessage,
+            turn.aiSummary,
+            embeddingString,
+          )
+        } else {
+          await (this.prisma as any).$executeRawUnsafe(
+            `INSERT INTO "Conversation" (id, "sessionId", "userMessage", "aiSummary", source)
+             VALUES (gen_random_uuid(), $1, $2, $3, 'voice')`,
+            sessionId,
+            turn.userMessage,
+            turn.aiSummary,
+          )
+        }
+      }
+
+      // Update rolling summary with a combined summary of all turns
+      const combined = turns
+        .map((t) => `Patient: ${t.userMessage}\nAI: ${t.aiSummary}`)
+        .join('\n')
+      await this.updateRollingSummary(sessionId, '[Voice session]', combined, 'voice')
+
+      console.log(`Saved ${turns.length} voice transcript turns for session ${sessionId}`)
+    } catch (error) {
+      console.error('Error saving voice transcript lines:', error)
+    }
+  }
+
   // ── Rolling summary ─────────────────────────────────────────────────────────
 
   /**

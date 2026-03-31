@@ -229,6 +229,19 @@ def make_tools(
         if not payload:
             return {"updated": False, "message": "No fields to update."}
 
+        # Notify client that we are updating
+        from generated import voice_pb2
+
+        _put(
+            voice_pb2.ServerMessage(
+                action=voice_pb2.ActionNotice(
+                    type="updating_checkin",
+                    detail="Updating your reading…",
+                )
+            )
+        )
+
+        updated = False
         try:
             resp = requests.put(
                 f"{NESTJS_URL}/daily-journal/{entry_id}",
@@ -244,17 +257,59 @@ def make_tools(
                     resp.status_code,
                     resp.text[:200],
                 )
-            return {
-                "updated": updated,
-                "message": (
-                    "Reading updated successfully."
-                    if updated
-                    else "Could not update the reading. Please try again."
-                ),
-            }
         except requests.RequestException as exc:
             logger.error("Failed to PUT /daily-journal/%s: %s", entry_id, exc)
-            return {"updated": False, "message": "Could not connect to the server."}
+
+        # Fetch the updated entry to get current values
+        entry_date = ""
+        final_systolic = systolic_bp or 0
+        final_diastolic = diastolic_bp or 0
+        final_weight = weight or 0.0
+        final_med = medication_taken if medication_taken is not None else False
+        final_symptoms = symptoms or []
+
+        if updated:
+            try:
+                get_resp = requests.get(
+                    f"{NESTJS_URL}/daily-journal/{entry_id}",
+                    headers=headers,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                if get_resp.status_code == 200:
+                    data = get_resp.json()
+                    entry_date = data.get("entryDate", "")
+                    final_systolic = data.get("systolicBP", final_systolic)
+                    final_diastolic = data.get("diastolicBP", final_diastolic)
+                    final_weight = data.get("weight", final_weight) or 0.0
+                    final_med = data.get("medicationTaken", final_med)
+                    final_symptoms = data.get("symptoms", final_symptoms) or []
+            except Exception:
+                pass
+
+        # Notify client of the result
+        _put(
+            voice_pb2.ServerMessage(
+                updated=voice_pb2.CheckinUpdated(
+                    entry_id=entry_id,
+                    systolic_bp=int(final_systolic) if final_systolic else 0,
+                    diastolic_bp=int(final_diastolic) if final_diastolic else 0,
+                    weight=float(final_weight) if final_weight else 0.0,
+                    medication_taken=final_med,
+                    symptoms=final_symptoms,
+                    updated=updated,
+                    entry_date=entry_date,
+                )
+            )
+        )
+
+        return {
+            "updated": updated,
+            "message": (
+                "Reading updated successfully."
+                if updated
+                else "Could not update the reading. Please try again."
+            ),
+        }
 
     # ── Tool 4: Delete a reading ──────────────────────────────────────────────
 

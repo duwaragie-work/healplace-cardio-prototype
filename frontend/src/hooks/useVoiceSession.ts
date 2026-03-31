@@ -31,6 +31,17 @@ export interface CheckinSummary {
   saved: boolean;
 }
 
+export interface UpdateSummary {
+  entryId: string;
+  entryDate?: string;
+  systolicBP?: number;
+  diastolicBP?: number;
+  weight?: number;
+  medicationTaken?: boolean;
+  symptoms: string[];
+  updated: boolean;
+}
+
 export interface StartOptions {
   token: string;
   sessionId?: string;
@@ -84,6 +95,7 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
   const [sessionState, setSessionState] = useState<SessionState>('idle');
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [pendingCheckin, setPendingCheckin] = useState<CheckinSummary | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<UpdateSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const socketRef = useRef<Socket | null>(null);
@@ -286,6 +298,10 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
         stopMic();
       });
 
+      socket.on('checkin_updated', (summary: UpdateSummary) => {
+        setPendingUpdate(summary);
+      });
+
       socket.on('session_error', (data: { message: string }) => {
         setErrorMessage(data.message);
         setSessionState('error');
@@ -320,7 +336,8 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     socketRef.current?.emit('end_session');
     await cleanup();
     setSessionState('idle');
-    setTranscript([]);
+    // Don't clear transcript here — AIChatInterface converts them to
+    // permanent message bubbles when it detects the idle transition.
     setPendingCheckin(null);
   }, [cleanup]);
 
@@ -329,14 +346,25 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     setSessionState('idle');
   }, []);
 
+  const clearTranscript = useCallback(() => {
+    setTranscript([]);
+  }, []);
+
+  const dismissUpdate = useCallback(() => {
+    setPendingUpdate(null);
+  }, []);
+
   return {
     sessionState,
     transcript,
     pendingCheckin,
+    pendingUpdate,
     errorMessage,
     start,
     sendText,
     end,
     dismissCheckin,
+    dismissUpdate,
+    clearTranscript,
   };
 }

@@ -49,13 +49,14 @@ message EndSession {}
 
 message ServerMessage {
   oneof payload {
-    SessionReady  ready      = 1;
-    AudioChunk    audio      = 2;
-    Transcript    transcript = 3;
-    ActionNotice  action     = 4;
-    CheckinSaved  checkin    = 5;
-    SessionError  error      = 6;
-    SessionClosed closed     = 7;
+    SessionReady   ready      = 1;
+    AudioChunk     audio      = 2;
+    Transcript     transcript = 3;
+    ActionNotice   action     = 4;
+    CheckinSaved   checkin    = 5;
+    SessionError   error      = 6;
+    SessionClosed  closed     = 7;
+    CheckinUpdated updated    = 8;
   }
 }
 
@@ -81,6 +82,17 @@ message CheckinSaved {
   bool            medication_taken = 4;
   repeated string symptoms         = 5;
   bool            saved            = 6;
+}
+
+message CheckinUpdated {
+  string          entry_id         = 1;
+  int32           systolic_bp      = 2;
+  int32           diastolic_bp     = 3;
+  float           weight           = 4;
+  bool            medication_taken = 5;
+  repeated string symptoms         = 6;
+  bool            updated          = 7;
+  string          entry_date       = 8;
 }
 
 message SessionError {

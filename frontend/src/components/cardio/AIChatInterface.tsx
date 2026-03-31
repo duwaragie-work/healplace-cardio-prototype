@@ -24,6 +24,7 @@ import {
   useVoiceSession,
   type TranscriptLine,
   type CheckinSummary,
+  type UpdateSummary,
 } from '@/hooks/useVoiceSession';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -263,6 +264,69 @@ function CheckinCard({ summary, onDismiss }: { summary: CheckinSummary; onDismis
   );
 }
 
+// ─── Update result card ────────────────────────────────────────────────────────
+function UpdateCard({ summary, onDismiss }: { summary: UpdateSummary; onDismiss: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className="mx-auto w-full max-w-sm rounded-2xl p-5 my-2"
+      style={{ backgroundColor: 'white', border: '1.5px solid var(--brand-border)', boxShadow: '0 4px 20px rgba(0,0,0,0.09)' }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        {summary.updated
+          ? <CheckCircle className="w-5 h-5" style={{ color: 'var(--brand-accent-teal)' }} />
+          : <AlertCircle className="w-5 h-5 text-red-500" />}
+        <p className="font-bold text-[15px]" style={{ color: 'var(--brand-text-primary)' }}>
+          {summary.updated ? 'Reading updated!' : 'Could not update reading'}
+        </p>
+      </div>
+      {summary.entryDate && (
+        <p className="text-[12px] mb-3" style={{ color: 'var(--brand-text-muted)' }}>
+          Entry for {new Date(summary.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {summary.systolicBP != null && summary.diastolicBP != null && (
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--brand-accent-teal-light)' }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--brand-text-muted)' }}>Blood Pressure</p>
+            <p className="text-[18px] font-bold" style={{ color: 'var(--brand-accent-teal)' }}>{summary.systolicBP}/{summary.diastolicBP}</p>
+            <p className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>mmHg</p>
+          </div>
+        )}
+        {summary.weight != null && summary.weight > 0 && (
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--brand-accent-teal-light)' }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--brand-text-muted)' }}>Weight</p>
+            <p className="text-[18px] font-bold" style={{ color: 'var(--brand-accent-teal)' }}>{summary.weight}</p>
+            <p className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>lbs</p>
+          </div>
+        )}
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: summary.medicationTaken ? 'var(--brand-success-green-light)' : 'var(--brand-alert-red-light)' }}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--brand-text-muted)' }}>Medications</p>
+          <p className="text-[14px] font-bold" style={{ color: summary.medicationTaken ? 'var(--brand-success-green)' : 'var(--brand-alert-red)' }}>
+            {summary.medicationTaken ? 'Taken ✓' : 'Missed'}
+          </p>
+        </div>
+        {summary.symptoms.length > 0 && (
+          <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--brand-warning-amber-light)' }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--brand-text-muted)' }}>Symptoms</p>
+            <p className="text-[12px] font-medium" style={{ color: 'var(--brand-warning-amber)' }}>
+              {summary.symptoms.slice(0, 2).join(', ')}{summary.symptoms.length > 2 && ` +${summary.symptoms.length - 2}`}
+            </p>
+          </div>
+        )}
+      </div>
+      <button
+        onClick={onDismiss}
+        className="w-full py-2.5 rounded-xl text-[14px] font-semibold transition hover:opacity-90 active:scale-[0.98]"
+        style={{ background: 'linear-gradient(135deg, #0D9488, #14B8A6)', color: 'white', boxShadow: '0 4px 14px rgba(13,148,136,0.28)' }}
+      >
+        Done
+      </button>
+    </motion.div>
+  );
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function SidebarContent({
   sessions, activeId, onSelect, onNewConversation, userInitials, userName, riskTier, isLoading,
@@ -404,20 +468,81 @@ function VoiceCallBar({
   );
 }
 
+// ─── Typing text effect ───────────────────────────────────────────────────────
+function TypingText({ text, speaker }: { text: string; speaker: 'user' | 'agent' }) {
+  const [displayed, setDisplayed] = useState('');
+  const animatingRef = useRef(false);
+  const targetRef = useRef('');
+  const cursorRef = useRef(0);
+
+  useEffect(() => {
+    // If text is the same or shorter, just show it
+    if (text.length <= cursorRef.current) {
+      cursorRef.current = text.length;
+      targetRef.current = text;
+      setDisplayed(text);
+      return;
+    }
+
+    // New text to animate
+    targetRef.current = text;
+
+    // If already animating, the existing interval will pick up the new target
+    if (animatingRef.current) return;
+
+    animatingRef.current = true;
+    const interval = setInterval(() => {
+      cursorRef.current++;
+      const current = targetRef.current;
+      setDisplayed(current.slice(0, cursorRef.current));
+      if (cursorRef.current >= current.length) {
+        clearInterval(interval);
+        animatingRef.current = false;
+      }
+    }, 15);
+
+    return () => {
+      clearInterval(interval);
+      animatingRef.current = false;
+    };
+  }, [text]);
+
+  return (
+    <p className="text-[14px] leading-relaxed" style={{ color: speaker === 'user' ? 'white' : 'var(--brand-text-primary)' }}>
+      {displayed}
+      {displayed.length < text.length && (
+        <span className="inline-block w-[2px] h-[14px] ml-0.5 align-middle animate-pulse" style={{ backgroundColor: speaker === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--brand-primary-purple)' }} />
+      )}
+    </p>
+  );
+}
+
 // ─── Live transcript lines (shown during voice session) ───────────────────────
 function LiveTranscriptBubbles({ lines }: { lines: TranscriptLine[] }) {
   if (lines.length === 0) return null;
+
+  // Merge consecutive lines from the same speaker into single bubbles
+  const merged: Array<{ speaker: 'user' | 'agent'; text: string; id: number }> = [];
+  for (const line of lines) {
+    const last = merged[merged.length - 1];
+    if (last && last.speaker === line.speaker) {
+      last.text += ' ' + line.text;
+    } else {
+      merged.push({ speaker: line.speaker, text: line.text, id: line.id });
+    }
+  }
+
   return (
     <>
-      {lines.map((line) => (
+      {merged.map((group) => (
         <motion.div
-          key={line.id}
-          className={`flex ${line.speaker === 'user' ? 'justify-end' : 'justify-start items-end gap-2.5'}`}
+          key={group.id}
+          className={`flex ${group.speaker === 'user' ? 'justify-end' : 'justify-start items-end gap-2.5'}`}
           initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: line.isFinal ? 1 : 0.55, y: 0 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.15 }}
         >
-          {line.speaker === 'agent' && (
+          {group.speaker === 'agent' && (
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)' }}>
               <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
             </div>
@@ -425,21 +550,18 @@ function LiveTranscriptBubbles({ lines }: { lines: TranscriptLine[] }) {
           <div
             className="max-w-[75%] sm:max-w-[65%] px-4 py-3"
             style={{
-              background: line.speaker === 'user'
+              background: group.speaker === 'user'
                 ? 'linear-gradient(135deg, #7B00E0 0%, #9333EA 100%)'
                 : 'white',
-              borderRadius: line.speaker === 'user' ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
-              boxShadow: line.speaker === 'user'
+              borderRadius: group.speaker === 'user' ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+              boxShadow: group.speaker === 'user'
                 ? '0 4px 14px rgba(123,0,224,0.25)'
                 : '0 2px 12px rgba(0,0,0,0.07)',
-              border: line.isFinal ? 'none' : '1px dashed rgba(123,0,224,0.25)',
             }}
           >
-            <p className="text-[14px] leading-relaxed" style={{ color: line.speaker === 'user' ? 'white' : 'var(--brand-text-primary)' }}>
-              {line.text}
-            </p>
+            <TypingText text={group.text} speaker={group.speaker} />
             <div className="flex items-center justify-end gap-1 mt-1">
-              <Mic className="w-2.5 h-2.5" style={{ color: line.speaker === 'user' ? 'rgba(255,255,255,0.5)' : 'var(--brand-text-muted)' }} />
+              <Mic className="w-2.5 h-2.5" style={{ color: group.speaker === 'user' ? 'rgba(255,255,255,0.5)' : 'var(--brand-text-muted)' }} />
             </div>
           </div>
         </motion.div>
@@ -462,6 +584,7 @@ export default function AIChatInterface() {
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [pendingCheckin, setPendingCheckin] = useState<CheckinSummary | null>(null);
+  const [pendingUpdateCard, setPendingUpdateCard] = useState<UpdateSummary | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const userInitials = getUserInitials(user?.name);
@@ -491,6 +614,9 @@ export default function AIChatInterface() {
     start: startVoice,
     end: endVoice,
     dismissCheckin,
+    dismissUpdate,
+    clearTranscript,
+    pendingUpdate: voicePendingUpdate,
   } = useVoiceSession(handleVoiceSessionCreated);
 
   const isVoiceActive = voiceState !== 'idle' && voiceState !== 'error' && voiceState !== 'checkin_confirm';
@@ -503,27 +629,44 @@ export default function AIChatInterface() {
     }
   }, [voicePendingCheckin]);
 
-  // When voice session ends, reload history to pick up saved transcript
+  // When a reading is updated via voice, show the update card
+  useEffect(() => {
+    if (voicePendingUpdate) {
+      setPendingUpdateCard(voicePendingUpdate);
+    }
+  }, [voicePendingUpdate]);
+
+  // When voice session ends, convert the live transcript lines into permanent messages
+  // (keeps the full conversation visible instead of replacing with DB summaries)
   const prevVoiceStateRef = useRef(voiceState);
   useEffect(() => {
     const prev = prevVoiceStateRef.current;
     prevVoiceStateRef.current = voiceState;
-    if (prev !== 'idle' && voiceState === 'idle' && activeSessionId) {
-      // Voice session just ended — reload history
-      setIsLoadingHistory(true);
-      getSessionHistory(activeSessionId)
-        .then((history) => {
-          const arr = Array.isArray(history) ? history : [];
-          const msgs: Message[] = [];
-          arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
-            const src = (item.source === 'voice' ? 'voice' : 'text') as MessageSource;
-            msgs.push({ id: idx * 2, type: 'patient', source: src, text: item.userMessage, time: formatMsgTime(item.timestamp) });
-            msgs.push({ id: idx * 2 + 1, type: 'ai', source: src, text: item.aiSummary, time: formatMsgTime(item.timestamp) });
-          });
-          setMessages(msgs);
+    if (prev !== 'idle' && voiceState === 'idle' && transcript.length > 0) {
+      // Convert live transcript lines into message bubbles
+      const voiceMsgs: Message[] = transcript
+        .filter((line) => line.text.trim())
+        .map((line) => ({
+          id: Date.now() + line.id,
+          type: (line.speaker === 'user' ? 'patient' : 'ai') as MessageType,
+          source: 'voice' as MessageSource,
+          text: line.text,
+          time: nowTimeStr(),
+        }));
+      if (voiceMsgs.length > 0) {
+        setMessages((prev) => [...prev, ...voiceMsgs]);
+      }
+      // Clear live transcript lines now that they're converted to messages
+      clearTranscript();
+      // Refresh the session list in case a new session was created
+      getChatSessions()
+        .then((data) => {
+          const arr = Array.isArray(data) ? data : [];
+          setSessions(arr.map((s: { id: string; title: string; updatedAt: string; createdAt: string }) => ({
+            id: s.id, title: s.title || 'Voice Session', time: formatSessionTime(s.updatedAt ?? s.createdAt),
+          })));
         })
-        .catch(() => {})
-        .finally(() => setIsLoadingHistory(false));
+        .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceState]);
@@ -641,18 +784,6 @@ export default function AIChatInterface() {
   const handleDismissCheckin = () => {
     setPendingCheckin(null);
     dismissCheckin();
-    // Reload history to show saved check-in summary in transcript
-    if (activeSessionId) {
-      getSessionHistory(activeSessionId).then((history) => {
-        const arr = Array.isArray(history) ? history : [];
-        const msgs: Message[] = [];
-        arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
-          msgs.push({ id: idx * 2, type: 'patient', source: 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
-          msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
-        });
-        setMessages(msgs);
-      }).catch(() => {});
-    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -781,8 +912,8 @@ export default function AIChatInterface() {
             <MessageBubble key={msg.id} msg={msg} />
           ))}
 
-          {/* Live voice transcript during active session */}
-          {(isVoiceActive || isVoiceConnecting) && (
+          {/* Live voice transcript — visible during and after voice session */}
+          {transcript.length > 0 && (
             <LiveTranscriptBubbles lines={transcript} />
           )}
 
@@ -791,6 +922,15 @@ export default function AIChatInterface() {
             {pendingCheckin && (
               <motion.div key="checkin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <CheckinCard summary={pendingCheckin} onDismiss={handleDismissCheckin} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Update result card */}
+          <AnimatePresence>
+            {pendingUpdateCard && (
+              <motion.div key="update" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <UpdateCard summary={pendingUpdateCard} onDismiss={() => { setPendingUpdateCard(null); dismissUpdate(); }} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -820,16 +960,19 @@ export default function AIChatInterface() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isVoiceActive ? 'Voice active — type to also send text…' : 'Type a message…'}
+              placeholder={isVoiceActive ? 'End voice call to type…' : 'Type a message…'}
               className="flex-1 bg-transparent text-[14px] outline-none min-w-0 py-2"
-              style={{ color: 'var(--brand-text-primary)' }}
-              disabled={isSending}
+              style={{
+                color: 'var(--brand-text-primary)',
+                opacity: isVoiceActive ? 0.4 : 1,
+              }}
+              disabled={isSending || isVoiceActive || isVoiceConnecting}
             />
 
-            {/* Mic button */}
+            {/* Mic button — disabled while text is sending */}
             <motion.button
               onClick={() => void handleMicClick()}
-              disabled={!token}
+              disabled={!token || isSending}
               className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition disabled:opacity-40"
               style={{
                 background: isVoiceActive
@@ -848,10 +991,10 @@ export default function AIChatInterface() {
               }
             </motion.button>
 
-            {/* Send button */}
+            {/* Send button — disabled during voice */}
             <motion.button
               onClick={() => void handleSend()}
-              disabled={isSending || !inputValue.trim()}
+              disabled={isSending || !inputValue.trim() || isVoiceActive || isVoiceConnecting}
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40"
               style={{
                 background: inputValue.trim() ? 'linear-gradient(135deg, #7B00E0, #9333EA)' : 'var(--brand-border)',

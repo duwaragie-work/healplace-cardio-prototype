@@ -100,6 +100,35 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
                         )
                     )
 
+        # ── Transcription events (native audio model) ────────────────────
+        output_tx = getattr(sc, "output_transcription", None)
+        if output_tx:
+            tx_text = getattr(output_tx, "text", None)
+            if tx_text and str(tx_text).strip():
+                messages.append(
+                    voice_pb2.ServerMessage(
+                        transcript=voice_pb2.Transcript(
+                            text=str(tx_text),
+                            is_final=True,
+                            speaker="agent",
+                        )
+                    )
+                )
+
+        input_tx = getattr(sc, "input_transcription", None)
+        if input_tx:
+            tx_text = getattr(input_tx, "text", None)
+            if tx_text and str(tx_text).strip():
+                messages.append(
+                    voice_pb2.ServerMessage(
+                        transcript=voice_pb2.Transcript(
+                            text=str(tx_text),
+                            is_final=True,
+                            speaker="user",
+                        )
+                    )
+                )
+
         if getattr(sc, "turn_complete", False):
             messages.append(
                 voice_pb2.ServerMessage(
@@ -174,11 +203,10 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
         # ── Step 4a: Task — run ADK agent, push events to out_queue ───────
         async def run_agent_task() -> None:
             try:
-                # gemini-3.1-flash-live-preview is a native-audio model —
-                # it generates audio automatically without speech_config.
-                # Disable transcription configs — this model doesn't support
-                # output_audio_transcription / input_audio_transcription;
-                # sending them causes 1007 "invalid argument".
+                # gemini-3.1-flash-live-preview is a native-audio model.
+                # Transcription configs with language_codes=null cause 1007,
+                # so we disable them. History is captured via tool call args
+                # and text sent through the input queue.
                 run_config = RunConfig(
                     response_modalities=["AUDIO"],
                     output_audio_transcription=None,

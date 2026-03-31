@@ -105,6 +105,9 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
         onCheckinSaved: (summary) => {
           client.emit('checkin_saved', summary)
         },
+        onCheckinUpdated: (summary) => {
+          client.emit('checkin_updated', summary)
+        },
         onError: (message: string) => {
           client.emit('session_error', { message })
         },

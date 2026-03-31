@@ -259,7 +259,7 @@ Keep your message short, clear, and supportive.`,
           }),
           this.prisma.user.findUnique({
             where: { id: userId },
-            select: { communicationPreference: true, preferredLanguage: true },
+            select: { name: true, communicationPreference: true, preferredLanguage: true },
           }),
         ])
 
@@ -280,6 +280,9 @@ Keep your message short, clear, and supportive.`,
           communicationPreference: user?.communicationPreference ?? null,
           preferredLanguage: user?.preferredLanguage ?? null,
         })
+        if (user?.name) {
+          systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
+        }
         systemPrompt = systemPrompt + '\n\n' + patientContext
       }
 
@@ -376,7 +379,7 @@ Keep your message short, clear, and supportive.`,
           }),
           this.prisma.user.findUnique({
             where: { id: userId },
-            select: { communicationPreference: true, preferredLanguage: true },
+            select: { name: true, communicationPreference: true, preferredLanguage: true },
           }),
         ])
 
@@ -397,6 +400,9 @@ Keep your message short, clear, and supportive.`,
           communicationPreference: user?.communicationPreference ?? null,
           preferredLanguage: user?.preferredLanguage ?? null,
         })
+        if (user?.name) {
+          systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
+        }
         systemPrompt = systemPrompt + '\n\n' + patientContext
       }
 
