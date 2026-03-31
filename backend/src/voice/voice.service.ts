@@ -375,9 +375,19 @@ export class VoiceService implements OnModuleDestroy {
               .join('; ')
           : 'No recent readings'
 
-      const baselineSummary = baseline
-        ? `7-day average: ${baseline.baselineSystolic ?? '?'}/${baseline.baselineDiastolic ?? '?'} mmHg`
-        : 'No baseline established yet'
+      // Count entries with complete BP data in the last 7 days
+      const completeEntries = entries.filter((e) => e.systolicBP != null && e.diastolicBP != null)
+      const entryCount = completeEntries.length
+
+      let baselineSummary: string
+      if (baseline) {
+        baselineSummary = `7-day baseline: ${baseline.baselineSystolic ?? '?'}/${baseline.baselineDiastolic ?? '?'} mmHg (based on ${entryCount} readings)`
+      } else if (entryCount > 0) {
+        const remaining = 3 - entryCount
+        baselineSummary = `No baseline yet — patient has ${entryCount} reading(s) in the last 7 days, needs ${remaining} more to establish a baseline`
+      } else {
+        baselineSummary = 'No baseline yet — patient has no readings. Needs at least 3 readings within 7 days to establish a baseline'
+      }
 
       const alertSummary =
         alerts.length > 0
