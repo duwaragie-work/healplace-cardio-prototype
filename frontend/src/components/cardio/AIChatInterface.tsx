@@ -521,9 +521,10 @@ export default function AIChatInterface() {
         .then((history) => {
           const arr = Array.isArray(history) ? history : [];
           const msgs: Message[] = [];
-          arr.forEach((item: { id: string; userMessage: string; aiResponse: string; timestamp: string }, idx: number) => {
-            msgs.push({ id: idx * 2, type: 'patient', source: 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
-            msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiResponse, time: formatMsgTime(item.timestamp) });
+          arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
+            const src = (item.source === 'voice' ? 'voice' : 'text') as MessageSource;
+            msgs.push({ id: idx * 2, type: 'patient', source: src, text: item.userMessage, time: formatMsgTime(item.timestamp) });
+            msgs.push({ id: idx * 2 + 1, type: 'ai', source: src, text: item.aiSummary, time: formatMsgTime(item.timestamp) });
           });
           setMessages(msgs);
         })
@@ -565,9 +566,9 @@ export default function AIChatInterface() {
       .then((history) => {
         const arr = Array.isArray(history) ? history : [];
         const msgs: Message[] = [];
-        arr.forEach((item: { id: string; userMessage: string; aiResponse: string; timestamp: string }, idx: number) => {
+        arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
           msgs.push({ id: idx * 2, type: 'patient', source: 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
-          msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiResponse, time: formatMsgTime(item.timestamp) });
+          msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
         });
         setMessages(msgs);
       })
@@ -651,9 +652,9 @@ export default function AIChatInterface() {
       getSessionHistory(activeSessionId).then((history) => {
         const arr = Array.isArray(history) ? history : [];
         const msgs: Message[] = [];
-        arr.forEach((item: { id: string; userMessage: string; aiResponse: string; timestamp: string }, idx: number) => {
+        arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
           msgs.push({ id: idx * 2, type: 'patient', source: 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
-          msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiResponse, time: formatMsgTime(item.timestamp) });
+          msgs.push({ id: idx * 2 + 1, type: 'ai', source: 'text', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
         });
         setMessages(msgs);
       }).catch(() => {});
