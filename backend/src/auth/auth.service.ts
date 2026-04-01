@@ -28,6 +28,7 @@ export interface TokenPair {
 
 export interface AuthResponse extends TokenPair {
   userId: string
+  email: string | null
   onboarding_required: boolean
   roles: UserRole[]
   login_method: 'otp' | 'google' | 'apple' | 'guest'
@@ -209,6 +210,7 @@ export class AuthService {
     return {
       ...tokens,
       userId: user.id,
+      email: user.email ?? null,
       onboarding_required: user.onboardingStatus !== OnboardingStatus.COMPLETED,
       roles: user.roles,
       login_method,
