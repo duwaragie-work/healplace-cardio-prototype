@@ -1,19 +1,15 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../generated/prisma/client.js'
 
 @Injectable()
-export class PrismaService extends PrismaClient {
+export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly configService: ConfigService
 
   constructor(configService: ConfigService) {
-    const adapter = new PrismaPg({
-      connectionString: configService.get<string>('DATABASE_URL')!,
+    super({
+      accelerateUrl: configService.get<string>('DATABASE_URL')!,
     })
-
-    super({ adapter })
-
     this.configService = configService
   }
 
@@ -30,12 +26,6 @@ export class PrismaService extends PrismaClient {
     console.log('✅ Database connected')
 
     try {
-      // Avoid doing destructive/schema-changing SQL on every dev restart,
-      // which can cause Prisma migrations to think the DB is “out of sync”.
-      //
-      // Enable explicitly when you want the vector index ensured:
-      // - production (default)
-      // - or set ENABLE_VECTOR_INDEX_SETUP=true
       const enableVectorIndexSetup =
         this.configService.get<string>('ENABLE_VECTOR_INDEX_SETUP') === 'true' ||
         this.configService.get<string>('NODE_ENV') === 'production'
