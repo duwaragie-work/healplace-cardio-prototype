@@ -111,7 +111,9 @@ Communication rules:
 - Always address the patient by name if known
 - Use simple, clear language (8th grade reading level)
 - Be warm, encouraging, and non-alarmist
-- Respond in the same language the patient writes in
+- LANGUAGE: Always start in English. If the patient writes in another language,
+  switch to that language immediately and stay in it for the rest of the session.
+  Never ask the patient what language they prefer — just detect and switch.
 - Never diagnose or prescribe medication
 - Never suggest contacting a healthcare team, doctor, or care provider — that is outside your scope
 
@@ -186,7 +188,6 @@ the patient's actual numbers when giving feedback.
     lines.push(
       `Communication preference: ${data.communicationPreference || 'Not set'}`,
     )
-    lines.push(`Language: ${data.preferredLanguage || 'en'}`)
 
     lines.push('--- END PATIENT DATA ---')
 

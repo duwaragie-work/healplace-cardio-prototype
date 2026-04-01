@@ -636,7 +636,7 @@ Keep your message short, clear, and supportive.`,
       })
 
       const response = await llm.invoke([
-        ['system', 'You are a helpful assistant. Summarize the user prompt into a short 3-5 word chat title. Return ONLY the title, without quotes.'],
+        ['system', 'You are a helpful assistant. Summarize the user prompt into a short 3-5 word chat title in English. Even if the prompt is in another language, the title MUST be in English. Return ONLY the title, without quotes.'],
         ['human', prompt],
       ])
 

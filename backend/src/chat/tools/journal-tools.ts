@@ -22,8 +22,8 @@ export function createJournalTools(
       diastolic_bp: z.number().min(40).max(150).describe('Diastolic BP — the bottom number.'),
       medication_taken: z.boolean().describe('Whether the patient took their medications.'),
       weight: z.number().optional().describe('Weight in lbs. Omit if not provided.'),
-      symptoms: z.array(z.string()).optional().describe('List of symptoms reported.'),
-      notes: z.string().optional().describe('Any extra notes.'),
+      symptoms: z.array(z.string()).optional().describe('List of symptoms reported. ALWAYS in English regardless of conversation language.'),
+      notes: z.string().optional().describe('Any extra notes. ALWAYS in English regardless of conversation language.'),
     }),
     func: async (input) => {
       try {
@@ -96,8 +96,8 @@ export function createJournalTools(
       diastolic_bp: z.number().min(40).max(150).optional().describe('New diastolic BP.'),
       medication_taken: z.boolean().optional().describe('New medication status.'),
       weight: z.number().optional().describe('New weight in lbs.'),
-      symptoms: z.array(z.string()).optional().describe('New symptom list.'),
-      notes: z.string().optional().describe('New notes.'),
+      symptoms: z.array(z.string()).optional().describe('New symptom list. ALWAYS in English regardless of conversation language.'),
+      notes: z.string().optional().describe('New notes. ALWAYS in English regardless of conversation language.'),
     }),
     func: async (input) => {
       try {
