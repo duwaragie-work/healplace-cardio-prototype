@@ -224,19 +224,12 @@ Keep your message short, clear, and supportive.`,
 
     try {
       const emergency = await this.preCheckEmergency(sessionId, prompt, userId)
-      if (emergency.isEmergency) {
-        // First, notify the client that this is an emergency situation.
-        yield { type: 'emergency', emergencySituation: emergency.emergencySituation }
 
-        // Then, stream a tailored emergency response.
-        for await (const chunk of this.getEmergencyStreamingResponse(
-          prompt,
-          emergency.emergencySituation,
-          sessionId,
-        )) {
-          yield chunk
-        }
-        return
+      // If emergency detected, notify the client but do NOT short-circuit.
+      // The main LLM will still process the message (record check-ins, answer
+      // questions) and append an appropriate 911 advisory when needed.
+      if (emergency.isEmergency) {
+        yield { type: 'emergency', emergencySituation: emergency.emergencySituation }
       }
 
       let systemPrompt = this.systemPromptService.buildSystemPrompt()
@@ -288,6 +281,21 @@ Keep your message short, clear, and supportive.`,
           systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
         }
         systemPrompt = systemPrompt + '\n\n' + patientContext
+      }
+
+      // If the safety classifier flagged a potential emergency, inject an
+      // advisory directive. The LLM must still process the message normally
+      // (record check-ins, answer questions) but append a 911 advisory.
+      if (emergency.isEmergency) {
+        systemPrompt +=
+          '\n\n--- EMERGENCY ADVISORY ---\n' +
+          'The safety classifier flagged the patient\'s latest message as potentially urgent: ' +
+          (emergency.emergencySituation ?? 'possible emergency') + '.\n' +
+          'IMPORTANT: Continue processing the patient\'s request normally — record their ' +
+          'check-in, save their data, answer their question. Do NOT refuse to save data. ' +
+          'AFTER you have completed the task, add a brief, caring advisory recommending ' +
+          'they call 911 or seek immediate medical help if the symptom is happening right now.\n' +
+          '--- END EMERGENCY ADVISORY ---'
       }
 
       // Inject rolling session summary (covers both text and voice turns)
@@ -426,13 +434,6 @@ Keep your message short, clear, and supportive.`,
 
     try {
       const emergency = await this.preCheckEmergency(sessionId, prompt, userId)
-      if (emergency.isEmergency) {
-        return {
-          text: emergency.emergencySituation || '',
-          isEmergency: true,
-          emergencySituation: emergency.emergencySituation,
-        }
-      }
 
       let systemPrompt = this.systemPromptService.buildSystemPrompt()
 
@@ -483,6 +484,18 @@ Keep your message short, clear, and supportive.`,
           systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
         }
         systemPrompt = systemPrompt + '\n\n' + patientContext
+      }
+
+      if (emergency.isEmergency) {
+        systemPrompt +=
+          '\n\n--- EMERGENCY ADVISORY ---\n' +
+          'The safety classifier flagged the patient\'s latest message as potentially urgent: ' +
+          (emergency.emergencySituation ?? 'possible emergency') + '.\n' +
+          'IMPORTANT: Continue processing the patient\'s request normally — record their ' +
+          'check-in, save their data, answer their question. Do NOT refuse to save data. ' +
+          'AFTER you have completed the task, add a brief, caring advisory recommending ' +
+          'they call 911 or seek immediate medical help if the symptom is happening right now.\n' +
+          '--- END EMERGENCY ADVISORY ---'
       }
 
       // Inject rolling session summary (covers both text and voice turns)
@@ -588,8 +601,8 @@ Keep your message short, clear, and supportive.`,
 
       return {
         text: responseText,
-        isEmergency: false,
-        emergencySituation: null,
+        isEmergency: emergency.isEmergency,
+        emergencySituation: emergency.emergencySituation,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
       }
     } catch (error) {

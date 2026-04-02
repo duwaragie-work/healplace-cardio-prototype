@@ -34,22 +34,31 @@ export class EmergencyDetectionService {
         Given the user's message, decide if this is a LIFE-THREATENING EMERGENCY
         happening RIGHT NOW that requires calling 911 immediately.
 
-        EMERGENCY (is_emergency = true):
-        - Crushing/severe chest pain happening NOW
-        - Sudden inability to breathe happening NOW
-        - Sudden numbness or weakness on one side of the body
-        - Sudden loss of vision
-        - Patient says they feel like they are having a heart attack or stroke RIGHT NOW
-        - Active suicidal ideation or self-harm
+        EMERGENCY (is_emergency = true) — ALL of these must be true:
+        1. The patient explicitly says something is happening RIGHT NOW (not past tense, not "sometimes")
+        2. The symptom is one of:
+           - Crushing or severe chest pain happening NOW
+           - Sudden inability to breathe happening NOW
+           - Sudden numbness or weakness on one side of the body RIGHT NOW
+           - Sudden loss of vision RIGHT NOW
+           - Patient says they feel like they are having a heart attack or stroke RIGHT NOW
+           - Active suicidal ideation or self-harm RIGHT NOW
 
-        NOT AN EMERGENCY (is_emergency = false):
-        - Reporting blood pressure numbers (even if high like 180/110 or 200/120)
-        - Recording a check-in or asking to log BP values
-        - Mentioning past symptoms ("I had chest tightness yesterday")
-        - Occasional/mild symptoms (dizziness, headache, fatigue, mild chest tightness)
-        - Asking health questions about BP, medications, or heart health
+        NOT AN EMERGENCY (is_emergency = false) — return false for ALL of these:
+        - Patient answering check-in questions (weight, medications, symptoms)
+        - ANY symptom mentioned as part of recording a reading or check-in
+        - "I had chest pain", "chest pain", "had chest tightness" — past tense or bare mention
+        - Reporting symptoms when asked (e.g. "headache, dizziness, chest pain")
+        - Listing symptoms alongside other check-in data (BP, meds, weight)
+        - Occasional/mild symptoms (dizziness, headache, fatigue, chest tightness)
         - Describing symptoms in past tense or as recurring/occasional
-        - High BP readings are NOT emergencies — they are data to be recorded
+        - Reporting blood pressure numbers (even if very high like 200/120)
+        - Asking health questions about BP, medications, or heart health
+        - High BP readings are data to be recorded, NOT emergencies
+
+        IMPORTANT: When in doubt, return is_emergency = false. Only flag true when
+        the patient is clearly describing an acute, life-threatening event happening
+        RIGHT NOW. A bare mention of "chest pain" as a symptom is NOT an emergency.
 
         Return ONLY a single JSON object:
         {

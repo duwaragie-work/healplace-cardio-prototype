@@ -50,6 +50,7 @@ def make_tools(
         symptoms: list[str] | None = None,
         notes: str = "",
         entry_date: str = "",
+        measurement_time: str = "",
     ) -> dict:
         """
         Submit the patient's health check-in after all values have been
@@ -66,6 +67,9 @@ def make_tools(
             notes:            Any extra notes. ALWAYS in English regardless of conversation language.
             entry_date:       Date of the reading in YYYY-MM-DD format. Defaults
                               to today if not provided or blank.
+            measurement_time: Time the reading was taken in HH:mm 24-hour format
+                              (e.g. "08:30", "14:15"). Defaults to current time if
+                              not provided or blank.
 
         Returns:
             dict with 'saved' (bool) and 'message' (str).
@@ -89,6 +93,10 @@ def make_tools(
             except ValueError:
                 logger.warning("Invalid entry_date '%s', defaulting to today", entry_date)
 
+        resolved_time = ""
+        if measurement_time and measurement_time.strip():
+            resolved_time = measurement_time.strip()
+
         payload: dict[str, Any] = {
             "entryDate": resolved_date,
             "systolicBP": systolic_bp,
@@ -97,6 +105,8 @@ def make_tools(
             "symptoms": symptoms or [],
             "notes": notes or "",
         }
+        if resolved_time:
+            payload["measurementTime"] = resolved_time
         if weight and weight > 0:
             payload["weight"] = weight
 
@@ -170,6 +180,7 @@ def make_tools(
                     readings.append({
                         "id": e.get("id", ""),
                         "date": e.get("entryDate", ""),
+                        "measurement_time": e.get("measurementTime"),
                         "systolic": e.get("systolicBP"),
                         "diastolic": e.get("diastolicBP"),
                         "weight": e.get("weight"),
@@ -194,6 +205,7 @@ def make_tools(
         weight: float | None = None,
         symptoms: list[str] | None = None,
         notes: str | None = None,
+        measurement_time: str | None = None,
     ) -> dict:
         """
         Update an existing blood pressure reading. Use this when the patient
@@ -209,11 +221,14 @@ def make_tools(
             weight:           New weight in lbs, or None to keep unchanged.
             symptoms:         New symptom list, or None to keep unchanged. ALWAYS in English.
             notes:            New notes, or None to keep unchanged. ALWAYS in English.
+            measurement_time: New time in HH:mm 24-hour format, or None to keep unchanged.
 
         Returns:
             dict with 'updated' (bool) and 'message' (str).
         """
         payload: dict[str, Any] = {}
+        if measurement_time is not None:
+            payload["measurementTime"] = measurement_time
         if systolic_bp is not None:
             payload["systolicBP"] = systolic_bp
         if diastolic_bp is not None:

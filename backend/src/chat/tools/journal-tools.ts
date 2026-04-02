@@ -7,6 +7,49 @@ import { DynamicStructuredTool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { DailyJournalService } from '../../daily_journal/daily_journal.service.js'
 
+/**
+ * Normalise a time string to HH:mm 24-hour format.
+ * Handles: "13:00", "1:00 PM", "8:30 am", "2 PM", "14:15", etc.
+ * Returns undefined if the input can't be parsed.
+ */
+function normaliseTime(raw?: string): string | undefined {
+  if (!raw) return undefined
+  const s = raw.trim()
+
+  // Already HH:mm
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(s)) return s
+
+  // Try "H:mm AM/PM" or "HH:mm AM/PM"
+  const ampm = s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i)
+  if (ampm) {
+    let h = parseInt(ampm[1], 10)
+    const m = ampm[2]
+    const period = ampm[3].toLowerCase()
+    if (period === 'pm' && h < 12) h += 12
+    if (period === 'am' && h === 12) h = 0
+    return `${String(h).padStart(2, '0')}:${m}`
+  }
+
+  // Try "H AM/PM" or "HH AM/PM" (no minutes)
+  const ampmNoMin = s.match(/^(\d{1,2})\s*(am|pm)$/i)
+  if (ampmNoMin) {
+    let h = parseInt(ampmNoMin[1], 10)
+    const period = ampmNoMin[2].toLowerCase()
+    if (period === 'pm' && h < 12) h += 12
+    if (period === 'am' && h === 12) h = 0
+    return `${String(h).padStart(2, '0')}:00`
+  }
+
+  // Try bare "H:mm" (e.g. "9:30") — assume 24h if <=23
+  const bare = s.match(/^(\d{1,2}):(\d{2})$/)
+  if (bare) {
+    const h = parseInt(bare[1], 10)
+    if (h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:${bare[2]}`
+  }
+
+  return undefined
+}
+
 export function createJournalTools(
   journalService: DailyJournalService,
   userId: string,
@@ -18,6 +61,7 @@ export function createJournalTools(
       'Use this after confirming all values with the patient.',
     schema: z.object({
       entry_date: z.string().describe('Date in YYYY-MM-DD format. Use today if not specified.'),
+      measurement_time: z.string().optional().describe('Time the reading was taken in HH:mm 24-hour format (e.g. "08:30", "14:15"). Omit to use current time.'),
       systolic_bp: z.number().min(60).max(250).describe('Systolic BP — the top number.'),
       diastolic_bp: z.number().min(40).max(150).describe('Diastolic BP — the bottom number.'),
       medication_taken: z.boolean().describe('Whether the patient took their medications.'),
@@ -29,6 +73,7 @@ export function createJournalTools(
       try {
         const result = await journalService.create(userId, {
           entryDate: input.entry_date,
+          measurementTime: normaliseTime(input.measurement_time),
           systolicBP: input.systolic_bp,
           diastolicBP: input.diastolic_bp,
           medicationTaken: input.medication_taken,
@@ -72,6 +117,7 @@ export function createJournalTools(
         const entries = (result.data ?? []).map((e: any) => ({
           id: e.id,
           date: e.entryDate,
+          measurement_time: e.measurementTime ?? null,
           systolic: e.systolicBP,
           diastolic: e.diastolicBP,
           weight: e.weight,
@@ -93,6 +139,7 @@ export function createJournalTools(
       'Only include fields that need to change.',
     schema: z.object({
       entry_id: z.string().describe('The ID of the journal entry to update (from get_recent_readings).'),
+      measurement_time: z.string().optional().describe('New measurement time in HH:mm 24-hour format (e.g. "08:30", "14:15").'),
       systolic_bp: z.number().min(60).max(250).optional().describe('New systolic BP.'),
       diastolic_bp: z.number().min(40).max(150).optional().describe('New diastolic BP.'),
       medication_taken: z.boolean().optional().describe('New medication status.'),
@@ -103,6 +150,7 @@ export function createJournalTools(
     func: async (input) => {
       try {
         const dto: any = {}
+        if (input.measurement_time != null) dto.measurementTime = normaliseTime(input.measurement_time)
         if (input.systolic_bp != null) dto.systolicBP = input.systolic_bp
         if (input.diastolic_bp != null) dto.diastolicBP = input.diastolic_bp
         if (input.medication_taken != null) dto.medicationTaken = input.medication_taken
