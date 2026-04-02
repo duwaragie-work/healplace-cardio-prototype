@@ -221,7 +221,7 @@ export default function Welcome() {
       </div>
 
       <div className="max-w-300 mx-auto px-4 md:px-8 py-4 md:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center overflow-visible">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 lg:items-center overflow-visible">
           {/* LEFT COLUMN */}
           <div className="flex flex-col space-y-8">
             {/* Logo + Wordmark */}
@@ -263,7 +263,7 @@ export default function Welcome() {
             {/* CTA Button */}
             <Link
               href="/register"
-              className="w-full lg:w-[320px] py-4 px-8 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="relative z-10 block w-full lg:w-[320px] py-4 px-8 text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 backgroundColor: 'var(--brand-primary-purple)',
                 color: '#FFFFFF',
@@ -273,8 +273,10 @@ export default function Welcome() {
                 fontSize: '1.0625rem',
               }}
             >
-              {t('welcome.continueEmail')}
-              <ArrowRight className="w-5 h-5" />
+              <span className="inline-flex items-center justify-center gap-2 pointer-events-none">
+                {t('welcome.continueEmail')}
+                <ArrowRight className="w-5 h-5" />
+              </span>
             </Link>
 
             {/* Trust Badges */}

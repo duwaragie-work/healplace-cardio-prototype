@@ -153,7 +153,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-6 lg:px-12 py-10">
+    <div className="min-h-screen bg-white flex items-start lg:items-center justify-center px-6 lg:px-12 py-8 lg:py-10">
       <div className="w-full max-w-300 mx-auto">
         <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
           {/* Left side - Form */}
@@ -198,7 +198,8 @@ export default function OnboardingPage() {
                   type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
+                  className="w-full h-12 px-4 lg:px-5 bg-white border border-[#e5d9f2] rounded-lg text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
+                  style={{ colorScheme: 'light', minHeight: 48 }}
                 />
               </div>
 

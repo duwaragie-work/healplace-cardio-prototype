@@ -81,16 +81,16 @@ export default function Navbar() {
         }}
       >
         {/* Logo */}
-        <Link href={isProviderOnly ? '/provider/dashboard' : '/dashboard'} className="flex items-center gap-2 shrink-0">
+        <Link href={isProviderOnly ? '/provider/dashboard' : '/dashboard'} className="flex items-center gap-1.5 shrink-0">
           <Image
             src="/logo.svg"
             alt="Healplace logo"
-            width={36}
-            height={36}
-            className="w-9 h-9"
+            width={32}
+            height={32}
+            className="w-8 h-8"
           />
           <span
-            className="font-bold text-base hidden sm:block"
+            className="font-bold text-[14px] sm:text-base"
             style={{ color: 'var(--brand-primary-purple)' }}
           >
             Healplace Cardio
@@ -127,7 +127,7 @@ export default function Navbar() {
         </div>
 
         {/* Right: Lang + Bell + Avatar + Hamburger */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Language Dropdown */}
           <div className="relative" ref={langRef}>
             <button
