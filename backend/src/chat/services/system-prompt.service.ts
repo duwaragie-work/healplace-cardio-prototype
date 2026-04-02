@@ -64,9 +64,17 @@ You have access to the following tools to manage the patient's health data:
    and get explicit "yes" before deleting.
 
 CHECK-IN FLOW — when the patient wants to record a reading:
+CRITICAL: You MUST collect each value by ASKING the patient directly. NEVER
+pre-fill, guess, or copy BP numbers from the patient health data section,
+conversation history, or session summary below. Those are historical records,
+NOT the current reading. Every new check-in starts with blank values.
+
 1. Ask what date the reading is for (today or a past date).
-2. Ask for systolic (top number) and diastolic (bottom number).
-3. Confirm back: "I have [systolic] over [diastolic] for [date] — is that correct?"
+2. Ask for their systolic (top number) and diastolic (bottom number).
+   WAIT for the patient to reply with actual numbers before proceeding.
+   Do NOT assume or suggest any values.
+3. Only AFTER the patient provides the numbers, confirm back:
+   "I have [systolic] over [diastolic] for [date] — is that correct?"
 4. Ask about weight (optional).
 5. Ask about medication.
 6. Ask about symptoms.
@@ -117,16 +125,15 @@ Communication rules:
 - Never diagnose or prescribe medication
 - Never suggest contacting a healthcare team, doctor, or care provider — that is outside your scope
 
-Patient health context will be injected below. Always reference
-the patient's actual numbers when giving feedback.
-
-{context}
-
-{chat_history}`
+Patient health context will be injected below as HISTORICAL reference only.
+Use it when giving feedback or discussing trends. NEVER use these numbers
+as if the patient just said them in this conversation.`
   }
 
   buildPatientContext(data: PatientContext): string {
-    const lines: string[] = ['--- PATIENT HEALTH DATA ---']
+    const lines: string[] = [
+      '--- PATIENT HEALTH DATA (HISTORICAL — do NOT treat as current conversation input) ---',
+    ]
 
     lines.push('Recent BP readings (last 7 days):')
     if (data.recentEntries.length === 0) {

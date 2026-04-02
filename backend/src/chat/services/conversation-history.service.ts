@@ -20,27 +20,56 @@ export class ConversationHistoryService {
     query: string,
   ): Promise<[string, string][]> {
     try {
-      if (!query?.trim()) return []
-
-      const embeddingResponse = await this.mistralService.getEmbeddings(query)
-      const queryEmbedding = embeddingResponse.data[0]?.embedding
-      if (!queryEmbedding) return []
-
-      const embeddingString = `[${queryEmbedding.join(',')}]`
+      if (!sessionId) return []
 
       type RawRow = { userMessage: string; aiSummary: string; timestamp: Date }
 
-      const results: RawRow[] = await (this.prisma as any).$queryRawUnsafe(
+      // 1. Always get the last 6 turns chronologically (ensures recent context)
+      const recentRows: RawRow[] = await (this.prisma as any).$queryRawUnsafe(
         `SELECT "userMessage", "aiSummary", timestamp
          FROM "Conversation"
-         WHERE "sessionId" = $1 AND embedding IS NOT NULL
-         ORDER BY embedding <-> $2::vector
-         LIMIT 10`,
+         WHERE "sessionId" = $1
+         ORDER BY timestamp DESC
+         LIMIT 6`,
         sessionId,
-        embeddingString,
       )
 
-      const sorted = [...results].sort(
+      // 2. If query is provided, also get similar turns via vector search
+      let similarRows: RawRow[] = []
+      if (query?.trim()) {
+        try {
+          const embeddingResponse = await this.mistralService.getEmbeddings(query)
+          const queryEmbedding = embeddingResponse.data[0]?.embedding
+          if (queryEmbedding) {
+            const embeddingString = `[${queryEmbedding.join(',')}]`
+            similarRows = await (this.prisma as any).$queryRawUnsafe(
+              `SELECT "userMessage", "aiSummary", timestamp
+               FROM "Conversation"
+               WHERE "sessionId" = $1 AND embedding IS NOT NULL
+               ORDER BY embedding <-> $2::vector
+               LIMIT 6`,
+              sessionId,
+              embeddingString,
+            )
+          }
+        } catch {
+          // Vector search failed — continue with chronological only
+        }
+      }
+
+      // 3. Merge and deduplicate
+      const seen = new Set<string>()
+      const merged: RawRow[] = []
+      for (const row of [...recentRows, ...similarRows]) {
+        const key = `${new Date(row.timestamp).getTime()}:${row.userMessage.slice(0, 30)}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          merged.push(row)
+        }
+      }
+
+      // 4. Sort chronologically
+      const sorted = merged.sort(
         (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
       )
 
@@ -50,7 +79,7 @@ export class ConversationHistoryService {
         history.push(['ai', row.aiSummary])
       }
 
-      console.log(`Retrieved ${history.length / 2} conversation turns for session ${sessionId}`)
+      console.log(`Retrieved ${history.length / 2} conversation turns for session ${sessionId} (${recentRows.length} recent, ${similarRows.length} similar)`)
       return history
     } catch (error) {
       console.error('Error retrieving conversation history:', error)
