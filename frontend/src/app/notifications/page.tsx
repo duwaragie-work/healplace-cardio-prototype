@@ -622,26 +622,26 @@ export default function NotificationsPage() {
         : notifs;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--brand-background)' }}>
-      {/* Page header */}
-      <div
-        className="sticky top-16 z-30 bg-white/90 backdrop-blur-sm px-4 md:px-8 py-4"
-        style={{ borderBottom: '1px solid var(--brand-border)' }}
-      >
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen" style={{ backgroundColor: '#FAFBFF' }}>
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-6">
+        {/* Page header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
-              className="w-9 h-9 rounded-full flex items-center justify-center transition hover:opacity-75"
+              className="w-8 h-8 rounded-full flex items-center justify-center transition hover:opacity-75 shrink-0"
               style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}
             >
               <ArrowLeft className="w-4 h-4" style={{ color: 'var(--brand-primary-purple)' }} />
             </Link>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
+            >
+              <Bell className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <h1
-                className="text-[18px] font-bold leading-tight"
-                style={{ color: 'var(--brand-text-primary)' }}
-              >
+              <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
                 {t('notifications.title')}
               </h1>
               {!loading && (
@@ -671,9 +671,8 @@ export default function NotificationsPage() {
             </button>
           )}
         </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto px-4 md:px-8 py-5 space-y-6">
+      <div className="space-y-6">
         {loading ? (
           <>
             {/* Alert skeletons */}
@@ -758,6 +757,7 @@ export default function NotificationsPage() {
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );
