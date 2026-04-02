@@ -56,12 +56,13 @@ export function createJournalTools(
       'Retrieve the patient\'s recent blood pressure readings. ' +
       'Use when the patient asks about past readings, trends, or before updating/deleting.',
     schema: z.object({
-      days: z.number().min(1).max(30).optional().default(7).describe('Number of days to look back (default 7).'),
+      days: z.number().min(1).max(30).describe('Number of days to look back. Use 7 if not specified.'),
     }),
     func: async (input) => {
       try {
+        const days = input.days && input.days > 0 ? input.days : 7
         const startDate = new Date()
-        startDate.setDate(startDate.getDate() - (input.days ?? 7))
+        startDate.setDate(startDate.getDate() - days)
         const result = await journalService.findAll(
           userId,
           startDate.toISOString().slice(0, 10),
