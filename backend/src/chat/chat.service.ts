@@ -318,10 +318,12 @@ Keep your message short, clear, and supportive.`,
       }
 
       // Build tools and LLM with tool binding
+      // Do NOT use streaming: true with tool calling — the response must be
+      // complete to extract tool_calls correctly.
       const tools = createJournalTools(this.dailyJournalService, userId)
       const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-      const llm = new ChatMistralAI({ apiKey, model: this.chatModel, streaming: true })
-      const llmWithTools = llm.bindTools(tools)
+      const llm = new ChatMistralAI({ apiKey, model: this.chatModel, maxTokens: 4096 })
+      const llmWithTools = llm.bindTools(tools, { tool_choice: 'auto' as any })
 
       // Build message history
       const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
@@ -336,6 +338,7 @@ Keep your message short, clear, and supportive.`,
       // Tool calling loop — max 5 iterations to prevent infinite loops
       let fullResponse = ''
       for (let iteration = 0; iteration < 5; iteration++) {
+        console.log(`Tool loop iteration ${iteration + 1} for session ${sessionId}`)
         const response = await llmWithTools.invoke(messages)
         messages.push(response)
 
@@ -369,10 +372,25 @@ Keep your message short, clear, and supportive.`,
         for (const toolCall of toolCalls) {
           const tool = tools.find((t) => t.name === toolCall.name)
           if (tool) {
-            console.log(`Executing tool: ${toolCall.name}`, toolCall.args)
-            const result = await tool.invoke(toolCall.args)
+            console.log(`Executing tool: ${toolCall.name}`, JSON.stringify(toolCall.args))
+            try {
+              const result = await tool.invoke(toolCall.args)
+              console.log(`Tool result [${toolCall.name}]:`, typeof result === 'string' ? result.slice(0, 200) : result)
+              messages.push(new ToolMessage({
+                content: typeof result === 'string' ? result : JSON.stringify(result),
+                tool_call_id: toolCall.id ?? toolCall.name,
+              }))
+            } catch (toolErr) {
+              console.error(`Tool execution failed [${toolCall.name}]:`, toolErr)
+              messages.push(new ToolMessage({
+                content: JSON.stringify({ error: true, message: String(toolErr) }),
+                tool_call_id: toolCall.id ?? toolCall.name,
+              }))
+            }
+          } else {
+            console.warn(`Unknown tool requested: ${toolCall.name}`)
             messages.push(new ToolMessage({
-              content: typeof result === 'string' ? result : JSON.stringify(result),
+              content: JSON.stringify({ error: true, message: `Unknown tool: ${toolCall.name}` }),
               tool_call_id: toolCall.id ?? toolCall.name,
             }))
           }
@@ -497,8 +515,8 @@ Keep your message short, clear, and supportive.`,
       // Build tools and LLM with tool binding
       const tools = createJournalTools(this.dailyJournalService, userId)
       const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-      const llm = new ChatMistralAI({ apiKey, model: this.chatModel })
-      const llmWithTools = llm.bindTools(tools)
+      const llm = new ChatMistralAI({ apiKey, model: this.chatModel, maxTokens: 4096 })
+      const llmWithTools = llm.bindTools(tools, { tool_choice: 'auto' as any })
 
       // Build message history
       const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
@@ -532,19 +550,33 @@ Keep your message short, clear, and supportive.`,
         for (const toolCall of toolCalls) {
           const tool = tools.find((t) => t.name === toolCall.name)
           if (tool) {
-            console.log(`Executing tool: ${toolCall.name}`, toolCall.args)
-            const rawResult = await tool.invoke(toolCall.args)
-            const resultStr = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)
+            console.log(`Executing tool [structured]: ${toolCall.name}`, JSON.stringify(toolCall.args))
+            try {
+              const rawResult = await tool.invoke(toolCall.args)
+              const resultStr = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)
+              console.log(`Tool result [${toolCall.name}]:`, resultStr.slice(0, 200))
+              messages.push(new ToolMessage({
+                content: resultStr,
+                tool_call_id: toolCall.id ?? toolCall.name,
+              }))
+              try {
+                toolResults.push({ tool: toolCall.name, result: JSON.parse(resultStr) })
+              } catch {
+                toolResults.push({ tool: toolCall.name, result: { message: resultStr } })
+              }
+            } catch (toolErr) {
+              console.error(`Tool execution failed [${toolCall.name}]:`, toolErr)
+              messages.push(new ToolMessage({
+                content: JSON.stringify({ error: true, message: String(toolErr) }),
+                tool_call_id: toolCall.id ?? toolCall.name,
+              }))
+            }
+          } else {
+            console.warn(`Unknown tool requested: ${toolCall.name}`)
             messages.push(new ToolMessage({
-              content: resultStr,
+              content: JSON.stringify({ error: true, message: `Unknown tool: ${toolCall.name}` }),
               tool_call_id: toolCall.id ?? toolCall.name,
             }))
-            // Track for frontend popup
-            try {
-              toolResults.push({ tool: toolCall.name, result: JSON.parse(resultStr) })
-            } catch {
-              toolResults.push({ tool: toolCall.name, result: { message: resultStr } })
-            }
           }
         }
       }
