@@ -86,6 +86,21 @@ export async function getSessionHistory(
   return res.json()
 }
 
+export async function getSession(sessionId: string): Promise<{
+  id: string
+  title: string
+  summary: string | null
+  createdAt: string
+  updatedAt: string
+}> {
+  const res = await fetchWithAuth(`${API}/api/chat/sessions/${sessionId}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Request failed: ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function deleteSession(sessionId: string): Promise<void> {
   const res = await fetchWithAuth(`${API}/api/chat/sessions/${sessionId}`, {
     method: 'DELETE',
