@@ -21,6 +21,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import {
   sendMessage as sendChatMessage,
   getChatSessions,
+  getSession as getSessionApi,
   getSessionHistory,
   deleteSession as deleteSessionApi,
   type ToolResult,
@@ -50,6 +51,7 @@ interface Session {
   title: string;
   time: string;
   isVoice?: boolean;
+  summary?: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -203,9 +205,20 @@ function MessageBubble({ msg }: { msg: Message }) {
         <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
       </div>
       <div
-        className="max-w-[75%] sm:max-w-[65%] px-4 py-3.5"
+        className="max-w-[80%] sm:max-w-[70%] px-4 py-3.5"
         style={{ backgroundColor: 'white', borderRadius: '4px 18px 18px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
       >
+        {isVoice && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <Mic className="w-3 h-3" style={{ color: 'var(--brand-primary-purple)' }} />
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ backgroundColor: 'var(--brand-primary-purple-light)', color: 'var(--brand-primary-purple)' }}
+            >
+              Voice Session Summary
+            </span>
+          </div>
+        )}
         <div className="prose prose-sm max-w-none text-[14px] leading-relaxed" style={{ color: 'var(--brand-text-primary)' }}>
           <ReactMarkdown>{msg.text}</ReactMarkdown>
         </div>
@@ -990,13 +1003,12 @@ function VoiceActiveScreen({ state, pendingCheckin, onDismissCheckin, actionType
 }
 
 // ─── Session mapper helper ────────────────────────────────────────────────────
-function mapSessions(arr: Array<{ id: string; title: string; updatedAt: string; createdAt: string }>): Session[] {
+function mapSessions(arr: Array<{ id: string; title: string; summary?: string | null; updatedAt: string; createdAt: string }>): Session[] {
   return arr.map((s) => {
     const t = (s.title ?? '').toLowerCase();
     const isVoice = t.includes('voice') || t.startsWith('bp check-in');
-    // Keep the backend-generated title as-is (e.g. "BP Check-in 140/90", "Voice: how is my BP")
     const title = s.title || 'Conversation';
-    return { id: s.id, title, time: formatSessionTime(s.updatedAt ?? s.createdAt), isVoice };
+    return { id: s.id, title, time: formatSessionTime(s.updatedAt ?? s.createdAt), isVoice, summary: s.summary ?? null };
   });
 }
 
@@ -1070,33 +1082,76 @@ export default function AIChatInterface() {
 
   // When voice session ends, convert the live transcript lines into permanent messages
   // (keeps the full conversation visible instead of replacing with DB summaries)
+  const [voiceSummaryLoading, setVoiceSummaryLoading] = useState(false);
+
   const prevVoiceStateRef = useRef(voiceState);
   useEffect(() => {
     const prev = prevVoiceStateRef.current;
     prevVoiceStateRef.current = voiceState;
-    if (prev !== 'idle' && voiceState === 'idle' && transcript.length > 0) {
-      // Convert live transcript lines into message bubbles
-      const voiceMsgs: Message[] = transcript
-        .filter((line) => line.text.trim())
-        .map((line) => ({
-          id: Date.now() + line.id,
-          type: (line.speaker === 'user' ? 'patient' : 'ai') as MessageType,
-          source: 'voice' as MessageSource,
-          text: line.text,
-          time: nowTimeStr(),
-        }));
-      if (voiceMsgs.length > 0) {
-        setMessages((prev) => [...prev, ...voiceMsgs]);
-      }
-      // Clear live transcript lines now that they're converted to messages
+    if (prev !== 'idle' && voiceState === 'idle') {
+      // Clear everything immediately — show skeleton
       clearTranscript();
-      // Refresh the session list in case a new session was created
-      getChatSessions()
-        .then((data) => {
-          const arr = Array.isArray(data) ? data : [];
-          setSessions(mapSessions(arr));
-        })
-        .catch(() => {});
+      setMessages([]);
+      setPendingCheckin(null);
+      setPendingUpdateCard(null);
+      setVoiceSummaryLoading(true);
+
+      const sessionId = activeSessionId;
+
+      const loadVoiceSummary = async () => {
+        if (!sessionId) return;
+
+        // Poll the single session endpoint until summary is ready
+        const maxAttempts = 8;
+        const delayMs = 2500;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, delayMs));
+
+          try {
+            const session = await getSessionApi(sessionId);
+
+            if (session.summary) {
+              // Summary is ready — show it
+              setMessages([{
+                id: Date.now(),
+                type: 'ai' as MessageType,
+                source: 'voice' as MessageSource,
+                text: session.summary,
+                time: nowTimeStr(),
+              }]);
+
+              // Also refresh sidebar with updated title + summary
+              getChatSessions().then((data) => {
+                setSessions(mapSessions(Array.isArray(data) ? data : []));
+              }).catch(() => {});
+
+              return;
+            }
+          } catch {
+            // continue retrying
+          }
+        }
+
+        // All retries exhausted — fallback to conversation history
+        try {
+          const history = await getSessionHistory(sessionId);
+          const hArr = Array.isArray(history) ? history : [];
+          const combined = hArr.map((item: { aiSummary: string }) => item.aiSummary).filter(Boolean).join('\n\n');
+          if (combined) {
+            setMessages([{ id: 0, type: 'ai' as MessageType, source: 'voice' as MessageSource, text: combined, time: nowTimeStr() }]);
+          }
+        } catch {
+          setMessages([]);
+        }
+
+        // Refresh sidebar anyway
+        getChatSessions().then((data) => {
+          setSessions(mapSessions(Array.isArray(data) ? data : []));
+        }).catch(() => {});
+      };
+
+      loadVoiceSummary().finally(() => setVoiceSummaryLoading(false));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceState]);
@@ -1130,30 +1185,44 @@ export default function AIChatInterface() {
     const currentSession = sessions.find((s) => s.id === activeSessionId);
     const isVoiceSession = currentSession?.isVoice ?? false;
 
-    getSessionHistory(activeSessionId)
-      .then((history) => {
-        const arr = Array.isArray(history) ? history : [];
-        const msgs: Message[] = [];
+    if (isVoiceSession && currentSession?.summary) {
+      // Voice sessions: show the rolling session summary directly
+      setMessages([{
+        id: Date.now(),
+        type: 'ai' as MessageType,
+        source: 'voice' as MessageSource,
+        text: currentSession.summary!,
+        time: currentSession.time,
+      }]);
+      setIsLoadingHistory(false);
+    } else {
+      getSessionHistory(activeSessionId)
+        .then((history) => {
+          const arr = Array.isArray(history) ? history : [];
+          const msgs: Message[] = [];
 
-        if (isVoiceSession) {
-          // Voice sessions: show only the AI summary as a single message
-          arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
-            if (item.aiSummary) {
-              msgs.push({ id: idx, type: 'ai', source: 'voice', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
+          if (isVoiceSession) {
+            // Voice session without summary yet — show combined aiSummary as one block
+            const combined = arr
+              .map((item: { aiSummary: string }) => item.aiSummary)
+              .filter(Boolean)
+              .join('\n\n');
+            if (combined) {
+              msgs.push({ id: 0, type: 'ai', source: 'voice', text: combined, time: formatMsgTime(arr[0]?.timestamp ?? '') });
             }
-          });
-        } else {
-          // Text sessions: show full back-and-forth
-          arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
-            msgs.push({ id: idx * 2, type: 'patient', source: (item.source as MessageSource) || 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
-            msgs.push({ id: idx * 2 + 1, type: 'ai', source: (item.source as MessageSource) || 'text', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
-          });
-        }
+          } else {
+            // Text sessions: show full back-and-forth
+            arr.forEach((item: { id: string; userMessage: string; aiSummary: string; source: string; timestamp: string }, idx: number) => {
+              msgs.push({ id: idx * 2, type: 'patient', source: (item.source as MessageSource) || 'text', text: item.userMessage, time: formatMsgTime(item.timestamp) });
+              msgs.push({ id: idx * 2 + 1, type: 'ai', source: (item.source as MessageSource) || 'text', text: item.aiSummary, time: formatMsgTime(item.timestamp) });
+            });
+          }
 
-        setMessages(msgs);
-      })
-      .catch(() => setMessages([]))
-      .finally(() => setIsLoadingHistory(false));
+          setMessages(msgs);
+        })
+        .catch(() => setMessages([]))
+        .finally(() => setIsLoadingHistory(false));
+    }
   }, [activeSessionId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -1383,7 +1452,7 @@ export default function AIChatInterface() {
             </div>
           )}
 
-          {messages.length === 0 && transcript.length === 0 && !isTyping && !isLoadingHistory && (
+          {messages.length === 0 && transcript.length === 0 && !isTyping && !isLoadingHistory && !voiceSummaryLoading && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-xs mx-auto">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)', boxShadow: '0 8px 28px rgba(123, 0, 224, 0.14)' }}>
@@ -1409,32 +1478,44 @@ export default function AIChatInterface() {
             </div>
           )}
 
+          {/* Voice summary loading skeleton */}
+          {voiceSummaryLoading && (
+            <div className="space-y-3 py-4 animate-pulse">
+              <div className="flex justify-start">
+                <div className="rounded-2xl px-4 py-3 bg-white" style={{ width: '80%', boxShadow: '0 1px 8px rgba(123,0,224,0.06)' }}>
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '95%' }} />
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '75%' }} />
+                  <div className="h-3 rounded-full mb-2" style={{ backgroundColor: '#EDE9F6', width: '85%' }} />
+                  <div className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: '50%' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
 
-          {/* Live voice transcript — only shown when voice is NOT active (post-session) */}
-          {transcript.length > 0 && (
-            <LiveTranscriptBubbles lines={transcript} />
+          {/* Check-in result card — only for text mode, not voice */}
+          {voiceState === 'idle' && !voiceSummaryLoading && (
+            <>
+              <AnimatePresence>
+                {pendingCheckin && (
+                  <motion.div key="checkin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <CheckinCard summary={pendingCheckin} onDismiss={handleDismissCheckin} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {pendingUpdateCard && (
+                  <motion.div key="update" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <UpdateCard summary={pendingUpdateCard} onDismiss={() => { setPendingUpdateCard(null); dismissUpdate(); }} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
           )}
-
-          {/* Check-in result card (text mode) */}
-          <AnimatePresence>
-            {pendingCheckin && (
-              <motion.div key="checkin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <CheckinCard summary={pendingCheckin} onDismiss={handleDismissCheckin} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Update result card */}
-          <AnimatePresence>
-            {pendingUpdateCard && (
-              <motion.div key="update" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <UpdateCard summary={pendingUpdateCard} onDismiss={() => { setPendingUpdateCard(null); dismissUpdate(); }} />
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <AnimatePresence>
             {isTyping && (

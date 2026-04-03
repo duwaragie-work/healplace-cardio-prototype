@@ -84,6 +84,12 @@ export class ChatController {
    * GET /chat/sessions/:sessionId/history
    * Returns the chat history for a specific session.
    */
+  @Get('sessions/:sessionId')
+  async getSession(@Param('sessionId') sessionId: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id
+    return this.chatService.getSession(sessionId, userId)
+  }
+
   @Get('sessions/:sessionId/history')
   async getSessionHistory(@Param('sessionId') sessionId: string, @Req() req: Request) {
     const userId = (req.user as { id: string }).id

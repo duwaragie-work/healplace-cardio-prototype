@@ -622,10 +622,21 @@ Keep your message short, clear, and supportive.`,
       select: {
         id: true,
         title: true,
+        summary: true,
         createdAt: true,
         updatedAt: true,
       },
     })
+  }
+
+  async getSession(sessionId: string, userId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true, title: true, summary: true, userId: true, createdAt: true, updatedAt: true },
+    })
+    if (!session) throw new NotFoundException('Session not found')
+    if (session.userId && session.userId !== userId) throw new UnauthorizedException('Access denied')
+    return session
   }
 
   async getSessionHistory(sessionId: string, userId?: string) {
