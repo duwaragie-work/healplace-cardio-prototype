@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { getOrCreateDeviceId } from "@/lib/device";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LandingHeader from "@/components/cardio/LandingHeader";
+import LandingFooter from "@/components/cardio/LandingFooter";
 
 const OTP_LENGTH = 6;
 
@@ -190,14 +192,15 @@ export default function RegisterPage() {
 
   return (
     <Suspense>
-    <div className="min-h-screen bg-white flex items-start lg:items-center justify-center px-6 lg:px-12 py-8 lg:py-10">
+    <div className="min-h-screen bg-white flex flex-col">
+      <LandingHeader />
+      <div className="flex-1 flex items-start lg:items-center justify-center px-6 lg:px-12 pt-24 pb-8 lg:pb-10">
       <div className="w-full max-w-300 mx-auto">
         <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
           {/* Left side - Form */}
           <div className="flex-1 w-full max-w-105 lg:max-w-130">
-            {/* Logo + Heading */}
+            {/* Heading */}
             <div className="mb-8 flex flex-col items-start gap-3">
-              <Logo />
               <h2 className="font-bold leading-[1.2] text-[#170c1d] text-[26px] lg:text-[33px] tracking-[-0.4px]">
                 {t('register.signIn')}
               </h2>
@@ -369,6 +372,8 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+      </div>
+      <LandingFooter />
     </div>
     </Suspense>
   );

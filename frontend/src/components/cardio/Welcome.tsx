@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, Lock, Building2, BarChart3, ClipboardCheck, Check, Pill } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type TranslationKey } from '@/i18n';
-import LanguageSelector from './LanguageSelector';
+import LandingHeader from './LandingHeader';
+import LandingFooter from './LandingFooter';
 
 
 function BPCardIllustration({ className, t }: { className?: string; t: (key: TranslationKey) => string }) {
@@ -147,29 +147,15 @@ export default function Welcome() {
   const { t } = useLanguage();
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: 'var(--brand-background)' }}
     >
-      {/* Language selector — top right */}
-      <div className="flex justify-end px-4 md:px-8 pt-4">
-        <LanguageSelector />
-      </div>
+      <LandingHeader />
 
-      <div className="max-w-300 mx-auto px-4 md:px-8 py-4 md:py-12">
+      <div className="flex-1 flex items-center max-w-300 mx-auto px-4 md:px-8 pt-24 pb-12 md:pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 lg:items-center overflow-visible">
           {/* LEFT COLUMN */}
           <div className="flex flex-col space-y-8">
-            {/* Logo + Wordmark */}
-            <Link href="/" className="flex items-center gap-3">
-              <Image src="/logo.svg" alt="Healplace logo" width={48} height={48} className="w-12 h-12" />
-              <span
-                className="text-2xl font-bold"
-                style={{ color: 'var(--brand-primary-purple)' }}
-              >
-                {t('welcome.title')}
-              </span>
-            </Link>
-
             {/* Heading */}
             <h1
               className="text-[2rem] md:text-[2.25rem] lg:text-[3rem] leading-tight"
@@ -272,6 +258,8 @@ export default function Welcome() {
           </div>
         </div>
       </div>
+
+      <LandingFooter />
     </div>
   );
 }

@@ -8,11 +8,12 @@ import {
   markOnboardingSkipped,
   shouldShowOnboardingForUser,
 } from "@/lib/onboarding";
-import Image from "next/image";
 import Logo from "@/components/Logo";
 import { CheckCircle2 } from "lucide-react";
 import SpinnerIndicator from "@/components/ui/SpinnerIndicator";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LandingHeader from "@/components/cardio/LandingHeader";
+import LandingFooter from "@/components/cardio/LandingFooter";
 
 function getBrowserTimezone(): string | undefined {
   if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat === "undefined") return undefined;
@@ -153,15 +154,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-start lg:items-center justify-center px-6 lg:px-12 py-8 lg:py-10">
+    <div className="min-h-screen bg-white flex flex-col">
+      <LandingHeader />
+      <div className="flex-1 flex items-start lg:items-center justify-center px-6 lg:px-12 pt-24 pb-8 lg:pb-10">
       <div className="w-full max-w-300 mx-auto">
         <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
           {/* Left side - Form */}
           <div className="flex-1 w-full max-w-105 lg:max-w-130">
-            {/* Logo */}
-            <div className="mb-8">
-              <Logo />
-            </div>
 
             {/* Heading */}
             <div className="mb-10">
@@ -296,6 +295,8 @@ export default function OnboardingPage() {
           </div>
         </div>
       </div>
+      </div>
+      <LandingFooter />
     </div>
   );
 }
