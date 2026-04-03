@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/register']
+const PUBLIC_ROUTES = ['/', '/welcome', '/register']
 const PROVIDER_ROUTES = ['/provider']
 
 export function proxy(request: NextRequest) {
@@ -18,7 +18,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Already logged in, trying to access welcome/register
-  if (token && (path === '/' || path === '/register')) {
+  if (token && (path === '/welcome' || path === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

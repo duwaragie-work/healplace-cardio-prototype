@@ -1,7 +1,7 @@
 'use client';
 
-import Welcome from '@/components/cardio/Welcome';
+import Homepage from '@/components/cardio/Homepage';
 
 export default function HomePage() {
-  return <Welcome />;
+  return <Homepage />;
 }
