@@ -2,8 +2,11 @@
 
 import Image from 'next/image';
 import { Share2, Mail, Settings } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function LandingFooter() {
+  const { t } = useLanguage();
+
   return (
     <footer
       className="w-full"
@@ -20,22 +23,22 @@ export default function LandingFooter() {
             </span>
           </div>
           <p className="text-white/70 text-base leading-relaxed">
-            &copy; 2026 Healplace Cardio. The Digital Sanctuary for Heart Health.
+            {t('landing.copyright')}
           </p>
         </div>
 
         {/* Col 2 - Links */}
         <div className="grid grid-cols-2 gap-8">
           <div className="flex flex-col gap-4">
-            <span className="font-bold text-white text-base">Company</span>
-            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">Mission</a>
-            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">Patients</a>
-            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">Care Teams</a>
+            <span className="font-bold text-white text-base">{t('landing.company')}</span>
+            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">{t('landing.mission')}</a>
+            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">{t('landing.patients')}</a>
+            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">{t('landing.careTeams')}</a>
           </div>
           <div className="flex flex-col gap-4">
-            <span className="font-bold text-white text-base">Legal</span>
-            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">Terms</a>
+            <span className="font-bold text-white text-base">{t('landing.legal')}</span>
+            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">{t('landing.privacy')}</a>
+            <a href="#" className="text-white/70 font-semibold text-base hover:text-white transition-colors">{t('landing.terms')}</a>
           </div>
         </div>
 
