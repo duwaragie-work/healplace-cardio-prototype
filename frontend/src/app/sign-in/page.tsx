@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { getOrCreateDeviceId } from "@/lib/device";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LandingHeader from "@/components/cardio/LandingHeader";
+import LandingFooter from "@/components/cardio/LandingFooter";
 
 const OTP_LENGTH = 6;
 
@@ -190,21 +192,22 @@ export default function RegisterPage() {
 
   return (
     <Suspense>
-    <div className="min-h-screen bg-white flex items-start lg:items-center justify-center px-6 lg:px-12 py-8 lg:py-10">
+    <div className="bg-white">
+      <LandingHeader activeLink="" />
+      <div className="lg:min-h-screen pt-24 lg:pt-[64px] pb-10 lg:pb-0 flex items-start lg:items-center justify-center px-4 sm:px-6 lg:px-12">
       <div className="w-full max-w-300 mx-auto">
-        <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
+        <div className="flex flex-col items-center md:items-center md:flex-row gap-8 lg:gap-20">
           {/* Left side - Form */}
-          <div className="flex-1 w-full max-w-105 lg:max-w-130">
-            {/* Logo + Heading */}
-            <div className="mb-8 flex flex-col items-start gap-3">
-              <Logo />
-              <h2 className="font-bold leading-[1.2] text-[#170c1d] text-[26px] lg:text-[33px] tracking-[-0.4px]">
+          <div className="flex-1 w-full max-w-[400px] md:max-w-105 lg:max-w-130">
+            {/* Heading */}
+            <div className="mb-5 md:mb-8 flex flex-col items-center md:items-start gap-3">
+              <h2 className="font-bold leading-[1.2] text-[#170c1d] text-[22px] sm:text-[26px] lg:text-[33px] tracking-[-0.4px] text-center md:text-left">
                 {t('register.signIn')}
               </h2>
             </div>
 
-            <div className="mb-10 w-full">
-              <p className="font-normal leading-[28.5px] text-[#4b5563] text-label lg:text-[18px]">
+            <div className="mb-6 md:mb-10 w-full">
+              <p className="font-normal leading-relaxed text-[#4b5563] text-sm sm:text-base lg:text-[18px] text-center md:text-left">
                 {t('register.enterEmail')}
               </p>
             </div>
@@ -369,6 +372,8 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+      </div>
+      <LandingFooter />
     </div>
     </Suspense>
   );

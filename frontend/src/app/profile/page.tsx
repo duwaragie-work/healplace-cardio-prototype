@@ -222,7 +222,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (isAuthLoading) return;
-    if (!user) router.replace("/register");
+    if (!user) router.replace("/sign-in");
   }, [isAuthLoading, user, router]);
 
   useEffect(() => {
@@ -254,7 +254,7 @@ export default function Profile() {
           signal: controller.signal,
         });
         if (!res.ok) {
-          if (res.status === 401) { router.replace("/welcome"); return; }
+          if (res.status === 401) { router.replace("/sign-in"); return; }
           setLoadError("We couldn't load your profile. Please try again.");
           return;
         }
@@ -309,7 +309,6 @@ export default function Profile() {
         name: userData.name,
         dateOfBirth: toDateInputValue(userData.dateOfBirth),
         primaryCondition: userData.primaryCondition,
-        preferredLanguage: userData.preferredLanguage || undefined,
         communicationPreference: userData.communicationPreference || undefined,
         ...(timezoneLooksValid ? { timezone: userData.timezone } : {}),
       };
@@ -524,15 +523,6 @@ export default function Profile() {
                   ) : <FieldValue>{userData.communicationPreference === "TEXT_FIRST" ? t('profile.textChat') : userData.communicationPreference === "AUDIO_FIRST" ? t('profile.audioVoice') : t('profile.notSet')}</FieldValue>}
                 </div>
 
-                {/* Preferred Language */}
-                <div>
-                  <FieldLabel>{t('profile.language')}</FieldLabel>
-                  {loading ? <Bone w="44%" h={14} /> : isEditing ? (
-                    <input type="text" value={userData.preferredLanguage}
-                      onChange={(e) => setUserData((p) => ({ ...p, preferredLanguage: e.target.value }))}
-                      className={inputCls} style={{ color: 'var(--brand-text-primary)' }} />
-                  ) : <FieldValue>{userData.preferredLanguage || "English"}</FieldValue>}
-                </div>
               </div>
             </div>
 

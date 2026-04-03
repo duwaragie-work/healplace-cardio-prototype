@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight, Lock, Building2, BarChart3, ClipboardCheck, Check, Pill, Globe } from 'lucide-react';
+import { ArrowRight, Lock, Building2, BarChart3, ClipboardCheck, Check, Pill } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ALL_LOCALES, isLocaleSupported, type LocaleCode, type TranslationKey } from '@/i18n';
+import { type TranslationKey } from '@/i18n';
+import LandingHeader from './LandingHeader';
+import LandingFooter from './LandingFooter';
 
 
 function BPCardIllustration({ className, t }: { className?: string; t: (key: TranslationKey) => string }) {
@@ -142,99 +142,20 @@ function BPCardIllustration({ className, t }: { className?: string; t: (key: Tra
   );
 }
 
-function LanguageSelector() {
-  const { locale, setLocale, t } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  const current = ALL_LOCALES.find((l) => l.code === locale);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-semibold transition hover:opacity-80"
-        style={{
-          backgroundColor: open ? 'var(--brand-primary-purple-light)' : 'rgba(0,0,0,0.05)',
-          color: open ? 'var(--brand-primary-purple)' : 'var(--brand-text-secondary)',
-        }}
-      >
-        <Globe className="w-4 h-4" />
-        <span>{current?.flag} {current?.nativeName}</span>
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl overflow-hidden z-50"
-          style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12)', border: '1px solid var(--brand-border)' }}
-        >
-          {ALL_LOCALES.map((l) => {
-            const supported = isLocaleSupported(l.code);
-            const active = locale === l.code;
-            return (
-              <button
-                key={l.code}
-                onClick={() => { setLocale(l.code); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px] transition hover:bg-gray-50"
-                style={{
-                  backgroundColor: active ? 'var(--brand-primary-purple-light)' : undefined,
-                  color: active ? 'var(--brand-primary-purple)' : 'var(--brand-text-primary)',
-                  fontWeight: active ? 700 : 500,
-                }}
-              >
-                <span className="text-base">{l.flag}</span>
-                <span className="flex-1">{l.nativeName}</span>
-                {!supported && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                    style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}>
-                    {t('common.comingSoon')}
-                  </span>
-                )}
-                {active && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-primary-purple)' }} />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Welcome() {
   const { t } = useLanguage();
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: 'var(--brand-background)' }}
     >
-      {/* Language selector — top right */}
-      <div className="flex justify-end px-4 md:px-8 pt-4">
-        <LanguageSelector />
-      </div>
+      <LandingHeader />
 
-      <div className="max-w-300 mx-auto px-4 md:px-8 py-4 md:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 lg:items-center overflow-visible">
+      <div className="flex-1 flex items-start lg:items-center max-w-300 mx-auto px-4 md:px-8 pt-20 lg:pt-0">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16 lg:items-center overflow-visible">
           {/* LEFT COLUMN */}
           <div className="flex flex-col space-y-8">
-            {/* Logo + Wordmark */}
-            <div className="flex items-center gap-3">
-              <Image src="/logo.svg" alt="Healplace logo" width={48} height={48} className="w-12 h-12" />
-              <span
-                className="text-2xl font-bold"
-                style={{ color: 'var(--brand-primary-purple)' }}
-              >
-                {t('welcome.title')}
-              </span>
-            </div>
-
             {/* Heading */}
             <h1
               className="text-[2rem] md:text-[2.25rem] lg:text-[3rem] leading-tight"
@@ -262,7 +183,7 @@ export default function Welcome() {
 
             {/* CTA Button */}
             <Link
-              href="/register"
+              href="/sign-in"
               className="relative z-10 block w-full lg:w-[320px] py-4 px-8 text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 backgroundColor: 'var(--brand-primary-purple)',
@@ -337,6 +258,8 @@ export default function Welcome() {
           </div>
         </div>
       </div>
+
+      <LandingFooter />
     </div>
   );
 }

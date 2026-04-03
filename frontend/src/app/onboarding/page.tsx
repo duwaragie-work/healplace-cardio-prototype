@@ -8,11 +8,12 @@ import {
   markOnboardingSkipped,
   shouldShowOnboardingForUser,
 } from "@/lib/onboarding";
-import Image from "next/image";
 import Logo from "@/components/Logo";
 import { CheckCircle2 } from "lucide-react";
 import SpinnerIndicator from "@/components/ui/SpinnerIndicator";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LandingHeader from "@/components/cardio/LandingHeader";
+import LandingFooter from "@/components/cardio/LandingFooter";
 
 function getBrowserTimezone(): string | undefined {
   if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat === "undefined") return undefined;
@@ -37,7 +38,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      router.replace("/register");
+      router.replace("/sign-in");
       return;
     }
 
@@ -88,7 +89,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     try {
       if (!user) {
-        router.push("/register");
+        router.push("/sign-in");
         return;
       }
       const timezone = getBrowserTimezone();
@@ -135,7 +136,7 @@ export default function OnboardingPage() {
   async function handleSkip() {
     if (isSubmitting) return;
     if (!user) {
-      router.push("/register");
+      router.push("/sign-in");
       return;
     }
     if (typeof window !== "undefined") {
@@ -153,22 +154,20 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-start lg:items-center justify-center px-6 lg:px-12 py-8 lg:py-10">
+    <div className="bg-white">
+      <LandingHeader activeLink="" />
+      <div className="lg:min-h-screen pt-24 lg:pt-[64px] pb-10 lg:pb-0 flex items-start lg:items-center justify-center px-4 sm:px-6 lg:px-12">
       <div className="w-full max-w-300 mx-auto">
-        <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
+        <div className="flex flex-col items-center md:items-center md:flex-row gap-8 lg:gap-20">
           {/* Left side - Form */}
-          <div className="flex-1 w-full max-w-105 lg:max-w-130">
-            {/* Logo */}
-            <div className="mb-8">
-              <Logo />
-            </div>
+          <div className="flex-1 w-full max-w-[400px] md:max-w-105 lg:max-w-130">
 
             {/* Heading */}
-            <div className="mb-10">
-              <h1 className="font-semibold text-[#171717] text-3xl lg:text-4xl tracking-[-0.04em] mb-3">
+            <div className="mb-6 md:mb-10">
+              <h1 className="font-semibold text-[#171717] text-2xl sm:text-3xl lg:text-4xl tracking-[-0.04em] mb-2 text-center md:text-left">
                 {t('onboarding.title')}
               </h1>
-              <p className="text-[#4b5563] text-sm lg:text-base leading-relaxed max-w-105">
+              <p className="text-[#4b5563] text-sm lg:text-base leading-relaxed max-w-105 text-center md:text-left">
                 {t('onboarding.subtitle')}
               </p>
             </div>
@@ -296,6 +295,8 @@ export default function OnboardingPage() {
           </div>
         </div>
       </div>
+      </div>
+      <LandingFooter />
     </div>
   );
 }
