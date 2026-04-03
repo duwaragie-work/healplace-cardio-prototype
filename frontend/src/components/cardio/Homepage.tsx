@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Mic, Send, Activity, Heart, MessageCircle, CheckCircle } from 'lucide-react';
 import { BsSoundwave } from "react-icons/bs";
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,6 +12,8 @@ import LandingFooter from './LandingFooter';
 
 export default function Homepage() {
   const { t } = useLanguage();
+  const router = useRouter();
+  const [chatInput, setChatInput] = useState('');
 
   return (
     <div className="bg-[#fef7ff] flex flex-col min-h-screen">
@@ -19,9 +23,9 @@ export default function Homepage() {
         {/* ============ HERO SECTION ============ */}
         <section className="relative w-full h-[calc(100vh-64px)] flex items-start lg:items-center justify-center overflow-hidden px-6 md:px-8">
           <div className="absolute inset-0">
-            <Image src="/ai-healthcare 1.png" alt="" fill className="object-cover" priority />
+            <Image src="/ai-healthcare 2.jpg" alt="" fill sizes="100vw" className="object-cover" priority />
           </div>
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(228deg, rgba(46,45,46,0.2) 14%, rgba(144, 144, 144, 0.6) 51%, rgb(214, 214, 214) 83%)' }} />
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(240deg, rgba(46, 45, 46, 0) 14%,  rgba(231, 231, 231, 0.74) 83%)' }} />
 
           <div className="relative z-10 max-w-[1280px] w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 py-16 md:py-20 px-4 md:px-8">
             <div className="flex flex-col gap-6 justify-center">
@@ -33,29 +37,39 @@ export default function Homepage() {
                 <h1 className="text-white font-bold text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight">
                   {t('home.heroTitle1')}
                 </h1>
-                <h1 className="font-semibold italic text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight mt-1"
-                  style={{ background: 'linear-gradient(130deg, #7B00E0, #5C00A9)', WebkitBackgroundClip: 'text', color: 'transparent' }}
+                <h1 className="font-bold italic text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight mt-1]"
+                  style={{ textShadow: '0 2px 10px rgba(216, 241, 251, 0.93)',color: '#7c02df' }}
                 >
                   {t('home.heroTitle2')}
                 </h1>
               </div>
-              <p className="text-black text-base md:text-lg lg:text-xl leading-relaxed max-w-[576px]">
+              <p className="text-white text-base md:text-lg lg:text-xl leading-relaxed max-w-[576px]">
                 {t('home.heroDesc')}
               </p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-6 max-w-[672px] mx-auto w-full">
-              <div className="w-full backdrop-blur-md bg-white/80 border-2 border-[rgba(92,0,169,0.2)] rounded-full p-2.5 flex items-center shadow-2xl">
+              <form
+                onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) router.push(`/chat?q=${encodeURIComponent(chatInput.trim())}`); }}
+                className="w-full backdrop-blur-md bg-white/80 border-2 border-[rgba(92,0,169,0.2)] rounded-full p-2.5 flex items-center shadow-2xl"
+              >
                 <div className="pl-4 shrink-0">
                   <Image src="/logo.svg" alt="" width={42} height={42} />
                 </div>
-                <div className="flex-1 px-4 py-3 text-lg text-black/60 truncate">
-                  {t('home.aiPlaceholder')}
-                </div>
-                <button className="bg-[#7b00e0] rounded-full w-14 h-14 flex items-center justify-center shrink-0 shadow-lg hover:bg-[#6600bc] transition-colors">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={t('home.aiPlaceholder')}
+                  className="flex-1 px-4 py-3 text-base bg-transparent outline-none text-black placeholder-black/50"
+                />
+                <button
+                  type="submit"
+                  className="bg-[#7b00e0] rounded-full w-14 h-14 flex items-center justify-center shrink-0 shadow-lg hover:bg-[#6600bc] transition-colors"
+                >
                   <Send className="w-5 h-5 text-white" />
                 </button>
-              </div>
+              </form>
               <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
                 <Link href="/welcome" className="bg-[#7b00e0] text-white font-bold text-base md:text-lg px-8 md:px-10 py-3.5 rounded-full hover:bg-[#6600bc] transition-colors">
                   {t('home.startCheckin')}
@@ -121,7 +135,7 @@ export default function Homepage() {
                 <p className="text-[#4c4355] text-lg leading-relaxed">{t('home.smartTrendDesc')}</p>
               </div>
               <div className="mt-8 rounded-lg overflow-hidden relative h-40">
-                <Image src="/BP Trend.png" alt="BP Trend chart" fill className="object-cover rounded-lg" />
+                <Image src="/BP Trend.png" alt="BP Trend chart" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover rounded-lg" />
               </div>
             </div>
           </div>
