@@ -26,7 +26,7 @@ export default function LandingFooter() {
       id="contact"
       style={{ backgroundImage: 'linear-gradient(159deg, #5c00a9 0%, #a04cee 46%, #c79afd 93%)' }}
     >
-      <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12 px-8 md:px-12 py-16 md:py-20">
+      <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 px-4 sm:px-6 md:px-12 py-10 md:py-20">
         {/* Col 1 - Brand */}
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-1">
@@ -44,9 +44,10 @@ export default function LandingFooter() {
         <div className="grid grid-cols-2 gap-8">
           <div className="flex flex-col gap-3">
             <span className="font-bold text-white text-sm">{t('landing.company')}</span>
-            <a href="#" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.mission')}</a>
-            <a href="#" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.patients')}</a>
-            <a href="#" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.careTeams')}</a>
+            <a href="/about" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.mission')}</a>
+            <a href="/about" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.ourStory')}</a>
+            <a href="/about" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.team')}</a>
+            <a href="/about" className="text-white/70 font-medium text-sm hover:text-white transition-colors">{t('landing.careTeams')}</a>
           </div>
           <div className="flex flex-col gap-3">
             <span className="font-bold text-white text-sm">{t('landing.legal')}</span>
