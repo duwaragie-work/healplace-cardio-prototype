@@ -599,11 +599,13 @@ export class VoiceService implements OnModuleDestroy {
       let baselineSummary: string
       if (baseline) {
         baselineSummary = `7-day baseline: ${baseline.baselineSystolic ?? '?'}/${baseline.baselineDiastolic ?? '?'} mmHg (based on ${entryCount} readings)`
+      } else if (entryCount >= 3) {
+        baselineSummary = `No baseline yet — ${entryCount} readings recorded, baseline should be available shortly (may need readings on 3 different days)`
       } else if (entryCount > 0) {
         const remaining = 3 - entryCount
-        baselineSummary = `No baseline yet — patient has ${entryCount} reading(s) in the last 7 days, needs ${remaining} more to establish a baseline`
+        baselineSummary = `No baseline yet — ${entryCount} of 3 required readings recorded, needs ${remaining} more on different days within 7 days`
       } else {
-        baselineSummary = 'No baseline yet — patient has no readings. Needs at least 3 readings within 7 days to establish a baseline'
+        baselineSummary = 'No baseline yet — 0 of 3 required readings recorded (needs readings on 3 different days within 7 days)'
       }
 
       const alertSummary =
