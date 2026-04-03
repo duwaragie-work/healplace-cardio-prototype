@@ -22,9 +22,9 @@ export default function About() {
 
       <main className="flex flex-col items-center pt-[64px]">
         {/* ============ HERO SECTION ============ */}
-        <section className="w-full bg-[#fef7ff] flex items-center justify-center min-h-[700px] px-6 md:px-8 py-16 md:py-24 overflow-hidden">
-          <div className="max-w-[1280px] w-full grid grid-cols-1 lg:grid-cols-2 gap-16">
-            <div className="flex flex-col gap-8 justify-center">
+        <section className="w-full bg-[#fef7ff] flex items-start lg:items-center justify-center h-[calc(100vh-64px)] px-6 md:px-8 py-6 md:py-10 overflow-hidden">
+          <div className="max-w-[1280px] w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            <div className="flex flex-col gap-5 justify-center">
               <div className="bg-[#7b00e0] inline-flex items-center justify-center px-4 py-2 rounded-full w-fit">
                 <span className="font-bold text-white text-sm tracking-widest uppercase">{t('about.visionBadge')}</span>
               </div>

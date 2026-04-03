@@ -16,7 +16,7 @@ export default function Homepage() {
 
       <main className="flex flex-col items-center pt-[64px]">
         {/* ============ HERO SECTION ============ */}
-        <section className="relative w-full min-h-[500px] md:min-h-[700px] lg:min-h-[830px] flex items-center justify-center overflow-hidden px-6 md:px-8">
+        <section className="relative w-full h-[calc(100vh-64px)] flex items-start lg:items-center justify-center overflow-hidden px-6 md:px-8">
           <div className="absolute inset-0">
             <Image src="/ai-healthcare 1.png" alt="" fill className="object-cover" priority />
           </div>
