@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Mic, Send, Activity, Heart, MessageCircle, CheckCircle } from 'lucide-react';
+import { BsSoundwave } from "react-icons/bs";
 import { useLanguage } from '@/contexts/LanguageContext';
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
@@ -20,7 +21,7 @@ export default function Homepage() {
           <div className="absolute inset-0">
             <Image src="/ai-healthcare 1.png" alt="" fill className="object-cover" priority />
           </div>
-          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(228deg, rgba(46,45,46,0.2) 14%, rgba(137,137,137,0.6) 51%, rgb(231,231,231) 83%)' }} />
+          <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(228deg, rgba(46,45,46,0.2) 14%, rgba(144, 144, 144, 0.6) 51%, rgb(214, 214, 214) 83%)' }} />
 
           <div className="relative z-10 max-w-[1280px] w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 py-16 md:py-20 px-4 md:px-8">
             <div className="flex flex-col gap-6 justify-center">
@@ -32,7 +33,9 @@ export default function Homepage() {
                 <h1 className="text-white font-bold text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight">
                   {t('home.heroTitle1')}
                 </h1>
-                <h1 className="font-semibold italic text-[#7b00e0] text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight mt-1">
+                <h1 className="font-semibold italic text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight mt-1"
+                  style={{ background: 'linear-gradient(130deg, #7B00E0, #5C00A9)', WebkitBackgroundClip: 'text', color: 'transparent' }}
+                >
                   {t('home.heroTitle2')}
                 </h1>
               </div>
@@ -140,17 +143,17 @@ export default function Homepage() {
                 <Mic className="w-10 h-10 md:w-14 md:h-14 text-white" />
                 <div className="absolute inset-[-1px] rounded-full border-4 border-white/20" />
               </div>
-              <div className="absolute -top-4 -right-4 bg-[#7b00e0] w-12 h-12 rounded-full flex items-center justify-center shadow-lg">
-                <Mic className="w-5 h-5 text-white" />
+              <div className="absolute -top-4 -right-4 bg-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg">
+                <BsSoundwave className="w-5 h-5 text-[#7b00e0]" />
               </div>
             </div>
           </div>
         </section>
 
         {/* ============ TARGET AUDIENCE ============ */}
-        <section className="w-full max-w-[1280px] px-6 md:px-8 py-12 md:py-24">
+        <section className="w-full max-w-[1280px] px-6 md:px-8 py-12 ">
           <div className="flex flex-col items-center gap-6 mb-16 md:mb-20">
-            <h2 className="font-semibold text-[#7b00e0] text-3xl md:text-4xl lg:text-[48px] text-center tracking-tight italic">
+            <h2 className="font-semibold text-[#7b00e0] text-3xl md:text-4xl lg:text-[48px] text-center tracking-tight">
               {t('home.designedForEveryone')}
             </h2>
             <p className="text-[#4c4355] text-lg md:text-xl text-center italic">{t('home.designedSubtitle')}</p>

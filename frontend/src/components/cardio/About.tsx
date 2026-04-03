@@ -28,7 +28,7 @@ export default function About() {
               <div className="bg-[#7b00e0] inline-flex items-center justify-center px-4 py-2 rounded-full w-fit">
                 <span className="font-bold text-white text-sm tracking-widest uppercase">{t('about.visionBadge')}</span>
               </div>
-              <h1 className="font-extrabold text-[#191c1d] text-4xl md:text-5xl lg:text-[72px] leading-[1.1] tracking-tight">
+              <h1 className="font-bold text-[#191c1d] text-4xl md:text-5xl lg:text-[72px] leading-[1.1] tracking-tight">
                 {t('about.heroTitle').split(t('about.heroTitleGap')).map((part, i, arr) => (
                   <span key={i}>
                     {part}
