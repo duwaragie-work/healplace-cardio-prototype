@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Lock, Building2, BarChart3, ClipboardCheck, Check, Pill } from 'lucide-react';
+import { ArrowRight, Building2, BarChart3, ClipboardCheck, Check, Pill } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type TranslationKey } from '@/i18n';
 import LandingHeader from './LandingHeader';
@@ -202,19 +202,6 @@ export default function Welcome() {
 
             {/* Trust Badges */}
             <div className="flex flex-wrap gap-3">
-              <div
-                className="flex items-center gap-2 px-4 py-2"
-                style={{
-                  backgroundColor: '#F1F5F9',
-                  borderRadius: '8px',
-                  fontSize: '0.8125rem',
-                  color: 'var(--brand-text-primary)',
-                  fontWeight: 500,
-                }}
-              >
-                <Lock className="w-4 h-4" />
-                {t('welcome.hipaa')}
-              </div>
               <div
                 className="flex items-center gap-2 px-4 py-2"
                 style={{
