@@ -47,7 +47,7 @@ export default function About() {
               <div className="bg-[#7b00e0] inline-flex items-center justify-center px-4 py-1.5 md:py-2 rounded-full w-fit">
                 <span className="font-bold text-white text-xs md:text-sm tracking-widest uppercase">{t('about.visionBadge')}</span>
               </div>
-              <h1 className="font-bold text-[#191c1d] text-3xl sm:text-4xl md:text-5xl lg:text-[64px] leading-[1.1] tracking-tight">
+              <h1 className="font-bold text-[#191c1d] text-2xl sm:text-3xl md:text-5xl lg:text-[64px] leading-[1.1] tracking-tight">
                 {t('about.heroTitle').split(t('about.heroTitleHighlight')).map((part, i, arr) => (
                   <span key={i}>
                     {part}
@@ -65,7 +65,7 @@ export default function About() {
               <div className="absolute -right-20 -top-16 w-96 h-96 rounded-full bg-[rgba(92,0,169,0.05)] blur-[32px]" />
               <div className="relative">
                 <div className="bg-white border border-[rgba(207,194,216,0.2)] rounded-[32px] sm:rounded-[40px] p-3 sm:p-4 shadow-2xl relative z-10 w-full max-w-[448px]" style={{ transform: 'rotate(2deg)' }}>
-                  <div className="bg-[#f3f4f5] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 min-h-[400px] sm:min-h-[500px] flex flex-col">
+                  <div className="bg-[#f3f4f5] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 min-h-[320px] sm:min-h-[400px] md:min-h-[500px] flex flex-col">
                     <div className="flex items-center gap-3 pb-4 border-b border-[rgba(207,194,216,0.1)]">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundImage: 'linear-gradient(135deg, #7b00e0 0%, #5c00a9 100%)' }}>
                         <Image src="/logo2.png" alt="" width={22} height={22} />
@@ -132,7 +132,7 @@ export default function About() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6 md:my-8">
                 {dchaStats.map((stat, i) => (
                   <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 border border-[#eedbff] shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[#7b00e0]/30 active:scale-[0.98] flex flex-col">
-                    <p className="text-[#5c00a9] text-2xl sm:text-3xl md:text-4xl font-bold leading-none mb-2 sm:mb-3">{stat.num}</p>
+                    <p className="text-[#5c00a9] text-xl sm:text-2xl md:text-3xl font-bold leading-none mb-2 sm:mb-3">{stat.num}</p>
                     <p className="text-[#4c4355] text-xs sm:text-sm leading-relaxed">{stat.desc}</p>
                   </div>
                 ))}

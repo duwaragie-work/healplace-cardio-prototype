@@ -28,7 +28,7 @@ export default function Homepage() {
           <div className="absolute inset-0 flex items-center justify-center z-[1] pointer-events-none">
             {/* White light spread behind logo */}
             <div
-              className="absolute w-[400px] h-[400px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] rounded-full"
+              className="absolute w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[600px] md:h-[600px] lg:w-[700px] lg:h-[700px] rounded-full"
               style={{ background: 'radial-gradient(circle, rgba(255, 255, 255, 0.39) 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.05) 55%, transparent 75%)' }}
             />
             <Image
@@ -36,7 +36,7 @@ export default function Homepage() {
               alt="Healplace Cardio"
               width={400}
               height={400}
-              className="relative w-[500px] h-[500px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] object-contain opacity-90"
+              className="relative w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[600px] md:h-[600px] lg:w-[700px] lg:h-[700px] object-contain opacity-90"
             />
           </div>
 
@@ -47,10 +47,10 @@ export default function Homepage() {
                 <span className="font-semibold text-white text-xs md:text-sm">{t('home.heroBadge')}</span>
               </div>
               <div>
-                <h1 className="text-white font-bold text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight">
+                <h1 className="text-white font-bold text-2xl sm:text-3xl md:text-5xl lg:text-[72px] leading-[1.05] tracking-tight">
                   {t('home.heroTitle1')}
                 </h1>
-                <h1 className="font-bold italic text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-[1] tracking-tight mt-1"
+                <h1 className="font-bold italic text-2xl sm:text-3xl md:text-5xl lg:text-[72px] leading-[1.05] tracking-tight mt-1"
                   style={{ textShadow: '0 -2px 10px rgba(228, 197, 255, 0.68)', color: '#ead8ff' }}
                 >
                   {t('home.heroTitle2')}
@@ -167,7 +167,7 @@ export default function Homepage() {
               </div>
 
               {/* BP Trend chart with escalation point */}
-              <div className="mt-4 sm:mt-5 rounded-xl overflow-hidden relative h-28 sm:h-32 bg-white shadow-sm">
+              <div className="mt-4 sm:mt-5 rounded-xl overflow-hidden relative h-24 sm:h-28 md:h-32 lg:h-36 bg-white shadow-sm">
                 <Image src="/BP Trend.png" alt="7-day BP trend with escalation point" fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover rounded-xl" />
                 {/* Escalation marker */}
                 <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#DC2626] px-2 py-0.5 rounded-full">
