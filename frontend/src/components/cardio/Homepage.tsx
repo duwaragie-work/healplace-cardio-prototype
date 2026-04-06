@@ -21,7 +21,7 @@ export default function Homepage() {
         {/* ============ HERO SECTION ============ */}
         <section className="relative w-full min-h-[calc(100vh-64px)] flex items-center justify-center overflow-hidden px-4 sm:px-6 md:px-8">
           <div className="absolute inset-0">
-            <Image src="/ai-healthcare 3.jpg" alt="" fill sizes="100vw" className="object-cover" priority />
+            <Image src="/ai-healthcare 1.jpg" alt="" fill sizes="100vw" className="object-cover" priority />
           </div>
           <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(240deg, rgba(46, 45, 46, 0) 14%,  rgb(10, 10, 10) 83%)' }} />
           {/* Hero logo — centered with light glow behind */}
@@ -36,7 +36,7 @@ export default function Homepage() {
               alt="Healplace Cardio"
               width={400}
               height={400}
-              className="relative w-[500px] h-[500px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] object-contain opacity-80"
+              className="relative w-[500px] h-[500px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] object-contain opacity-70"
             />
           </div>
 
@@ -98,8 +98,14 @@ export default function Homepage() {
         {/* ============ PARTNERSHIP BANNER ============ */}
         <section className="w-full bg-[#f5eafa] border-y border-[#eedbff]">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 md:gap-10">
-            <div className="shrink-0 bg-white rounded-2xl p-3 shadow-sm">
-              <Image src="/DCHA-Logo.png" alt="DC Hospital Association" width={80} height={80} className="object-contain" style={{ width: 'auto', height: 'auto' }} />
+                        <div className="shrink-0 bg-white rounded-2xl p-4 sm:p-5 shadow-md">
+              <Image
+                src="/DCHA-Logo.png"
+                alt="DC Hospital Association"
+                width={300}
+                height={300}
+                className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 object-contain"
+              />
             </div>
             <p className="text-[#4c4355] text-sm sm:text-base md:text-lg leading-relaxed text-center sm:text-left">
               {t('home.partnershipBanner')}
@@ -150,7 +156,7 @@ export default function Homepage() {
               </div>
             </div>
 
-            {/* Card 3 - Escalation */}
+            {/* Card 3 - Escalation (with BP Trend chart) */}
             <div className="bg-[#f5eafa] rounded-[32px] sm:rounded-[48px] p-6 sm:p-8 flex flex-col min-h-[320px] sm:min-h-[480px] transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-[#efe5f4] active:scale-[0.98]">
               <div>
                 <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8">
@@ -159,14 +165,31 @@ export default function Homepage() {
                 <h3 className="text-[#1f1924] text-xl sm:text-xl font-bold leading-snug mb-3 sm:mb-4">{t('home.escalation')}</h3>
                 <p className="text-[#4c4355] text-sm sm:text-base leading-[1.8]">{t('home.escalationDesc')}</p>
               </div>
-              <div className="mt-auto pt-4 sm:pt-6 flex gap-3">
-                <div className="bg-[#FEF3C7] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#F59E0B]/30">
-                  <p className="text-[#B45309] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 1</p>
-                  <p className="text-[#92400E] text-[10px] sm:text-xs">24hr review</p>
+
+              {/* BP Trend chart with escalation point */}
+              <div className="mt-4 sm:mt-5 rounded-xl overflow-hidden relative h-28 sm:h-32 bg-white shadow-sm">
+                <Image src="/BP Trend.png" alt="7-day BP trend with escalation point" fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover rounded-xl" />
+                {/* Escalation marker */}
+                <div className="absolute top-2 right-2 flex items-center gap-1 bg-[#DC2626] px-2 py-0.5 rounded-full">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="text-white text-[8px] sm:text-[9px] font-bold uppercase">Alert</span>
                 </div>
-                <div className="bg-[#FEE2E2] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#DC2626]/30">
-                  <p className="text-[#DC2626] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 2</p>
-                  <p className="text-[#991B1B] text-[10px] sm:text-xs">Immediate 911</p>
+              </div>
+
+              <div className="mt-3 sm:mt-4 flex gap-3">
+                <div className="flex-1 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3" style={{ backgroundColor: '#FEF3C7', borderLeft: '4px solid #F59E0B' }}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+                    <p className="text-[#B45309] text-[10px] sm:text-xs font-bold uppercase tracking-wider">Level 1</p>
+                  </div>
+                  <p className="text-[#92400E] text-[9px] sm:text-[10px]">24hr care team review</p>
+                </div>
+                <div className="flex-1 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3" style={{ backgroundColor: '#FEE2E2', borderLeft: '4px solid #DC2626' }}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-2 h-2 rounded-full bg-[#DC2626] animate-pulse" />
+                    <p className="text-[#DC2626] text-[10px] sm:text-xs font-bold uppercase tracking-wider">Level 2</p>
+                  </div>
+                  <p className="text-[#991B1B] text-[9px] sm:text-[10px]">Immediate 911 alert</p>
                 </div>
               </div>
             </div>
@@ -180,8 +203,8 @@ export default function Homepage() {
                 <h3 className="text-white font-bold text-xl sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.learning')}</h3>
                 <p className="text-white text-sm sm:text-base leading-[1.8]">{t('home.learningDesc')}</p>
               </div>
-              <div className="mt-4 sm:mt-6 rounded-lg overflow-hidden relative h-28 sm:h-32">
-                <Image src="/BP Trend.png" alt="BP Trend chart" fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover rounded-lg opacity-80" />
+              <div className="mt-auto pt-4 sm:pt-6 flex justify-center">
+                <Activity className="w-20 h-20 sm:w-24 sm:h-24 text-white opacity-20" strokeWidth={1} />
               </div>
             </div>
           </div>
