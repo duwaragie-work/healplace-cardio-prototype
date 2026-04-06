@@ -29,10 +29,10 @@ export default function About() {
   ];
 
   const dchaStats = [
-    t('about.dchaStat1'),
-    t('about.dchaStat2'),
-    t('about.dchaStat3'),
-    t('about.dchaStat4'),
+    { num: '$3B', desc: t('about.dchaStat1') },
+    { num: '$2.2B', desc: t('about.dchaStat2') },
+    { num: '828K', desc: t('about.dchaStat3') },
+    { num: '$100M', desc: t('about.dchaStat4') },
   ];
 
   return (
@@ -129,10 +129,11 @@ export default function About() {
               <p className="text-[#4c4355] text-base md:text-lg leading-relaxed">{t('about.partnershipDesc3')}</p>
 
               {/* DCHA Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 my-6 md:my-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6 md:my-8">
                 {dchaStats.map((stat, i) => (
-                  <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 border border-[#eedbff] shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[#7b00e0]/30 active:scale-[0.98]">
-                    <p className="text-[#1f1924] text-sm sm:text-base leading-relaxed">{stat}</p>
+                  <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 border border-[#eedbff] shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[#7b00e0]/30 active:scale-[0.98] flex flex-col">
+                    <p className="text-[#5c00a9] text-2xl sm:text-3xl md:text-4xl font-bold leading-none mb-2 sm:mb-3">{stat.num}</p>
+                    <p className="text-[#4c4355] text-xs sm:text-sm leading-relaxed">{stat.desc}</p>
                   </div>
                 ))}
               </div>
@@ -155,7 +156,7 @@ export default function About() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full">
               {principles.map((p) => (
                 <div key={p.num} className="bg-white rounded-[24px] sm:rounded-[32px] border-b-4 border-[#5c00a9] p-6 sm:p-8 md:p-10 flex flex-col gap-3 sm:gap-4">
-                  <span className="text-[#7b00e0] text-3xl sm:text-4xl">{p.num}</span>
+                  <span className="text-[#5c00a9] text-4xl sm:text-5xl font-bold leading-none">{p.num}</span>
                   <h3 className="text-[#1f1924] text-base sm:text-lg leading-snug font-semibold">{p.title}</h3>
                   <p className="text-[#4c4355] text-sm sm:text-base leading-relaxed">{p.desc}</p>
                 </div>
@@ -282,8 +283,8 @@ export default function About() {
             {/* Engineering Team */}
             <div className="bg-white rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 md:p-10 border border-[#eedbff] shadow-sm">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
-                <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0">
-                  <Users className="w-6 h-6 sm:w-7 sm:h-7 text-[#7b00e0]" />
+                <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 border-2 border-[#7b00e0]/20">
+                  <Image src="/logo.svg" alt="Healplace" width={32} height={32} className="w-7 h-7 sm:w-8 sm:h-8" />
                 </div>
                 <div>
                   <h3 className="text-[#1f1924] text-lg sm:text-xl font-semibold">{t('about.engTeamTitle')}</h3>

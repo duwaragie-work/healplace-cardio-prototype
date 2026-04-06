@@ -113,8 +113,8 @@ export default function Homepage() {
                     <rect x="11" y="11" width="4" height="3" rx="0.5" fill="#7b00e0"/>
                   </svg>
                 </div>
-                <h3 className="text-[#1f1924] text-lg sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.bpCheckins')}</h3>
-                <p className="text-[#4c4355] text-sm sm:text-base leading-relaxed">{t('home.bpCheckinsDesc')}</p>
+                <h3 className="text-[#1f1924] text-xl sm:text-xl font-bold leading-snug mb-3 sm:mb-4">{t('home.bpCheckins')}</h3>
+                <p className="text-[#4c4355] text-sm sm:text-base leading-[1.8]">{t('home.bpCheckinsDesc')}</p>
               </div>
               <div className="flex justify-center mt-6 sm:mt-8">
                 <Heart className="w-20 h-20 sm:w-24 sm:h-24 text-[#7b00e0] opacity-20" strokeWidth={1} />
@@ -126,8 +126,8 @@ export default function Homepage() {
               <div className="bg-[#c79afd] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8">
                 <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <h3 className="text-white font-semibold text-lg sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.aiAssistant')}</h3>
-              <p className="text-white text-sm sm:text-base leading-relaxed">{t('home.aiAssistantDesc')}</p>
+              <h3 className="text-white font-bold text-xl sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.aiAssistant')}</h3>
+              <p className="text-white text-sm sm:text-base leading-[1.8]">{t('home.aiAssistantDesc')}</p>
               <div className="mt-auto pt-4 sm:pt-6">
                 <div className="bg-white rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 shadow-sm">
                   <p className="text-[#4c4355] text-xs sm:text-sm italic leading-relaxed">{t('home.aiQuote')}</p>
@@ -141,17 +141,17 @@ export default function Homepage() {
                 <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8">
                   <AlertTriangle className="w-6 h-6 sm:w-7 sm:h-7 text-[#7b00e0]" />
                 </div>
-                <h3 className="text-[#1f1924] text-lg sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.escalation')}</h3>
-                <p className="text-[#4c4355] text-sm sm:text-base leading-relaxed">{t('home.escalationDesc')}</p>
+                <h3 className="text-[#1f1924] text-xl sm:text-xl font-bold leading-snug mb-3 sm:mb-4">{t('home.escalation')}</h3>
+                <p className="text-[#4c4355] text-sm sm:text-base leading-[1.8]">{t('home.escalationDesc')}</p>
               </div>
               <div className="mt-auto pt-4 sm:pt-6 flex gap-3">
-                <div className="bg-[#eedbff] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#7b00e0]/20">
-                  <p className="text-[#5c00a9] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 1</p>
-                  <p className="text-[#4c4355] text-[10px] sm:text-xs">24hr review</p>
+                <div className="bg-[#FEF3C7] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#F59E0B]/30">
+                  <p className="text-[#B45309] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 1</p>
+                  <p className="text-[#92400E] text-[10px] sm:text-xs">24hr review</p>
                 </div>
-                <div className="bg-[#eedbff] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#b0003b]/20">
-                  <p className="text-[#b0003b] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 2</p>
-                  <p className="text-[#4c4355] text-[10px] sm:text-xs">Immediate 911</p>
+                <div className="bg-[#FEE2E2] rounded-2xl px-3 sm:px-4 py-2 sm:py-2.5 border border-[#DC2626]/30">
+                  <p className="text-[#DC2626] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Level 2</p>
+                  <p className="text-[#991B1B] text-[10px] sm:text-xs">Immediate 911</p>
                 </div>
               </div>
             </div>
@@ -162,8 +162,8 @@ export default function Homepage() {
                 <div className="bg-[#c79afd] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8">
                   <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-white font-semibold text-lg sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.learning')}</h3>
-                <p className="text-white text-sm sm:text-base leading-relaxed">{t('home.learningDesc')}</p>
+                <h3 className="text-white font-bold text-xl sm:text-xl leading-snug mb-3 sm:mb-4">{t('home.learning')}</h3>
+                <p className="text-white text-sm sm:text-base leading-[1.8]">{t('home.learningDesc')}</p>
               </div>
               <div className="mt-4 sm:mt-6 rounded-lg overflow-hidden relative h-28 sm:h-32">
                 <Image src="/BP Trend.png" alt="BP Trend chart" fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover rounded-lg opacity-80" />
