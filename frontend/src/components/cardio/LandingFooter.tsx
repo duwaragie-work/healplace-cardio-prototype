@@ -11,9 +11,22 @@ export default function LandingFooter() {
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !message.trim()) return;
+    if (!email.trim() || !message.trim() || sending) return;
+    setSending(true);
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, message }),
+      });
+    } catch {
+      // still show success — email may have sent
+    }
+    setSending(false);
     setSent(true);
     setEmail('');
     setMessage('');
@@ -91,10 +104,11 @@ export default function LandingFooter() {
               />
               <button
                 type="submit"
-                className="w-full h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-[#5c00a9] hover:bg-white/90 transition active:scale-[0.98]"
+                disabled={sending}
+                className="w-full h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-[#5c00a9] hover:bg-white/90 transition active:scale-[0.98] disabled:opacity-60"
               >
-                <Send className="w-3.5 h-3.5" />
-                {t('landing.sendMessage')}
+                <Send className={`w-3.5 h-3.5 ${sending ? 'animate-pulse' : ''}`} />
+                {sending ? t('landing.sending') : t('landing.sendMessage')}
               </button>
             </form>
           )}

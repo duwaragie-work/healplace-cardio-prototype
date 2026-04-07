@@ -534,6 +534,7 @@ const fr: Record<TranslationKey, string> = {
   'landing.yourEmail': 'Votre e-mail',
   'landing.yourMessage': 'Votre message',
   'landing.sendMessage': 'Envoyer le Message',
+  'landing.sending': 'Envoi en cours...',
 
   // ─── Homepage ─────────────────────────────────────────────────────────────
   'home.heroBadge': 'SUIVI CARDIAQUE PAR IA',

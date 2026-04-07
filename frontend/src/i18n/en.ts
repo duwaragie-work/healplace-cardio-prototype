@@ -532,6 +532,7 @@ const en = {
   'landing.yourEmail': 'Your email',
   'landing.yourMessage': 'Your message',
   'landing.sendMessage': 'Send Message',
+  'landing.sending': 'Sending...',
 
   // ─── Homepage ─────────────────────────────────────────────────────────────
   'home.heroBadge': 'AI-POWERED CARDIOVASCULAR PATIENT SAFETY',
