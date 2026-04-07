@@ -12,11 +12,13 @@ import LandingFooter from './LandingFooter';
 
 export default function Homepage() {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.roles?.includes('SUPER_ADMIN');
 
   const handleChatClick = () => {
-    router.push(isAuthenticated ? '/chat' : '/sign-in');
+    if (!isAuthenticated) return router.push('/sign-in');
+    router.push(isAdmin ? '/provider/dashboard' : '/chat');
   };
 
   return (
