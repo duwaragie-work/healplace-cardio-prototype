@@ -512,7 +512,7 @@ const fr: Record<TranslationKey, string> = {
   'home.aiPlaceholder': 'Posez une question à l\'Assistant IA ...',
   'home.startCheckin': 'Commencez Votre Contrôle',
   'home.howItWorks': 'Comment Ça Marche',
-  'home.partnershipBanner': 'Healplace Cardio est mené en partenariat avec la DC Hospital Association, l\'organisme fédérateur des 13 hôpitaux de Washington DC, dans le cadre d\'une initiative conjointe pour combler le déficit de sécurité cardiovasculaire des patients dans les Ward 7 et Ward 8.',
+  'home.partnershipBanner': 'En partenariat avec la DC Hospital Association.',
   'home.sanctuaryTitle': 'Des Soins Continus. Pas Seulement en Clinique.',
   'home.bpCheckins': 'Contrôles Quotidiens de Tension Artérielle',
   'home.bpCheckinsDesc': 'Des contrôles structurés de 3 à 5 minutes par voix ou texte, chaque jour. Les patients signalent leur tension artérielle, leurs symptômes et leur observance médicamenteuse sans avoir besoin de lire un seul mot.',

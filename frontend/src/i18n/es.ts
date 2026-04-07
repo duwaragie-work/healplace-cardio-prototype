@@ -512,7 +512,7 @@ const es: Record<TranslationKey, string> = {
   'home.aiPlaceholder': 'Pregúntale al Asistente de IA ...',
   'home.startCheckin': 'Comienza Tu Control',
   'home.howItWorks': 'Cómo Funciona',
-  'home.partnershipBanner': 'Healplace Cardio es liderado en asociación con la DC Hospital Association, el organismo que convoca a los 13 hospitales de Washington DC, como parte de una iniciativa conjunta para cerrar la brecha de seguridad cardiovascular del paciente en Ward 7 y Ward 8.',
+  'home.partnershipBanner': 'En asociación con la DC Hospital Association.',
   'home.sanctuaryTitle': 'Atención Continua. No Solo Atención Clínica.',
   'home.bpCheckins': 'Controles Diarios de Presión Arterial',
   'home.bpCheckinsDesc': 'Controles estructurados de 3 a 5 minutos por voz o texto, todos los días. Los pacientes reportan presión arterial, síntomas y adherencia a la medicación sin necesidad de leer una sola palabra.',

@@ -512,7 +512,7 @@ const de: Record<TranslationKey, string> = {
   'home.aiPlaceholder': 'Stellen Sie dem KI-Assistenten eine Frage ...',
   'home.startCheckin': 'Starten Sie Ihre Kontrolle',
   'home.howItWorks': 'So funktioniert es',
-  'home.partnershipBanner': 'Healplace Cardio wird in Partnerschaft mit der DC Hospital Association geleitet, der Dachorganisation aller 13 Krankenhäuser in Washington DC, als Teil einer gemeinsamen Initiative zur Schließung der kardiovaskulären Patientensicherheitslücke in Ward 7 und Ward 8.',
+  'home.partnershipBanner': 'In Partnerschaft mit der DC Hospital Association.',
   'home.sanctuaryTitle': 'Kontinuierliche Versorgung. Nicht nur Klinikversorgung.',
   'home.bpCheckins': 'Tägliche Blutdruckkontrollen',
   'home.bpCheckinsDesc': 'Strukturierte 3- bis 5-minütige Kontrollen per Sprache oder Text, jeden Tag. Patienten melden Blutdruck, Symptome und Medikamenteneinhaltung, ohne ein einziges Wort lesen zu müssen.',

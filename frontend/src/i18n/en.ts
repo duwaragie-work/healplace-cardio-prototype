@@ -510,7 +510,7 @@ const en = {
   'home.aiPlaceholder': 'Ask the AI Assistant a question...',
   'home.startCheckin': 'Start Your Check-in',
   'home.howItWorks': 'How It Works',
-  'home.partnershipBanner': 'Healplace Cardio is led in partnership with the DC Hospital Association, the convening body for all 13 hospitals in Washington DC, as part of a joint initiative to close the cardiovascular patient safety gap in Wards 7 and 8.',
+  'home.partnershipBanner': 'In partnership with the DC Hospital Association.',
   'home.sanctuaryTitle': 'Continuous Care. Not Just Clinic Care.',
   'home.bpCheckins': 'Daily Blood Pressure Check-Ins',
   'home.bpCheckinsDesc': 'Structured 3 to 5 minute check-ins by voice or text, every day. Patients report blood pressure, symptoms, and medication adherence without needing to read a single word.',

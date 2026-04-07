@@ -512,7 +512,7 @@ const am: Record<TranslationKey, string> = {
   'home.aiPlaceholder': 'ለ AI ረዳቱ ጥያቄ ጠይቅ ...',
   'home.startCheckin': 'ቼክ-ኢንዎን ይጀምሩ',
   'home.howItWorks': 'እንዴት እንደሚሰራ',
-  'home.partnershipBanner': 'Healplace Cardio በ DC Hospital Association — በዋሽንግተን ዲሲ ውስጥ ያሉትን 13 ሆስፒታሎች ሁሉ የሚያሰባስበው ድርጅት — ጋር በመተባበር ይመራል፣ በ Ward 7 እና Ward 8 ውስጥ ያለውን የልብና የደም ቧንቧ የታካሚ ደህንነት ክፍተት ለመዝጋት በጋራ ተነሳሽነት አካል።',
+  'home.partnershipBanner': 'ከ DC Hospital Association ጋር በመተባበር።',
   'home.sanctuaryTitle': 'ቀጣይነት ያለው እንክብካቤ። የክሊኒክ እንክብካቤ ብቻ አይደለም።',
   'home.bpCheckins': 'ዕለታዊ የደም ግፊት ቼክ-ኢኖች',
   'home.bpCheckinsDesc': 'በየቀኑ በድምጽ ወይም በጽሁፍ የተዋቀሩ ከ3 እስከ 5 ደቂቃ ቼክ-ኢኖች። ታካሚዎች አንድም ቃል ማንበብ ሳያስፈልጋቸው የደም ግፊት፣ ምልክቶች እና የመድሃኒት ተገዢነትን ያሳውቃሉ።',
