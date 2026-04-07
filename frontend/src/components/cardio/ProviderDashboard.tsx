@@ -23,6 +23,7 @@ import {
   getProviderStats,
   getProviderAlerts,
   getAlertDetail,
+  getPatientBpTrend,
   acknowledgeProviderAlert,
   scheduleCall,
 } from '@/lib/services/provider.service';
@@ -120,6 +121,15 @@ export default function ProviderDashboard() {
   const [trendAlert, setTrendAlert] = useState<Alert | null>(null);
   const [trendDetail, setTrendDetail] = useState<AlertDetail | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
+  type VitalToggle = 'systolic' | 'diastolic' | 'both';
+  const [vitalToggle, setVitalToggle] = useState<VitalToggle>('both');
+  const [trendPreset, setTrendPreset] = useState<string>('30D');
+  const [trendStartDate, setTrendStartDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10);
+  });
+  const [trendEndDate, setTrendEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  type BpPoint = { day: string; systolic: number | null; diastolic: number | null; date: string };
+  const [bpTrendData, setBpTrendData] = useState<BpPoint[]>([]);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [scheduleAlert, setScheduleAlert] = useState<Alert | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -172,20 +182,49 @@ export default function ProviderDashboard() {
     }
   }, []);
 
+  const fetchBpTrend = useCallback(async (patientId: string, start: string, end: string) => {
+    try {
+      const data = await getPatientBpTrend(patientId, start, end);
+      setBpTrendData(Array.isArray(data) ? data : []);
+    } catch {
+      setBpTrendData([]);
+    }
+  }, []);
+
   const handleRowHover = useCallback(async (alert: Alert) => {
     if (trendAlert?.id === alert.id) return;
     setTrendAlert(alert);
     setTrendDetail(null);
+    setBpTrendData([]);
     setTrendLoading(true);
+    setVitalToggle('both');
     try {
-      const detail = await getAlertDetail(alert.id);
+      const [detail] = await Promise.all([
+        getAlertDetail(alert.id),
+        fetchBpTrend(alert.patientId, trendStartDate, trendEndDate),
+      ]);
       setTrendDetail(detail);
     } catch {
       // keep empty
     } finally {
       setTrendLoading(false);
     }
-  }, [trendAlert?.id]);
+  }, [trendAlert?.id, trendStartDate, trendEndDate, fetchBpTrend]);
+
+  const handleTrendPreset = (preset: string) => {
+    const days = preset === '7D' ? 7 : preset === '30D' ? 30 : preset === '60D' ? 60 : 90;
+    const end = new Date();
+    const start = new Date(); start.setDate(start.getDate() - days);
+    setTrendPreset(preset);
+    setTrendStartDate(start.toISOString().slice(0, 10));
+    setTrendEndDate(end.toISOString().slice(0, 10));
+  };
+
+  // Re-fetch BP trend when date range changes
+  useEffect(() => {
+    if (!trendAlert?.patientId) return;
+    fetchBpTrend(trendAlert.patientId, trendStartDate, trendEndDate);
+  }, [trendStartDate, trendEndDate, trendAlert?.patientId, fetchBpTrend]);
 
   if (isLoading) {
     return (
@@ -309,20 +348,39 @@ export default function ProviderDashboard() {
     >
       {/* Main Content */}
       <main className="p-4 md:p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
-          >
-            <Shield className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
+            >
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+                {t('provider.dashboard')}
+              </h1>
+              <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
+                {t('provider.dcWards')}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
-              {t('provider.dashboard')}
-            </h1>
-            <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
-              {t('provider.dcWards')} &middot; March 2026
-            </p>
+          {/* Provider identity */}
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
+                {user?.name ?? 'Provider'}
+              </p>
+              <p className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>
+                {t('provider.role')} &middot; {t('provider.clinic')}
+              </p>
+            </div>
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-[11px] shrink-0"
+              style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
+            >
+              {(user?.name ?? 'P').split(/\s+/).map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
           </div>
         </div>
 
@@ -680,55 +738,131 @@ export default function ProviderDashboard() {
           {/* Right column: BP Trend + Legend — desktop only */}
           <div className="hidden lg:flex lg:flex-col lg:col-span-2 gap-6 lg:sticky lg:top-24 lg:self-start">
           <div className="bg-white p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
-                {t('provider.bpTrend')} &middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? t('provider.selectPatient')}
-              </h2>
-              <span className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.last7Days')}</span>
+            {/* Title */}
+            <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
+              {vitalToggle === 'systolic' ? t('provider.systolicTrend')
+                : vitalToggle === 'diastolic' ? t('provider.diastolicTrend')
+                : t('provider.bpTrend')}
+              {' '}&middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? t('provider.selectPatient')}
+            </h2>
+
+            {/* Vital toggle */}
+            <div className="flex items-center gap-1 mb-3">
+              {(['systolic', 'diastolic', 'both'] as VitalToggle[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setVitalToggle(v)}
+                  className="px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
+                  style={{
+                    backgroundColor: vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-background)',
+                    color: vitalToggle === v ? '#fff' : 'var(--brand-text-muted)',
+                    border: `1px solid ${vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                  }}
+                >
+                  {v === 'systolic' ? t('provider.systolic') : v === 'diastolic' ? t('provider.diastolic') : t('provider.both')}
+                </button>
+              ))}
             </div>
 
+            {/* Preset buttons + date pickers */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {['7D', '30D', '60D', '90D'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => handleTrendPreset(p)}
+                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
+                  style={{
+                    backgroundColor: trendPreset === p ? 'var(--brand-primary-purple-light)' : 'var(--brand-background)',
+                    color: trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-text-muted)',
+                    border: `1px solid ${trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+              <div className="flex items-center gap-1 ml-auto">
+                <input
+                  type="date"
+                  value={trendStartDate}
+                  onChange={(e) => { setTrendStartDate(e.target.value); setTrendPreset(''); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
+                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
+                />
+                <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>–</span>
+                <input
+                  type="date"
+                  value={trendEndDate}
+                  onChange={(e) => { setTrendEndDate(e.target.value); setTrendPreset(''); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
+                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
+                />
+              </div>
+            </div>
+
+            {/* Chart */}
             {trendLoading ? (
               <BPTrendSkeleton />
-            ) : trendDetail?.bpTrend && trendDetail.bpTrend.length > 0 ? (() => {
-              const trendData = trendDetail.bpTrend;
-              const systolicVals = trendData.map((d) => d.systolic).filter((v): v is number => v != null);
-              const yMin = systolicVals.length > 0 ? Math.floor((Math.min(...systolicVals) - 10) / 10) * 10 : 130;
-              const yMax = systolicVals.length > 0 ? Math.ceil((Math.max(...systolicVals) + 10) / 10) * 10 : 190;
+            ) : bpTrendData.length > 0 ? (() => {
+              const showSys = vitalToggle === 'systolic' || vitalToggle === 'both';
+              const showDia = vitalToggle === 'diastolic' || vitalToggle === 'both';
+              const allVals = [
+                ...(showSys ? bpTrendData.map((d) => d.systolic).filter((v): v is number => v != null) : []),
+                ...(showDia ? bpTrendData.map((d) => d.diastolic).filter((v): v is number => v != null) : []),
+              ];
+              const yMin = allVals.length > 0 ? Math.floor((Math.min(...allVals) - 10) / 10) * 10 : 60;
+              const yMax = allVals.length > 0 ? Math.ceil((Math.max(...allVals) + 10) / 10) * 10 : 190;
               const yTicks: number[] = [];
-              for (let t = yMin; t <= yMax; t += 10) yTicks.push(t);
+              for (let v = yMin; v <= yMax; v += 10) yTicks.push(v);
 
               return (
                 <div style={{ height: 250 }} className="relative">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData}>
+                    <AreaChart data={bpTrendData}>
                       <defs>
-                        <linearGradient id="colorBPDesktop" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorSysDesktop" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#DC2626" stopOpacity={0.06} />
                           <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
                         </linearGradient>
+                        <linearGradient id="colorDiaDesktop" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.06} />
+                          <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                        </linearGradient>
                       </defs>
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }}>
-                        <Label value="Day" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
-                      </XAxis>
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94A3B8', fontSize: 10 }}
+                        tickFormatter={(v: string) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        interval={Math.max(0, Math.floor(bpTrendData.length / 7) - 1)}
+                      />
                       <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
                         <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
                       </YAxis>
                       <Tooltip
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
-                            const item = payload[0].payload as { diastolic?: number; date?: string };
+                            const item = payload[0].payload as BpPoint;
                             const dateStr = item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
                             return (
                               <div className="bg-white px-3 py-2 rounded-xl text-xs font-semibold" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'var(--brand-text-primary)', border: '1px solid #E9D5FF' }}>
-                                {payload[0].value}/{item.diastolic ?? '—'} mmHg{dateStr ? ` · ${dateStr}` : ''}
+                                {showSys && <div style={{ color: '#DC2626' }}>Sys: {item.systolic ?? '—'}</div>}
+                                {showDia && <div style={{ color: '#2563EB' }}>Dia: {item.diastolic ?? '—'}</div>}
+                                {dateStr && <div style={{ color: '#94A3B8' }}>{dateStr}</div>}
                               </div>
                             );
                           }
                           return null;
                         }}
                       />
-                      <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />
-                      <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2.5} fill="url(#colorBPDesktop)" dot={{ fill: '#DC2626', r: 3.5, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5.5 }} />
+                      {showSys && <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />}
+                      {showDia && <ReferenceLine y={90} stroke="#2563EB" strokeWidth={1} strokeDasharray="4 4" />}
+                      {showSys && (
+                        <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2} fill="url(#colorSysDesktop)" dot={{ fill: '#DC2626', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
+                      )}
+                      {showDia && (
+                        <Area type="monotone" dataKey="diastolic" stroke="#2563EB" strokeWidth={2} fill="url(#colorDiaDesktop)" dot={{ fill: '#2563EB', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
+                      )}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -800,71 +934,117 @@ export default function ProviderDashboard() {
 
             <div className="px-5 pb-5">
               {/* Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <ChevronUp className="w-4 h-4" style={{ color: 'var(--brand-primary-purple)' }} />
                   <h3 className="text-[14px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>
-                    BP Trend &middot; {trendDetail?.patient?.name ?? trendAlert.name}
+                    {vitalToggle === 'systolic' ? t('provider.systolicTrend')
+                      : vitalToggle === 'diastolic' ? t('provider.diastolicTrend')
+                      : t('provider.bpTrend')}
+                    {' '}&middot; {trendDetail?.patient?.name ?? trendAlert.name}
                   </h3>
                 </div>
                 <button
-                  onClick={() => { setTrendAlert(null); setTrendDetail(null); }}
+                  onClick={() => { setTrendAlert(null); setTrendDetail(null); setBpTrendData([]); }}
                   className="w-7 h-7 rounded-full flex items-center justify-center transition hover:bg-gray-100"
                 >
                   <X className="w-4 h-4" style={{ color: 'var(--brand-text-muted)' }} />
                 </button>
               </div>
 
-              {/* Content */}
+              {/* Vital toggle + presets */}
+              <div className="flex items-center gap-1 mb-2">
+                {(['systolic', 'diastolic', 'both'] as VitalToggle[]).map((v) => (
+                  <button key={v} onClick={() => setVitalToggle(v)}
+                    className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                    style={{
+                      backgroundColor: vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-background)',
+                      color: vitalToggle === v ? '#fff' : 'var(--brand-text-muted)',
+                      border: `1px solid ${vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                    }}
+                  >
+                    {v === 'systolic' ? t('provider.systolic') : v === 'diastolic' ? t('provider.diastolic') : t('provider.both')}
+                  </button>
+                ))}
+                <div className="ml-auto flex gap-1">
+                  {['7D', '30D', '60D', '90D'].map((p) => (
+                    <button key={p} onClick={() => handleTrendPreset(p)}
+                      className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
+                      style={{
+                        backgroundColor: trendPreset === p ? 'var(--brand-primary-purple-light)' : 'var(--brand-background)',
+                        color: trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-text-muted)',
+                        border: `1px solid ${trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Chart */}
               {trendLoading ? (
                 <BPTrendSkeleton />
-              ) : trendDetail?.bpTrend && trendDetail.bpTrend.length > 0 ? (() => {
-                const trendData = trendDetail.bpTrend;
-                const systolicVals = trendData.map((d) => d.systolic).filter((v): v is number => v != null);
-                const yMin = systolicVals.length > 0 ? Math.floor((Math.min(...systolicVals) - 10) / 10) * 10 : 130;
-                const yMax = systolicVals.length > 0 ? Math.ceil((Math.max(...systolicVals) + 10) / 10) * 10 : 190;
+              ) : bpTrendData.length > 0 ? (() => {
+                const showSys = vitalToggle === 'systolic' || vitalToggle === 'both';
+                const showDia = vitalToggle === 'diastolic' || vitalToggle === 'both';
+                const allVals = [
+                  ...(showSys ? bpTrendData.map((d) => d.systolic).filter((v): v is number => v != null) : []),
+                  ...(showDia ? bpTrendData.map((d) => d.diastolic).filter((v): v is number => v != null) : []),
+                ];
+                const yMin = allVals.length > 0 ? Math.floor((Math.min(...allVals) - 10) / 10) * 10 : 60;
+                const yMax = allVals.length > 0 ? Math.ceil((Math.max(...allVals) + 10) / 10) * 10 : 190;
                 const yTicks: number[] = [];
-                for (let t = yMin; t <= yMax; t += 10) yTicks.push(t);
+                for (let v = yMin; v <= yMax; v += 10) yTicks.push(v);
 
                 return (
                   <div style={{ height: 200 }} className="relative">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trendData}>
+                      <AreaChart data={bpTrendData}>
                         <defs>
-                          <linearGradient id="colorBPSheet" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="colorSysMobile" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#DC2626" stopOpacity={0.08} />
                             <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
                           </linearGradient>
+                          <linearGradient id="colorDiaMobile" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.08} />
+                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                          </linearGradient>
                         </defs>
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }}>
-                        <Label value="Day" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
-                      </XAxis>
-                      <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
-                        <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
-                      </YAxis>
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10 }}
+                          tickFormatter={(v: string) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          interval={Math.max(0, Math.floor(bpTrendData.length / 5) - 1)}
+                        />
+                        <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
+                          <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
+                        </YAxis>
                         <Tooltip
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
-                              const item = payload[0].payload as { diastolic?: number; date?: string };
+                              const item = payload[0].payload as BpPoint;
                               const dateStr = item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
                               return (
                                 <div className="bg-white px-3 py-2 rounded-xl text-xs font-semibold" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'var(--brand-text-primary)', border: '1px solid #E9D5FF' }}>
-                                  {payload[0].value}/{item.diastolic ?? '—'} mmHg{dateStr ? ` · ${dateStr}` : ''}
+                                  {showSys && <div style={{ color: '#DC2626' }}>Sys: {item.systolic ?? '—'}</div>}
+                                  {showDia && <div style={{ color: '#2563EB' }}>Dia: {item.diastolic ?? '—'}</div>}
+                                  {dateStr && <div style={{ color: '#94A3B8' }}>{dateStr}</div>}
                                 </div>
                               );
                             }
                             return null;
                           }}
                         />
-                        <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />
-                        <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2.5} fill="url(#colorBPSheet)" dot={{ fill: '#DC2626', r: 3.5, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5.5 }} />
+                        {showSys && <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />}
+                        {showDia && <ReferenceLine y={90} stroke="#2563EB" strokeWidth={1} strokeDasharray="4 4" />}
+                        {showSys && <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2} fill="url(#colorSysMobile)" dot={{ fill: '#DC2626', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />}
+                        {showDia && <Area type="monotone" dataKey="diastolic" stroke="#2563EB" strokeWidth={2} fill="url(#colorDiaMobile)" dot={{ fill: '#2563EB', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />}
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 );
               })() : (
                 <div className="h-32 flex items-center justify-center">
-                  <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>No BP data available for this patient</p>
+                  <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.noBpData')}</p>
                 </div>
               )}
             </div>

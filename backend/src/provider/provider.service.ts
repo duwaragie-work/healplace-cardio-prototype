@@ -444,6 +444,40 @@ export class ProviderService {
     }
   }
 
+  // ─── GET /provider/patients/:userId/bp-trend ────────────────────────────────
+
+  async getPatientBpTrend(userId: string, startDate: string, endDate: string) {
+    const entries = await this.prisma.journalEntry.findMany({
+      where: {
+        userId,
+        entryDate: {
+          gte: new Date(startDate),
+          lte: new Date(endDate),
+        },
+        systolicBP: { not: null },
+      },
+      orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        entryDate: true,
+        measurementTime: true,
+        systolicBP: true,
+        diastolicBP: true,
+      },
+    })
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    return {
+      statusCode: 200,
+      data: entries.map((e) => ({
+        day: dayNames[new Date(e.entryDate).getDay()],
+        systolic: e.systolicBP,
+        diastolic: e.diastolicBP,
+        date: e.entryDate,
+        time: e.measurementTime ?? null,
+      })),
+    }
+  }
+
   // ─── GET /provider/alerts ─────────────────────────────────────────────────────
 
   async getAlerts(filters: { severity?: string; escalated?: boolean }) {
