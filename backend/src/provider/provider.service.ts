@@ -20,7 +20,9 @@ export class ProviderService {
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    const [totalActivePatients, monthlyInteractions, activeAlertsCount] =
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+    const [totalActivePatients, monthlyInteractions, activeAlertsCount, readingsThisMonth, recentAlertPatients] =
       await Promise.all([
         this.prisma.user.count({
           where: { onboardingStatus: 'COMPLETED' },
@@ -30,6 +32,20 @@ export class ProviderService {
         }),
         this.prisma.deviationAlert.count({
           where: { status: 'OPEN' },
+        }),
+        this.prisma.journalEntry.count({
+          where: {
+            entryDate: { gte: startOfMonth },
+            systolicBP: { not: null },
+          },
+        }),
+        this.prisma.deviationAlert.findMany({
+          where: {
+            status: 'OPEN',
+            createdAt: { gte: twentyFourHoursAgo },
+          },
+          select: { userId: true },
+          distinct: ['userId'],
         }),
       ])
 
@@ -64,8 +80,10 @@ export class ProviderService {
       statusCode: 200,
       data: {
         totalActivePatients,
+        readingsThisMonth,
         monthlyInteractions,
         activeAlertsCount,
+        patientsNeedingAttention: recentAlertPatients.length,
         bpControlledPercent,
       },
     }

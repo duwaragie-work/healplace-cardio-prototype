@@ -10,7 +10,7 @@ import {
   ReferenceLine,
   Label,
 } from 'recharts';
-import { Users, Activity, Bell, Heart, X, ChevronUp, Search, ChevronDown, Shield } from 'lucide-react';
+import { Users, Activity, Bell, Heart, X, ChevronUp, Search, ChevronDown, Shield, ClipboardList, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,9 +61,10 @@ function BPTrendSkeleton() {
 
 interface ProviderStats {
   totalPatients: number;
+  readingsThisMonth: number;
   monthlyInteractions: number;
   activeAlerts: number;
-  bpControlledPercent: number;
+  patientsNeedingAttention: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,9 +130,10 @@ export default function ProviderDashboard() {
   const [alertsList, setAlertsList] = useState<Alert[]>([]);
   const [stats, setStats] = useState<ProviderStats>({
     totalPatients: 0,
+    readingsThisMonth: 0,
     monthlyInteractions: 0,
     activeAlerts: 0,
-    bpControlledPercent: 0,
+    patientsNeedingAttention: 0,
   });
 
   useEffect(() => {
@@ -141,11 +143,11 @@ export default function ProviderDashboard() {
       ([statsData, alertsData]) => {
         setStats({
           totalPatients: statsData.totalActivePatients ?? statsData.totalPatients ?? 0,
+          readingsThisMonth: statsData.readingsThisMonth ?? 0,
           monthlyInteractions:
             statsData.monthlyInteractions ?? 0,
           activeAlerts: statsData.activeAlertsCount ?? statsData.activeAlerts ?? 0,
-          bpControlledPercent:
-            statsData.bpControlledPercent ?? 0,
+          patientsNeedingAttention: statsData.patientsNeedingAttention ?? 0,
         });
         const rawAlerts: Alert[] = Array.isArray(alertsData)
           ? alertsData.map((a: unknown) => transformAlert(a, t))
@@ -327,9 +329,9 @@ export default function ProviderDashboard() {
         </div>
 
         {/* Stat Cards Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
           {dataLoading ? (
-            [0, 1, 2, 3].map((i) => (
+            [0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-white p-5 rounded-2xl animate-pulse" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="h-3 rounded-full" style={{ backgroundColor: '#EDE9F6', width: 90 }} />
@@ -341,25 +343,31 @@ export default function ProviderDashboard() {
             ))
           ) : (
             <>
+              {/* Tile 1: Total Patients */}
               <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.totalPatients')}</span>
                   <Users className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
                 </div>
                 <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.totalPatients}</div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
-                    &uarr; +3 {t('provider.thisWeek')}
-                  </span>
-                </div>
-                <div
-                  className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold"
-                  style={{ backgroundColor: 'var(--brand-accent-teal-light)', color: 'var(--brand-accent-teal)' }}
-                >
-                  {t('provider.cptEligible')}
-                </div>
+                <span className="text-xs font-semibold" style={{ color: 'var(--brand-success-green)' }}>
+                  &uarr; +3 {t('provider.thisWeek')}
+                </span>
               </div>
 
+              {/* Tile 2: Readings This Month */}
+              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.readingsThisMonth')}</span>
+                  <ClipboardList className="w-5 h-5" style={{ color: 'var(--brand-primary-purple)' }} />
+                </div>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-text-primary)' }}>{stats.readingsThisMonth.toLocaleString()}</div>
+                <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
+                  {t('provider.bpReadingsSubmitted')}
+                </span>
+              </div>
+
+              {/* Tile 3: Monthly Interactions */}
               <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.monthlyInteractions')}</span>
@@ -371,25 +379,38 @@ export default function ProviderDashboard() {
                 </span>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+              {/* Tile 4: Unresolved Alerts (with L1/L2 tooltip) */}
+              <div className="bg-white p-5 rounded-2xl relative group" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
                 <div className="flex items-start justify-between mb-2">
-                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.activeAlerts')}</span>
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.unresolvedAlerts')}</span>
                   <Bell className="w-5 h-5" style={{ color: 'var(--brand-alert-red)' }} />
                 </div>
                 <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-alert-red)' }}>{activeAlerts.length}</div>
                 <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
-                  {activeAlerts.filter((a) => a.level === 'L1').length}x {t('provider.level1')} &middot;{' '}
-                  {activeAlerts.filter((a) => a.level === 'L2').length}x {t('provider.level2')}
+                  {t('provider.hoverForBreakdown')}
                 </span>
+                {/* Tooltip */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10">
+                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                    <div className="mb-1">{t('provider.level1')} (24hr): {activeAlerts.filter((a) => a.level === 'L1').length}</div>
+                    <div>{t('provider.level2')} ({t('provider.immediate')}): {activeAlerts.filter((a) => a.level === 'L2').length}</div>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900" />
+                  </div>
+                </div>
               </div>
 
+              {/* Tile 5: Patients Needing Attention */}
               <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
                 <div className="flex items-start justify-between mb-2">
-                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.bpControlRate')}</span>
-                  <Heart className="w-5 h-5" style={{ color: 'var(--brand-success-green)' }} />
+                  <span className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.patientsNeedingAttention')}</span>
+                  <AlertTriangle className="w-5 h-5" style={{ color: 'var(--brand-warning-amber)' }} />
                 </div>
-                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-success-green)' }}>{stats.bpControlledPercent}%</div>
-                <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.target')}: &gt;70%</span>
+                <div className="text-4xl font-bold mb-2" style={{ color: 'var(--brand-warning-amber)' }}>
+                  {stats.patientsNeedingAttention}
+                </div>
+                <span className="text-xs" style={{ color: 'var(--brand-text-muted)' }}>
+                  {t('provider.alertsLast24h')}
+                </span>
               </div>
             </>
           )}

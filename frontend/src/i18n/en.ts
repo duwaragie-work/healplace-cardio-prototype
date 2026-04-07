@@ -307,8 +307,14 @@ const en = {
   // ─── Provider ──────────────────────────────────────────────────────────────
   'provider.dashboard': 'Provider Dashboard',
   'provider.totalPatients': 'Total Patients',
+  'provider.readingsThisMonth': 'Readings This Month',
+  'provider.bpReadingsSubmitted': 'BP readings submitted',
   'provider.activeAlerts': 'Active Alerts',
-  'provider.bpControlRate': 'BP Control Rate',
+  'provider.unresolvedAlerts': 'Unresolved Alerts',
+  'provider.hoverForBreakdown': 'Hover for breakdown',
+  'provider.immediate': 'Immediate',
+  'provider.patientsNeedingAttention': 'Patients Needing Attention',
+  'provider.alertsLast24h': 'with alerts in last 24h',
   'provider.monthlyInteractions': 'Monthly Interactions',
   'provider.patientList': 'Patient List',
   'provider.searchPatients': 'Search patients...',
@@ -396,7 +402,7 @@ const en = {
   // ─── Provider Dashboard (stats + trend) ────────────────────────────────────
   'provider.dcWards': 'DC Wards 7 & 8',
   'provider.thisWeek': 'this week',
-  'provider.cptEligible': 'CPT 99454 eligible',
+  'provider.cptEligible': 'CPT 99454 eligible', // legacy, kept for reference
   'provider.vsLastMonth': 'vs last month',
   'provider.level1': 'Level 1',
   'provider.level2': 'Level 2',
