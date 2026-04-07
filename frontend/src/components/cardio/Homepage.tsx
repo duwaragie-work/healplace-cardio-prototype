@@ -26,12 +26,20 @@ export default function Homepage() {
           {/* Dark overlay — stronger on mobile so text is readable on light image */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/20 md:from-black/60 md:via-black/30 md:to-transparent" />
 
-          {/* Badge — absolute top-left on mobile/tablet */}
-          <div className="lg:hidden absolute top-9 left-4 sm:top-6 sm:left-6 z-20">
-            <div className="bg-[#7b00e0] inline-flex items-center gap-2 px-3 py-1.5 rounded-full">
+          {/* Badge + Title — absolute top-left on mobile/tablet */}
+          <div className="lg:hidden absolute top-9 left-4 sm:top-6 sm:left-6 z-20 max-w-[85%]">
+            <div className="bg-[#7b00e0] inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-3">
               <Activity className="w-3.5 h-3.5 text-white" />
               <span className="font-semibold text-white text-xs sm:text-sm">{t('home.heroBadge')}</span>
             </div>
+            <h2 className="mt-5 font-bold text-2xl sm:text-3xl md:text-4xl leading-tight tracking-tight"
+              style={{ color: '#ffffff', textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+              {t('home.heroTitle1')}
+            </h2>
+            <h2 className="font-bold italic text-2xl sm:text-3xl md:text-4xl leading-tight tracking-tight mt-1"
+              style={{ color: '#d4a5ff', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+              {t('home.heroTitle2')}
+            </h2>
           </div>
 
           <div className="relative z-10 max-w-[1280px] w-full py-12 md:py-20 px-2 sm:px-4 md:px-8">
@@ -42,12 +50,12 @@ export default function Homepage() {
                 <Activity className="w-3.5 h-3.5 text-white" />
                 <span className="font-semibold text-white text-sm">{t('home.heroBadge')}</span>
               </div>
-              <div>
-                <h1 className=" font-bold text-2xl sm:text-3xl md:text-5xl lg:text-[72px] leading-[1.05] tracking-tight"
+              <div className="hidden lg:block">
+                <h1 className="font-bold text-5xl lg:text-[72px] leading-[1.05] tracking-tight"
                  style={{ textShadow: '0 -2px 10px rgba(201, 150, 245, 0.68)', color: '#ffffff' }}>
                   {t('home.heroTitle1')}
                 </h1>
-                <h1 className="font-bold italic text-2xl sm:text-3xl md:text-5xl lg:text-[72px] leading-[1.05] tracking-tight mt-1"
+                <h1 className="font-bold italic text-5xl lg:text-[72px] leading-[1.05] tracking-tight mt-1"
                   style={{ textShadow: '0 2px 16px rgba(0, 0, 0, 0.3)', color: '#d4a5ff' }}
                 >
                   {t('home.heroTitle2')}
