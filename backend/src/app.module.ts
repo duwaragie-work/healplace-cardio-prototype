@@ -7,7 +7,7 @@ import { AppService } from './app.service.js'
 import { AuthModule } from './auth/auth.module.js'
 import { DailyJournalModule } from './daily_journal/daily_journal.module.js'
 import { KnowledgebaseModule } from './knowledgebase/knowledgebase.module.js'
-import { MistralModule } from './mistral/mistral.module.js'
+import { GeminiModule } from './gemini/gemini.module.js'
 import { PrismaModule } from './prisma/prisma.module.js'
 import { PrismaService } from './prisma/prisma.service.js'
 import { UsersModule } from './users/users.module.js'
@@ -17,6 +17,7 @@ import { ContentModule } from './content/content.module.js'
 import { ProviderModule } from './provider/provider.module.js'
 import { EmailModule } from './email/email.module.js'
 import { VoiceModule } from './voice/voice.module.js'
+import { CommonModule } from './common/common.module.js'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -41,11 +42,12 @@ import { VoiceModule } from './voice/voice.module.js'
       },
     ]),
 
+    CommonModule,
     PrismaModule,
     EmailModule,
     AuthModule,
     KnowledgebaseModule,
-    MistralModule,
+    GeminiModule,
     UsersModule,
     ChatModule,
     DailyJournalModule,

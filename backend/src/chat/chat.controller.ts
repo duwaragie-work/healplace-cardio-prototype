@@ -27,10 +27,11 @@ export class ChatController {
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
 
+    let isNewSession = false
     if (!body.sessionId) {
       body.sessionId = randomUUID()
       await this.chatService.createSession(body.sessionId, userId)
-      this.chatService.generateSessionTitle(body.sessionId, body.prompt).catch(console.error)
+      isNewSession = true
     }
 
     res.write(`data: ${JSON.stringify({ sessionId: body.sessionId })}\n\n`)
@@ -45,6 +46,11 @@ export class ChatController {
       res.write(`data: ${JSON.stringify({ error: 'An error occurred' })}\n\n`)
       res.end()
     }
+
+    // Generate title after streaming completes to avoid concurrent API calls
+    if (isNewSession) {
+      this.chatService.generateSessionTitle(body.sessionId, body.prompt).catch(console.error)
+    }
   }
 
   /**
@@ -55,12 +61,19 @@ export class ChatController {
   @Post('structured')
   async structuredChat(@Body() body: ChatRequestDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id
+    let isNewSession = false
     if (!body.sessionId) {
       body.sessionId = randomUUID()
       await this.chatService.createSession(body.sessionId, userId)
-      this.chatService.generateSessionTitle(body.sessionId, body.prompt).catch(console.error)
+      isNewSession = true
     }
     const response = await this.chatService.getStructuredResponse(body, userId)
+
+    // Generate title after the main response to avoid concurrent API calls
+    if (isNewSession) {
+      this.chatService.generateSessionTitle(body.sessionId, body.prompt).catch(console.error)
+    }
+
     return {
       sessionId: body.sessionId,
       data: response.text,
