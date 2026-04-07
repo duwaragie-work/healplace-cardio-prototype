@@ -715,20 +715,8 @@ export class ProviderService {
 
     const aiSummary = `Patient shows ${trendDirection} BP trend over the last ${entryCount} readings with ${medAdherence}. ${action} to assess current cardiovascular status.`
 
-    // Build communication preference info
-    const commPref = alert.user?.communicationPreference
-    let commLabel = 'Standard Communication'
-    let commDescription =
-      'No specific communication preference indicated.'
-    if (commPref === 'AUDIO_FIRST') {
-      commLabel = 'Audio-First Patient'
-      commDescription =
-        'Use verbal communication and visual aids at next visit. Patient prefers spoken over written instructions.'
-    } else if (commPref === 'TEXT_FIRST') {
-      commLabel = 'Text-First Patient'
-      commDescription =
-        'Patient prefers written communication. Use text messages and written care plans.'
-    }
+    // Communication preference — return code, frontend translates
+    const commPref = alert.user?.communicationPreference ?? 'STANDARD'
 
     // Format BP trend for chart (reverse to chronological order)
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -774,8 +762,7 @@ export class ProviderService {
         triggerReasons,
         aiSummary,
         communication: {
-          label: commLabel,
-          description: commDescription,
+          preference: commPref,
         },
         bpTrend,
         escalation: alert.escalationEvents[0]

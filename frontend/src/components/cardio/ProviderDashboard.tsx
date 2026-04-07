@@ -81,7 +81,7 @@ function transformAlert(raw: any, t: (key: TranslationKey) => string): Alert {
     rawSeverity === 'HIGH' || rawSeverity === 'CRITICAL' ? 'HIGH' : 'MEDIUM';
   const escalated: boolean = Boolean(raw.escalated);
   const level: 'L1' | 'L2' = escalated ? 'L2' : 'L1';
-  const color: 'red' | 'amber' = severity === 'HIGH' ? 'red' : 'amber';
+  const color: 'red' | 'amber' = level === 'L2' ? 'red' : 'amber';
 
   let reading: string = raw.reading ?? '';
   if (!reading) {
@@ -125,7 +125,6 @@ export default function ProviderDashboard() {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [alertSearch, setAlertSearch] = useState('');
-  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [levelFilter, setLevelFilter] = useState<string>('ALL');
   const [alertsList, setAlertsList] = useState<Alert[]>([]);
   const [stats, setStats] = useState<ProviderStats>({
@@ -241,7 +240,6 @@ export default function ProviderDashboard() {
 
   const activeAlerts = alertsList.filter((a) => {
     if (reviewedIds.has(a.id)) return false;
-    if (severityFilter !== 'ALL' && a.severity !== severityFilter) return false;
     if (levelFilter !== 'ALL' && a.level !== levelFilter) return false;
     if (alertSearch) {
       const q = alertSearch.toLowerCase();
@@ -506,21 +504,6 @@ export default function ProviderDashboard() {
                   )}
                 </div>
 
-                {/* Severity filter */}
-                <div className="relative">
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => setSeverityFilter(e.target.value)}
-                    className="appearance-none h-8 pl-2.5 pr-6 rounded-full text-[11px] font-semibold outline-none cursor-pointer"
-                    style={{ backgroundColor: 'var(--brand-background)', border: '1.5px solid var(--brand-border)', color: 'var(--brand-text-secondary)' }}
-                  >
-                    <option value="ALL">All Severity</option>
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: 'var(--brand-text-muted)' }} />
-                </div>
-
                 {/* Level filter */}
                 <div className="relative">
                   <select
@@ -538,99 +521,92 @@ export default function ProviderDashboard() {
               </div>
             </div>
 
-            {/* Desktop Table — no horizontal scroll */}
+            {/* Desktop Table */}
             <div className="hidden md:block overflow-y-auto provider-scroll" style={{ maxHeight: '55vh' }}>
-              <table className="w-full">
+              <table className="w-full" style={{ borderSpacing: '0 8px', borderCollapse: 'separate' }}>
                 <thead>
                   <tr
                     className="text-[11px] font-semibold text-left sticky top-0 z-10 uppercase tracking-wider"
                     style={{ backgroundColor: 'var(--brand-background)', color: 'var(--brand-text-muted)' }}
                   >
-                    <th className="py-2.5 pl-3 pr-2 border-b" style={{ borderColor: 'var(--brand-border)', width: '30%' }}>Patient</th>
-                    <th className="py-2.5 px-2 border-b" style={{ borderColor: 'var(--brand-border)', width: '14%' }}>BP</th>
-                    <th className="py-2.5 px-2 border-b" style={{ borderColor: 'var(--brand-border)', width: '14%' }}>Type</th>
-                    <th className="py-2.5 px-2 border-b" style={{ borderColor: 'var(--brand-border)', width: '20%' }}>Status</th>
-                    <th className="py-2.5 px-2 pr-3 border-b text-right" style={{ borderColor: 'var(--brand-border)', width: '12%' }}></th>
+                    <th className="py-2.5 pl-3 pr-2" style={{ width: '30%' }}>Patient</th>
+                    <th className="py-2.5 px-2" style={{ width: '15%' }}>BP</th>
+                    <th className="py-2.5 px-2" style={{ width: '15%' }}>Type</th>
+                    <th className="py-2.5 px-2" style={{ width: '22%' }}>Level</th>
+                    <th className="py-2.5 px-2 pr-3 text-right" style={{ width: '10%' }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeAlerts.map((alert) => (
-                    <tr
-                      key={alert.id}
-                      className={`transition-colors cursor-pointer ${trendAlert?.id === alert.id ? 'bg-purple-50' : 'hover:bg-red-50'}`}
-                      style={{ borderLeft: `3px solid ${alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)'}` }}
-                      onMouseEnter={() => handleRowHover(alert)}
-                      onClick={() => handleRowHover(alert)}
-                    >
-                      {/* Patient */}
-                      <td className="py-3 pl-3 pr-2 border-b" style={{ borderColor: '#F1F5F9' }}>
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-[10px] shrink-0"
-                            style={{ backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }}
-                          >
-                            {alert.initials}
+                  {activeAlerts.map((alert) => {
+                    const isL2 = alert.level === 'L2';
+                    const bg = isL2 ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)';
+                    const accent = isL2 ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)';
+                    const isSelected = trendAlert?.id === alert.id;
+                    return (
+                      <tr
+                        key={alert.id}
+                        className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-purple-300' : 'hover:brightness-[0.97]'}`}
+                        style={{ backgroundColor: bg, borderLeft: `4px solid ${accent}` }}
+                        onMouseEnter={() => handleRowHover(alert)}
+                        onClick={() => handleRowHover(alert)}
+                      >
+                        {/* Patient */}
+                        <td className="py-3 pl-3 pr-2 rounded-l-xl" style={{ borderLeft: `4px solid ${accent}` }}>
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-[10px] shrink-0"
+                              style={{ backgroundColor: accent }}
+                            >
+                              {alert.initials}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
+                              <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.location}</div>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
-                            <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.location}</div>
+                        </td>
+                        {/* BP Reading */}
+                        <td className="py-3 px-2">
+                          <div className="text-[12px] font-bold" style={{ color: accent }}>
+                            {alert.reading}
                           </div>
-                        </div>
-                      </td>
-                      {/* BP Reading */}
-                      <td className="py-3 px-2 border-b" style={{ borderColor: '#F1F5F9' }}>
-                        <div className="text-[12px] font-bold" style={{ color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }}>
-                          {alert.reading}
-                        </div>
-                      </td>
-                      {/* Type */}
-                      <td className="py-3 px-2 border-b" style={{ borderColor: '#F1F5F9' }}>
-                        <div className="text-[11px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
-                      </td>
-                      {/* Severity + Level + Follow-up combined */}
-                      <td className="py-3 px-2 border-b" style={{ borderColor: '#F1F5F9' }}>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                            style={{
-                              backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)',
-                              color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                            }}
-                          >
-                            {alert.severity}
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                            style={{
-                              backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)',
-                              color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                            }}
-                          >
-                            <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }} />
-                            {alert.level}
-                          </span>
-                          {alert.followUpScheduledAt && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
-                              Call
+                        </td>
+                        {/* Type */}
+                        <td className="py-3 px-2">
+                          <div className="text-[11px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
+                        </td>
+                        {/* Level flag */}
+                        <td className="py-3 px-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                              <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
+                                {isL2 ? t('provider.level2') : t('provider.level1')}
+                              </span>
+                            </div>
+                            <span className="text-[9px]" style={{ color: accent, opacity: 0.8 }}>
+                              {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      {/* Action */}
-                      <td className="py-3 px-2 pr-3 border-b text-right" style={{ borderColor: '#F1F5F9' }}>
-                        <button
-                          className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all hover:bg-opacity-10"
-                          style={{
-                            borderColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                            color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                          }}
-                          onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
-                        >
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            {alert.followUpScheduledAt && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
+                                {t('provider.callScheduled')}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        {/* Action */}
+                        <td className="py-3 px-2 pr-3 text-right rounded-r-xl">
+                          <button
+                            className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all hover:brightness-95"
+                            style={{ borderColor: accent, color: accent, backgroundColor: 'rgba(255,255,255,0.6)' }}
+                            onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
+                          >
+                            {t('provider.review')}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -638,22 +614,37 @@ export default function ProviderDashboard() {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-2.5 overflow-y-auto provider-scroll" style={{ maxHeight: '60vh' }}>
               {activeAlerts.map((alert) => {
+                const isL2 = alert.level === 'L2';
+                const bg = isL2 ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)';
+                const accent = isL2 ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)';
                 const isSelected = trendAlert?.id === alert.id;
                 return (
                   <div
                     key={alert.id}
                     className={`p-3.5 rounded-xl cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-purple-300' : ''}`}
                     style={{
-                      backgroundColor: isSelected ? '#FAF5FF' : 'var(--brand-background)',
-                      borderLeft: `3px solid ${alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)'}`,
+                      backgroundColor: bg,
+                      borderLeft: `4px solid ${accent}`,
                     }}
                     onClick={() => handleRowHover(alert)}
                   >
-                    {/* Row 1: Avatar + Name + Level badge */}
+                    {/* Level flag */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                        <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
+                          {isL2 ? t('provider.level2') : t('provider.level1')}
+                        </span>
+                      </div>
+                      <span className="text-[10px]" style={{ color: accent, opacity: 0.8 }}>
+                        {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
+                      </span>
+                    </div>
+                    {/* Patient + BP */}
                     <div className="flex items-center gap-2.5 mb-2.5">
                       <div
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-[11px] shrink-0"
-                        style={{ backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }}
+                        style={{ backgroundColor: accent }}
                       >
                         {alert.initials}
                       </div>
@@ -661,53 +652,23 @@ export default function ProviderDashboard() {
                         <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
                         <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span
-                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                          style={{
-                            backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)',
-                            color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                          }}
-                        >
-                          <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }} />
-                          {alert.level}
-                        </span>
-                        <span
-                          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                          style={{
-                            backgroundColor: alert.color === 'red' ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)',
-                            color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                          }}
-                        >
-                          {alert.severity}
-                        </span>
+                      <div className="text-[14px] font-bold shrink-0" style={{ color: accent }}>
+                        {alert.reading}
                       </div>
                     </div>
-
-                    {/* Row 2: BP reading + Review button */}
+                    {/* Actions row */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="text-[14px] font-bold"
-                          style={{ color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }}
-                        >
-                          {alert.reading}
-                        </div>
-                        {alert.followUpScheduledAt && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
-                            Call scheduled
-                          </span>
-                        )}
-                      </div>
+                      {alert.followUpScheduledAt ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
+                          Call scheduled
+                        </span>
+                      ) : <span />}
                       <button
                         className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all"
-                        style={{
-                          borderColor: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                          color: alert.color === 'red' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)',
-                        }}
+                        style={{ borderColor: accent, color: accent, backgroundColor: 'rgba(255,255,255,0.6)' }}
                         onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
                       >
-                        Review
+                        {t('provider.review')}
                       </button>
                     </div>
                   </div>
@@ -720,9 +681,9 @@ export default function ProviderDashboard() {
           <div className="hidden lg:block lg:col-span-2 lg:sticky lg:top-24 lg:self-start bg-white p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
-                BP Trend &middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? 'Select a patient'}
+                {t('provider.bpTrend')} &middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? t('provider.selectPatient')}
               </h2>
-              <span className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>Last 7 Days</span>
+              <span className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>{t('provider.last7Days')}</span>
             </div>
 
             {trendLoading ? (
@@ -774,7 +735,7 @@ export default function ProviderDashboard() {
             })() : (
               <div className="h-40 flex items-center justify-center">
                 <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>
-                  {trendAlert ? 'No BP data for this patient' : 'Hover or click an alert to see BP trend'}
+                  {trendAlert ? t('provider.noBpData') : t('provider.hoverToSee')}
                 </p>
               </div>
             )}
