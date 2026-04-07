@@ -1,6 +1,5 @@
-import { retry } from '@mistralai/mistralai/lib/retries.js'
 import { Injectable } from '@nestjs/common'
-import { MistralService } from '../mistral/mistral.service.js'
+import { EmbeddingService } from '../common/embedding.service.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { extractTextFromBuffer } from './utils/document-reader.util.js'
 import { document_cleaner } from './utils/text-cleaner.js'
@@ -10,7 +9,7 @@ import { text_splitter } from './utils/text-splitter.js'
 export class KnowledgebaseService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mistralService: MistralService,
+    private readonly embeddingService: EmbeddingService,
   ) {}
 
   async findDocumentByName(name: string) {
@@ -112,7 +111,7 @@ export class KnowledgebaseService {
       })
 
       for (const chunk of chunks) {
-        const embeddingResponse = await this.mistralService.getEmbeddings(chunk)
+        const embeddingResponse = await this.embeddingService.getEmbeddings(chunk)
         const embedding = embeddingResponse.data[0]?.embedding
 
         if (!embedding) {

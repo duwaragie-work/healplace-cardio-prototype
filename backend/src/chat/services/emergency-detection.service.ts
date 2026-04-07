@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { ChatMistralAI } from '@langchain/mistralai'
+import { GeminiService } from '../../gemini/gemini.service.js'
 
 export interface EmergencyDetectionResult {
   isEmergency: boolean
@@ -10,24 +9,11 @@ export interface EmergencyDetectionResult {
 @Injectable()
 export class EmergencyDetectionService {
   private readonly logger = new Logger(EmergencyDetectionService.name)
-  private detectorModel: string
 
-  constructor(private readonly configService: ConfigService) {
-    this.detectorModel =
-      this.configService.get<string>('MISTRAL_EMERGENCY_MODEL') ||
-      this.configService.get<string>('MISTRAL_CHAT_MODEL') ||
-      'ministral-3b-2512'
-  }
+  constructor(private readonly geminiService: GeminiService) {}
 
   async detectEmergency(prompt: string): Promise<EmergencyDetectionResult> {
     try {
-      const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-      const llm = new ChatMistralAI({
-        apiKey,
-        model: this.detectorModel,
-        maxTokens: 512,
-      })
-
       const systemPrompt = `
         You are a safety classifier for a cardiovascular health chat app.
 
@@ -69,28 +55,21 @@ export class EmergencyDetectionService {
         Do not include any extra keys, comments, or explanations.
       `
 
-      const response = await llm.invoke([
-        ['system', systemPrompt],
-        ['human', prompt],
+      const response = await this.geminiService.getChatCompletion([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
       ])
 
-      let raw =
-        typeof response.content === 'string'
-          ? response.content
-          : JSON.stringify(response.content)
+      let raw = response.choices[0]?.message?.content ?? ''
 
-      // Some models wrap JSON in markdown code fences (``` or ```json).
-      // Strip common fence patterns before attempting to parse.
+      // Strip markdown code fences
       raw = raw.trim()
       if (raw.startsWith('```')) {
-        // Remove leading ``` or ```json (plus optional newline/space)
-        raw = raw.replace(/^```[a-zA-Z0-9]*\s*/,'')
-        // Remove trailing ```
+        raw = raw.replace(/^```[a-zA-Z0-9]*\s*/, '')
         raw = raw.replace(/```$/, '').trim()
       }
 
-      // As a safeguard, if there is extra text around the JSON, try to
-      // extract the first {...} block.
+      // Extract first {...} block
       const firstBrace = raw.indexOf('{')
       const lastBrace = raw.lastIndexOf('}')
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
@@ -117,4 +96,3 @@ export class EmergencyDetectionService {
     }
   }
 }
-

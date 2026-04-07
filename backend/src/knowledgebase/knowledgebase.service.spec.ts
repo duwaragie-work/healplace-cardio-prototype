@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals'
 import { Test, TestingModule } from '@nestjs/testing'
-import { MistralService } from '../mistral/mistral.service.js'
+import { EmbeddingService } from '../common/embedding.service.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { KnowledgebaseService } from './knowledgebase.service.js'
 
@@ -24,7 +24,7 @@ describe('KnowledgebaseService', () => {
           },
         },
         {
-          provide: MistralService,
+          provide: EmbeddingService,
           useValue: {
             getEmbeddings: jest.fn(),
           },

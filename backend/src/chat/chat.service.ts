@@ -1,219 +1,240 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { ChatMistralAI } from '@langchain/mistralai'
-import { ChatPromptTemplate } from '@langchain/core/prompts'
-import { RunnableSequence, RunnableLambda } from '@langchain/core/runnables'
-import { Document } from '@langchain/core/documents'
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
+import type { Content } from '@google/genai'
 import { ChatRequestDto } from './dto/chat-request.dto.js'
 import { SystemPromptService } from './services/system-prompt.service.js'
 import { RagService } from './services/rag.service.js'
 import { ConversationHistoryService } from './services/conversation-history.service.js'
-import { EmergencyDetectionService, EmergencyDetectionResult } from './services/emergency-detection.service.js'
+import type { EmergencyDetectionResult } from './services/emergency-detection.service.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { DailyJournalService } from '../daily_journal/daily_journal.service.js'
-import { createJournalTools } from './tools/journal-tools.js'
-
-interface ChainInput {
-  input: string
-  system_prompt: string
-  chat_history: [string, string][]
-}
+import { GeminiService } from '../gemini/gemini.service.js'
+import { getJournalToolDeclarations, executeJournalTool } from './tools/journal-tools.js'
 
 @Injectable()
 export class ChatService {
-  private chatModel: string
-
   constructor(
     private readonly systemPromptService: SystemPromptService,
     private readonly ragService: RagService,
     private readonly conversationHistoryService: ConversationHistoryService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly emergencyDetectionService: EmergencyDetectionService,
     private readonly dailyJournalService: DailyJournalService,
-  ) {
-    this.chatModel =
-      this.configService.get<string>('MISTRAL_CHAT_MODEL') || 'ministral-3b-2512'
-  }
+    private readonly geminiService: GeminiService,
+  ) {}
 
   /**
-   * Build the LangChain RAG chain.
-   * Mirrors getOutputChain() from functions/src/services/langchain-service.ts
-   * but uses pgvector instead of Pinecone.
+   * Record an emergency event in the database (fire-and-forget).
    */
-  private buildChain(chatHistory: [string, string][], streaming: boolean) {
-    const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-
-    const llm = new ChatMistralAI({
-      apiKey,
-      model: this.chatModel,
-      maxTokens: 128000,
-      streaming,
-    })
-
-    // Build chat prompt template matching functions/ chain shape
-    const chatPrompt = ChatPromptTemplate.fromMessages([
-      ['system', '{system_prompt}'],
-      ...chatHistory,
-      ['human', '{input}'],
-    ])
-
-    const ragService = this.ragService
-
-    // Use RunnableLambda to avoid TypeScript strict-input-type issues
-    const contextRetriever = RunnableLambda.from(async (i: ChainInput) => {
-      const ragDocs = await ragService.retrieveDocuments(i.input, 10)
-      let formatted = ''
-      ragDocs.forEach((doc: Document, idx: number) => {
-        formatted += `Document ${idx + 1}:\n${doc.pageContent}\n\n`
-      })
-      console.log('Context docs count:', ragDocs.length)
-      return formatted ? `Context:\n${formatted}` : 'No relevant context found.'
-    })
-
-    // Chain: extract inputs → retrieve context → prompt → LLM
-    const chain = RunnableSequence.from([
-      {
-        system_prompt: RunnableLambda.from((i: ChainInput) => i.system_prompt),
-        context: contextRetriever,
-        input: RunnableLambda.from((i: ChainInput) => i.input),
-        chat_history: RunnableLambda.from((i: ChainInput) => i.chat_history),
-      },
-      chatPrompt,
-      llm,
-    ])
-
-    return chain
-  }
-
-  /**
-   * Build a dedicated chain for emergency situations.
-   * This focuses on supportive, non-diagnostic guidance and encourages real-world help.
-   */
-  private buildEmergencyChain() {
-    const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-
-    const llm = new ChatMistralAI({
-      apiKey,
-      model: this.chatModel,
-      maxTokens: 2048,
-      streaming: true,
-    })
-
-    const chatPrompt = ChatPromptTemplate.fromMessages([
-      [
-        'system',
-        `You are a compassionate assistant responding to a potential emergency situation.
-
-You are NOT a doctor, therapist, or emergency service, and you must say this clearly.
-
-You receive:
-- The original user message describing their situation.
-- A short classifier label describing the potential emergency.
-
-Your goals:
-- Acknowledge the user's feelings and the seriousness of the situation.
-- Make it VERY CLEAR that you cannot provide medical or crisis care.
-- Strongly encourage them to seek immediate in-person help from local emergency services,
-  medical professionals, or trusted people around them.
-- Encourage them to contact appropriate crisis hotlines or local emergency numbers
-  if they are in immediate danger.
-
-Do NOT:
-- Provide a medical diagnosis.
-- Give instructions that could increase harm.
-- Minimize or dismiss the seriousness of the situation.
-
-Keep your message short, clear, and supportive.`,
-      ],
-      [
-        'human',
-        `Here is the user's original message:\n\n{user_prompt}\n\nClassifier description of the emergency:\n{emergency_situation}\n\nNow respond directly to the user, following all the safety instructions.`,
-      ],
-    ])
-
-    const chain = RunnableSequence.from([
-      {
-        user_prompt: RunnableLambda.from((input: { user_prompt: string; emergency_situation: string | null }) => input.user_prompt),
-        emergency_situation: RunnableLambda.from((input: { user_prompt: string; emergency_situation: string | null }) =>
-          input.emergency_situation ?? 'No additional description provided.',
-        ),
-      },
-      chatPrompt,
-      llm,
-    ])
-
-    return chain
-  }
-
-  /**
-   * Run emergency detection and optionally record an emergency event.
-   */
-  private async preCheckEmergency(
+  private recordEmergencyEvent(
     sessionId: string | null,
-    prompt: string,
     userId: string | null,
-  ): Promise<EmergencyDetectionResult> {
-    const result = await this.emergencyDetectionService.detectEmergency(prompt)
+    prompt: string,
+    emergencySituation: string,
+  ): void {
+    this.prisma.emergencyEvent.create({
+      data: {
+        userId,
+        sessionId,
+        prompt,
+        isEmergency: true,
+        emergency_situation: emergencySituation,
+      },
+    }).then(() => {
+      console.log(`Recorded emergency event for session ${sessionId}: ${emergencySituation}`)
+    }).catch((error) => {
+      console.error('Error recording emergency event:', error)
+    })
+  }
 
-    if (result.isEmergency) {
-      try {
-        await this.prisma.emergencyEvent.create({
-          data: {
-            userId,
-            sessionId,
-            prompt,
-            isEmergency: true,
-            emergency_situation: result.emergencySituation,
+  /**
+   * Build patient context part of system prompt (DB queries only, no LLM calls).
+   */
+  private async buildPatientSystemPrompt(userId: string): Promise<string> {
+    let systemPrompt = this.systemPromptService.buildSystemPrompt()
+
+    if (!userId) return systemPrompt
+
+    const [recentEntries, baseline, activeAlerts, user] = await Promise.all([
+      this.prisma.journalEntry.findMany({
+        where: { userId },
+        orderBy: { entryDate: 'desc' },
+        take: 7,
+        select: {
+          entryDate: true, systolicBP: true, diastolicBP: true,
+          weight: true, medicationTaken: true,
+        },
+      }),
+      this.prisma.baselineSnapshot.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: { baselineSystolic: true, baselineDiastolic: true },
+      }),
+      this.prisma.deviationAlert.findMany({
+        where: { userId, acknowledgedAt: null },
+        select: { type: true, severity: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, communicationPreference: true, preferredLanguage: true },
+      }),
+    ])
+
+    const patientContext = this.systemPromptService.buildPatientContext({
+      recentEntries: recentEntries.map((e) => ({
+        ...e,
+        systolicBP: e.systolicBP != null ? Number(e.systolicBP) : null,
+        diastolicBP: e.diastolicBP != null ? Number(e.diastolicBP) : null,
+        weight: e.weight != null ? Number(e.weight) : null,
+      })),
+      baseline: baseline
+        ? {
+            baselineSystolic: baseline.baselineSystolic != null ? Number(baseline.baselineSystolic) : null,
+            baselineDiastolic: baseline.baselineDiastolic != null ? Number(baseline.baselineDiastolic) : null,
+          }
+        : null,
+      activeAlerts,
+      communicationPreference: user?.communicationPreference ?? null,
+      preferredLanguage: user?.preferredLanguage ?? null,
+    })
+    if (user?.name) {
+      systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
+    }
+    systemPrompt = systemPrompt + '\n\n' + patientContext
+
+    return systemPrompt
+  }
+
+  /**
+   * Assemble the final system prompt from pre-fetched parts.
+   */
+  private assembleSystemPrompt(
+    basePrompt: string,
+    sessionSummary: string,
+    ragDocs: Array<{ pageContent: string; metadata: any }>,
+  ): string {
+    let systemPrompt = basePrompt
+
+    if (sessionSummary) {
+      systemPrompt +=
+        '\n\n--- CONVERSATION HISTORY SUMMARY ---\n' +
+        sessionSummary +
+        '\n--- END SUMMARY ---'
+    }
+
+    if (ragDocs.length > 0) {
+      let ragContext = ''
+      ragDocs.forEach((doc, idx) => {
+        ragContext += `Document ${idx + 1}:\n${doc.pageContent}\n\n`
+      })
+      systemPrompt = systemPrompt + '\n\nContext:\n' + ragContext
+    }
+
+    return systemPrompt
+  }
+
+  /**
+   * Build Gemini-format contents from chat history + new user prompt.
+   */
+  private buildGeminiContents(
+    chatHistory: [string, string][],
+    prompt: string,
+  ): Content[] {
+    const contents: Content[] = []
+
+    for (const [role, text] of chatHistory) {
+      contents.push({
+        role: role === 'human' ? 'user' : 'model',
+        parts: [{ text }],
+      })
+    }
+
+    contents.push({ role: 'user', parts: [{ text: prompt }] })
+    return contents
+  }
+
+  /**
+   * Run the Gemini function-calling loop.
+   * Returns final text, tool results, and emergency info (detected via flag_emergency tool).
+   */
+  private async runToolLoop(
+    systemPrompt: string,
+    contents: Content[],
+    userId: string,
+  ): Promise<{
+    text: string
+    toolResults: Array<{ tool: string; result: any }>
+    emergency: EmergencyDetectionResult
+  }> {
+    const toolDeclarations = getJournalToolDeclarations()
+    const toolResults: Array<{ tool: string; result: any }> = []
+    const emergency: EmergencyDetectionResult = { isEmergency: false, emergencySituation: null }
+    let fullText = ''
+
+    for (let iteration = 0; iteration < 5; iteration++) {
+      const response = await this.geminiService.generateContentWithTools({
+        contents,
+        systemInstruction: systemPrompt,
+        tools: toolDeclarations,
+      })
+
+      const parts = response.candidates?.[0]?.content?.parts ?? []
+      const textParts = parts.filter((p) => p.text).map((p) => p.text!).join('')
+      const functionCalls = parts.filter((p) => p.functionCall)
+
+      if (functionCalls.length === 0) {
+        fullText += textParts
+        break
+      }
+
+      if (textParts) fullText += textParts
+
+      contents.push({ role: 'model', parts })
+
+      const functionResponseParts: any[] = []
+      for (const part of functionCalls) {
+        const fc = part.functionCall!
+        const toolName = fc.name!
+        const toolArgs = (fc.args ?? {}) as Record<string, any>
+
+        console.log(`Executing tool: ${toolName}`, JSON.stringify(toolArgs))
+        const resultStr = await executeJournalTool(toolName, toolArgs, this.dailyJournalService, userId)
+        console.log(`Tool result [${toolName}]:`, resultStr.slice(0, 200))
+
+        // Detect emergency from flag_emergency tool
+        if (toolName === 'flag_emergency') {
+          emergency.isEmergency = true
+          emergency.emergencySituation = toolArgs.emergency_situation ?? 'Emergency detected'
+        }
+
+        functionResponseParts.push({
+          functionResponse: {
+            name: toolName,
+            response: JSON.parse(resultStr),
           },
         })
-        console.log(`Recorded emergency event for session ${sessionId}: ${result.emergencySituation}`)
-      } catch (error) {
-        console.error('Error recording emergency event:', error)
+
+        if (toolName !== 'flag_emergency') {
+          try {
+            toolResults.push({ tool: toolName, result: JSON.parse(resultStr) })
+          } catch {
+            toolResults.push({ tool: toolName, result: { message: resultStr } })
+          }
+        }
       }
+
+      contents.push({ role: 'user', parts: functionResponseParts })
     }
 
-    return result
-  }
-
-  /**
-   * Generate a streaming emergency response tailored to the situation.
-   */
-  private async *getEmergencyStreamingResponse(
-    prompt: string,
-    emergencySituation: string | null,
-    sessionId: string,
-  ): AsyncIterable<string> {
-    const chain = this.buildEmergencyChain()
-    const stream = await chain.stream({
-      user_prompt: prompt,
-      emergency_situation: emergencySituation,
-    })
-
-    let fullResponse = ''
-
-    for await (const chunk of stream) {
-      const text: string =
-        chunk && typeof chunk === 'object' && 'content' in chunk
-          ? (chunk.content as string)
-          : typeof chunk === 'string'
-            ? chunk
-            : ''
-
-      if (text) {
-        fullResponse += text
-        yield text
-      }
-    }
-
-    // Record the emergency response in the conversation history
-    await this.conversationHistoryService.saveConversation(sessionId, prompt, fullResponse)
+    return { text: fullText, toolResults, emergency }
   }
 
   /**
    * Stream response token-by-token (SSE).
-   * Mirrors LangchainService.getStreamingResponse() from functions/.
+   *
+   * Tier 1 (parallel, no Gemini calls): DB queries + local embeddings
+   * Tier 2 (single Gemini call): generateContentWithTools (+ emergency via flag_emergency tool)
+   * Tier 3 (fire-and-forget): saveConversation + title
    */
   async *getStreamingResponse(
     request: ChatRequestDto,
@@ -223,192 +244,37 @@ Keep your message short, clear, and supportive.`,
     const sessionId = request.sessionId as string
 
     try {
-      const emergency = await this.preCheckEmergency(sessionId, prompt, userId)
-
-      // If emergency detected, notify the client but do NOT short-circuit.
-      // The main LLM will still process the message (record check-ins, answer
-      // questions) and append an appropriate 911 advisory when needed.
-      if (emergency.isEmergency) {
-        yield { type: 'emergency', emergencySituation: emergency.emergencySituation }
-      }
-
-      let systemPrompt = this.systemPromptService.buildSystemPrompt()
-
-      if (userId) {
-        const [recentEntries, baseline, activeAlerts, user] = await Promise.all([
-          this.prisma.journalEntry.findMany({
-            where: { userId },
-            orderBy: { entryDate: 'desc' },
-            take: 7,
-            select: {
-              entryDate: true, systolicBP: true, diastolicBP: true,
-              weight: true, medicationTaken: true,
-            },
-          }),
-          this.prisma.baselineSnapshot.findFirst({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            select: { baselineSystolic: true, baselineDiastolic: true },
-          }),
-          this.prisma.deviationAlert.findMany({
-            where: { userId, acknowledgedAt: null },
-            select: { type: true, severity: true },
-          }),
-          this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { name: true, communicationPreference: true, preferredLanguage: true },
-          }),
-        ])
-
-        const patientContext = this.systemPromptService.buildPatientContext({
-          recentEntries: recentEntries.map((e) => ({
-            ...e,
-            systolicBP: e.systolicBP != null ? Number(e.systolicBP) : null,
-            diastolicBP: e.diastolicBP != null ? Number(e.diastolicBP) : null,
-            weight: e.weight != null ? Number(e.weight) : null,
-          })),
-          baseline: baseline
-            ? {
-                baselineSystolic: baseline.baselineSystolic != null ? Number(baseline.baselineSystolic) : null,
-                baselineDiastolic: baseline.baselineDiastolic != null ? Number(baseline.baselineDiastolic) : null,
-              }
-            : null,
-          activeAlerts,
-          communicationPreference: user?.communicationPreference ?? null,
-          preferredLanguage: user?.preferredLanguage ?? null,
-        })
-        if (user?.name) {
-          systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
-        }
-        systemPrompt = systemPrompt + '\n\n' + patientContext
-      }
-
-      // If the safety classifier flagged a potential emergency, inject an
-      // advisory directive. The LLM must still process the message normally
-      // (record check-ins, answer questions) but append a 911 advisory.
-      if (emergency.isEmergency) {
-        systemPrompt +=
-          '\n\n--- EMERGENCY ADVISORY ---\n' +
-          'The safety classifier flagged the patient\'s latest message as potentially urgent: ' +
-          (emergency.emergencySituation ?? 'possible emergency') + '.\n' +
-          'IMPORTANT: Continue processing the patient\'s request normally — record their ' +
-          'check-in, save their data, answer their question. Do NOT refuse to save data. ' +
-          'AFTER you have completed the task, add a brief, caring advisory recommending ' +
-          'they call 911 or seek immediate medical help if the symptom is happening right now.\n' +
-          '--- END EMERGENCY ADVISORY ---'
-      }
-
-      // Inject rolling session summary (covers both text and voice turns)
-      const sessionSummary = await this.conversationHistoryService.getSessionSummary(sessionId)
-      if (sessionSummary) {
-        systemPrompt =
-          systemPrompt +
-          '\n\n--- CONVERSATION HISTORY SUMMARY ---\n' +
-          sessionSummary +
-          '\n--- END SUMMARY ---'
-      }
-
-      const chatHistory = await this.conversationHistoryService.getConversationHistory(
-        sessionId,
-        prompt,
-      )
+      // ── Tier 1: Parallel — DB + local embeddings only, zero Gemini calls ──
+      const [basePrompt, sessionSummary, ragDocs, chatHistory] = await Promise.all([
+        this.buildPatientSystemPrompt(userId),
+        this.conversationHistoryService.getSessionSummary(sessionId),
+        this.ragService.retrieveDocuments(prompt, 10),
+        this.conversationHistoryService.getConversationHistory(sessionId, prompt),
+      ])
 
       console.log('Chat history turns:', chatHistory.length / 2)
 
-      // RAG context
-      const ragDocs = await this.ragService.retrieveDocuments(prompt, 10)
-      let ragContext = ''
-      ragDocs.forEach((doc: Document, idx: number) => {
-        ragContext += `Document ${idx + 1}:\n${doc.pageContent}\n\n`
-      })
-      if (ragContext) {
-        systemPrompt = systemPrompt + '\n\nContext:\n' + ragContext
-      }
+      const systemPrompt = this.assembleSystemPrompt(basePrompt, sessionSummary, ragDocs)
+      const contents = this.buildGeminiContents(chatHistory, prompt)
 
-      // Build tools and LLM with tool binding
-      // Do NOT use streaming: true with tool calling — the response must be
-      // complete to extract tool_calls correctly.
-      const tools = createJournalTools(this.dailyJournalService, userId)
-      const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-      const llm = new ChatMistralAI({ apiKey, model: this.chatModel, maxTokens: 4096 })
-      const llmWithTools = llm.bindTools(tools, { tool_choice: 'auto' as any })
+      // ── Tier 2: Single Gemini call — LLM response + emergency detection via tool ──
+      const { text: fullResponse, emergency } = await this.runToolLoop(systemPrompt, contents, userId)
 
-      // Build message history
-      const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
-        new SystemMessage(systemPrompt),
-      ]
-      for (const [role, text] of chatHistory) {
-        if (role === 'human') messages.push(new HumanMessage(text))
-        else messages.push(new AIMessage(text))
-      }
-      messages.push(new HumanMessage(prompt))
-
-      // Tool calling loop — max 5 iterations to prevent infinite loops
-      let fullResponse = ''
-      for (let iteration = 0; iteration < 5; iteration++) {
-        console.log(`Tool loop iteration ${iteration + 1} for session ${sessionId}`)
-        const response = await llmWithTools.invoke(messages)
-        messages.push(response)
-
-        // Capture any text content the model returned (may come alongside tool calls)
-        const textContent = typeof response.content === 'string' ? response.content : ''
-
-        // Check for tool calls
-        const toolCalls = response.tool_calls ?? []
-        if (toolCalls.length === 0) {
-          // No tool calls — this is the final text response, stream it
-          if (textContent) {
-            fullResponse += textContent
-            const words = textContent.split(' ')
-            for (let i = 0; i < words.length; i++) {
-              yield (i > 0 ? ' ' : '') + words[i]
-            }
-          }
-          break
-        }
-
-        // If model returned text alongside tool calls, capture it
-        if (textContent) {
-          fullResponse += textContent
-          const words = textContent.split(' ')
-          for (let i = 0; i < words.length; i++) {
-            yield (i > 0 ? ' ' : '') + words[i]
-          }
-        }
-
-        // Execute tool calls and add results to messages
-        for (const toolCall of toolCalls) {
-          const tool = tools.find((t) => t.name === toolCall.name)
-          if (tool) {
-            console.log(`Executing tool: ${toolCall.name}`, JSON.stringify(toolCall.args))
-            try {
-              const result = await tool.invoke(toolCall.args)
-              console.log(`Tool result [${toolCall.name}]:`, typeof result === 'string' ? result.slice(0, 200) : result)
-              messages.push(new ToolMessage({
-                content: typeof result === 'string' ? result : JSON.stringify(result),
-                tool_call_id: toolCall.id ?? toolCall.name,
-              }))
-            } catch (toolErr) {
-              console.error(`Tool execution failed [${toolCall.name}]:`, toolErr)
-              messages.push(new ToolMessage({
-                content: JSON.stringify({ error: true, message: String(toolErr) }),
-                tool_call_id: toolCall.id ?? toolCall.name,
-              }))
-            }
-          } else {
-            console.warn(`Unknown tool requested: ${toolCall.name}`)
-            messages.push(new ToolMessage({
-              content: JSON.stringify({ error: true, message: `Unknown tool: ${toolCall.name}` }),
-              tool_call_id: toolCall.id ?? toolCall.name,
-            }))
-          }
-        }
-        // Loop continues — LLM will see tool results and generate next response
+      if (emergency.isEmergency) {
+        yield { type: 'emergency', emergencySituation: emergency.emergencySituation }
+        this.recordEmergencyEvent(sessionId, userId, prompt, emergency.emergencySituation!)
       }
 
       if (fullResponse) {
-        await this.conversationHistoryService.saveConversation(sessionId, prompt, fullResponse)
+        const words = fullResponse.split(' ')
+        for (let i = 0; i < words.length; i++) {
+          yield (i > 0 ? ' ' : '') + words[i]
+        }
+
+        // ── Tier 3: Fire-and-forget ─────────────────────────────────────────
+        this.conversationHistoryService.saveConversation(sessionId, prompt, fullResponse).catch(console.error)
       }
+
       console.log(`Streaming complete for session ${sessionId}`)
     } catch (error) {
       console.error('Streaming error:', error)
@@ -418,7 +284,10 @@ Keep your message short, clear, and supportive.`,
 
   /**
    * Return a complete JSON response.
-   * Mirrors LangchainService.getStructuredResponse() from functions/.
+   *
+   * Tier 1 (parallel, no Gemini calls): DB queries + local embeddings
+   * Tier 2 (single Gemini call): generateContentWithTools (+ emergency via flag_emergency tool)
+   * Tier 3 (fire-and-forget): saveConversation + title
    */
   async getStructuredResponse(
     request: ChatRequestDto,
@@ -433,169 +302,29 @@ Keep your message short, clear, and supportive.`,
     const sessionId = request.sessionId as string
 
     try {
-      const emergency = await this.preCheckEmergency(sessionId, prompt, userId)
-
-      let systemPrompt = this.systemPromptService.buildSystemPrompt()
-
-      if (userId) {
-        const [recentEntries, baseline, activeAlerts, user] = await Promise.all([
-          this.prisma.journalEntry.findMany({
-            where: { userId },
-            orderBy: { entryDate: 'desc' },
-            take: 7,
-            select: {
-              entryDate: true, systolicBP: true, diastolicBP: true,
-              weight: true, medicationTaken: true,
-            },
-          }),
-          this.prisma.baselineSnapshot.findFirst({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            select: { baselineSystolic: true, baselineDiastolic: true },
-          }),
-          this.prisma.deviationAlert.findMany({
-            where: { userId, acknowledgedAt: null },
-            select: { type: true, severity: true },
-          }),
-          this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { name: true, communicationPreference: true, preferredLanguage: true },
-          }),
-        ])
-
-        const patientContext = this.systemPromptService.buildPatientContext({
-          recentEntries: recentEntries.map((e) => ({
-            ...e,
-            systolicBP: e.systolicBP != null ? Number(e.systolicBP) : null,
-            diastolicBP: e.diastolicBP != null ? Number(e.diastolicBP) : null,
-            weight: e.weight != null ? Number(e.weight) : null,
-          })),
-          baseline: baseline
-            ? {
-                baselineSystolic: baseline.baselineSystolic != null ? Number(baseline.baselineSystolic) : null,
-                baselineDiastolic: baseline.baselineDiastolic != null ? Number(baseline.baselineDiastolic) : null,
-              }
-            : null,
-          activeAlerts,
-          communicationPreference: user?.communicationPreference ?? null,
-          preferredLanguage: user?.preferredLanguage ?? null,
-        })
-        if (user?.name) {
-          systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
-        }
-        systemPrompt = systemPrompt + '\n\n' + patientContext
-      }
-
-      if (emergency.isEmergency) {
-        systemPrompt +=
-          '\n\n--- EMERGENCY ADVISORY ---\n' +
-          'The safety classifier flagged the patient\'s latest message as potentially urgent: ' +
-          (emergency.emergencySituation ?? 'possible emergency') + '.\n' +
-          'IMPORTANT: Continue processing the patient\'s request normally — record their ' +
-          'check-in, save their data, answer their question. Do NOT refuse to save data. ' +
-          'AFTER you have completed the task, add a brief, caring advisory recommending ' +
-          'they call 911 or seek immediate medical help if the symptom is happening right now.\n' +
-          '--- END EMERGENCY ADVISORY ---'
-      }
-
-      // Inject rolling session summary (covers both text and voice turns)
-      const sessionSummary = await this.conversationHistoryService.getSessionSummary(sessionId)
-      if (sessionSummary) {
-        systemPrompt =
-          systemPrompt +
-          '\n\n--- CONVERSATION HISTORY SUMMARY ---\n' +
-          sessionSummary +
-          '\n--- END SUMMARY ---'
-      }
-
-      const chatHistory = await this.conversationHistoryService.getConversationHistory(
-        sessionId,
-        prompt,
-      )
+      // ── Tier 1: Parallel — DB + local embeddings only, zero Gemini calls ──
+      const [basePrompt, sessionSummary, ragDocs, chatHistory] = await Promise.all([
+        this.buildPatientSystemPrompt(userId),
+        this.conversationHistoryService.getSessionSummary(sessionId),
+        this.ragService.retrieveDocuments(prompt, 10),
+        this.conversationHistoryService.getConversationHistory(sessionId, prompt),
+      ])
 
       console.log('Chat history turns:', chatHistory.length / 2)
 
-      // RAG context
-      const ragDocs = await this.ragService.retrieveDocuments(prompt, 10)
-      let ragContext = ''
-      ragDocs.forEach((doc: Document, idx: number) => {
-        ragContext += `Document ${idx + 1}:\n${doc.pageContent}\n\n`
-      })
-      if (ragContext) {
-        systemPrompt = systemPrompt + '\n\nContext:\n' + ragContext
+      const systemPrompt = this.assembleSystemPrompt(basePrompt, sessionSummary, ragDocs)
+      const contents = this.buildGeminiContents(chatHistory, prompt)
+
+      // ── Tier 2: Single Gemini call — LLM response + emergency detection via tool ──
+      const { text: responseText, toolResults, emergency } = await this.runToolLoop(systemPrompt, contents, userId)
+
+      if (emergency.isEmergency) {
+        this.recordEmergencyEvent(sessionId, userId, prompt, emergency.emergencySituation!)
       }
 
-      // Build tools and LLM with tool binding
-      const tools = createJournalTools(this.dailyJournalService, userId)
-      const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-      const llm = new ChatMistralAI({ apiKey, model: this.chatModel, maxTokens: 4096 })
-      const llmWithTools = llm.bindTools(tools, { tool_choice: 'auto' as any })
-
-      // Build message history
-      const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
-        new SystemMessage(systemPrompt),
-      ]
-      for (const [role, text] of chatHistory) {
-        if (role === 'human') messages.push(new HumanMessage(text))
-        else messages.push(new AIMessage(text))
-      }
-      messages.push(new HumanMessage(prompt))
-
-      // Tool calling loop
-      let responseText = ''
-      const toolResults: Array<{ tool: string; result: any }> = []
-
-      for (let iteration = 0; iteration < 5; iteration++) {
-        const response = await llmWithTools.invoke(messages)
-        messages.push(response)
-
-        const textContent = typeof response.content === 'string' ? response.content : ''
-        const toolCalls = response.tool_calls ?? []
-
-        if (toolCalls.length === 0) {
-          if (textContent) responseText += textContent
-          break
-        }
-
-        // Capture text returned alongside tool calls
-        if (textContent) responseText += textContent
-
-        for (const toolCall of toolCalls) {
-          const tool = tools.find((t) => t.name === toolCall.name)
-          if (tool) {
-            console.log(`Executing tool [structured]: ${toolCall.name}`, JSON.stringify(toolCall.args))
-            try {
-              const rawResult = await tool.invoke(toolCall.args)
-              const resultStr = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)
-              console.log(`Tool result [${toolCall.name}]:`, resultStr.slice(0, 200))
-              messages.push(new ToolMessage({
-                content: resultStr,
-                tool_call_id: toolCall.id ?? toolCall.name,
-              }))
-              try {
-                toolResults.push({ tool: toolCall.name, result: JSON.parse(resultStr) })
-              } catch {
-                toolResults.push({ tool: toolCall.name, result: { message: resultStr } })
-              }
-            } catch (toolErr) {
-              console.error(`Tool execution failed [${toolCall.name}]:`, toolErr)
-              messages.push(new ToolMessage({
-                content: JSON.stringify({ error: true, message: String(toolErr) }),
-                tool_call_id: toolCall.id ?? toolCall.name,
-              }))
-            }
-          } else {
-            console.warn(`Unknown tool requested: ${toolCall.name}`)
-            messages.push(new ToolMessage({
-              content: JSON.stringify({ error: true, message: `Unknown tool: ${toolCall.name}` }),
-              tool_call_id: toolCall.id ?? toolCall.name,
-            }))
-          }
-        }
-      }
-
+      // ── Tier 3: Fire-and-forget ─────────────────────────────────────────
       if (responseText) {
-        await this.conversationHistoryService.saveConversation(sessionId, prompt, responseText)
+        this.conversationHistoryService.saveConversation(sessionId, prompt, responseText).catch(console.error)
       }
       console.log(`Structured response complete for session ${sessionId}`)
 
@@ -648,7 +377,6 @@ Keep your message short, clear, and supportive.`,
       throw new NotFoundException('Session not found')
     }
 
-    // Strictly check userId if the session belongs to a registered user
     if (session.userId && session.userId !== userId) {
       throw new UnauthorizedException('Access denied to this session')
     }
@@ -671,7 +399,6 @@ Keep your message short, clear, and supportive.`,
     if (!session) throw new NotFoundException('Session not found')
     if (session.userId && session.userId !== userId) throw new UnauthorizedException('Access denied')
 
-    // Delete conversations first, then the session
     await this.prisma.conversation.deleteMany({ where: { sessionId } })
     await this.prisma.session.delete({ where: { id: sessionId } })
     return { statusCode: 200, message: 'Session deleted' }
@@ -694,20 +421,12 @@ Keep your message short, clear, and supportive.`,
 
   async generateSessionTitle(sessionId: string, prompt: string): Promise<void> {
     try {
-      const apiKey = this.configService.get<string>('MISTRAL_API_KEY')
-
-      const llm = new ChatMistralAI({
-        apiKey,
-        model: this.chatModel,
-        maxTokens: 50,
-      })
-
-      const response = await llm.invoke([
-        ['system', 'You are a helpful assistant. Summarize the user prompt into a short 3-5 word chat title in English. Even if the prompt is in another language, the title MUST be in English. Return ONLY the title, without quotes.'],
-        ['human', prompt],
+      const response = await this.geminiService.getChatCompletion([
+        { role: 'system', content: 'You are a helpful assistant. Summarize the user prompt into a short 3-5 word chat title in English. Even if the prompt is in another language, the title MUST be in English. Return ONLY the title, without quotes.' },
+        { role: 'user', content: prompt },
       ])
 
-      const title = (response.content as string).trim().replace(/^["']|["']$/g, '')
+      const title = (response.choices[0]?.message?.content ?? 'New Chat').trim().replace(/^["']|["']$/g, '')
 
       await this.prisma.session.update({
         where: { id: sessionId },

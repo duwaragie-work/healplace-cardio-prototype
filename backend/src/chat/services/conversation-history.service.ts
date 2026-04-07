@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service.js'
-import { MistralService } from '../../mistral/mistral.service.js'
+import { GeminiService } from '../../gemini/gemini.service.js'
+import { EmbeddingService } from '../../common/embedding.service.js'
 
 @Injectable()
 export class ConversationHistoryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mistralService: MistralService,
+    private readonly geminiService: GeminiService,
+    private readonly embeddingService: EmbeddingService,
   ) {}
 
   // ── Retrieval ───────────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ export class ConversationHistoryService {
       let similarRows: RawRow[] = []
       if (query?.trim()) {
         try {
-          const embeddingResponse = await this.mistralService.getEmbeddings(query)
+          const embeddingResponse = await this.embeddingService.getEmbeddings(query)
           const queryEmbedding = embeddingResponse.data[0]?.embedding
           if (queryEmbedding) {
             const embeddingString = `[${queryEmbedding.join(',')}]`
@@ -117,11 +119,11 @@ export class ConversationHistoryService {
     try {
       if (!userMessage?.trim() && !rawAiResponse?.trim()) return
 
-      const aiSummary = await this.summariseText(rawAiResponse, 'ai')
+      const aiSummary = this.summariseText(rawAiResponse)
 
       // Generate embedding
       const content = `Patient: ${userMessage}\nAI: ${aiSummary}`
-      const embeddingResponse = await this.mistralService.getEmbeddings(content)
+      const embeddingResponse = await this.embeddingService.getEmbeddings(content)
       const embedding = embeddingResponse.data[0]?.embedding
 
       if (embedding) {
@@ -164,7 +166,7 @@ export class ConversationHistoryService {
   ): Promise<void> {
     try {
       const content = `Patient: ${patientSummary}\nAI: ${aiSummary}`
-      const embeddingResponse = await this.mistralService.getEmbeddings(content)
+      const embeddingResponse = await this.embeddingService.getEmbeddings(content)
       const embedding = embeddingResponse.data[0]?.embedding
 
       if (embedding) {
@@ -239,7 +241,7 @@ export class ConversationHistoryService {
         const content = `Patient: ${turn.userMessage}\nAI: ${turn.aiSummary}`
         let embeddingString: string | null = null
         try {
-          const embeddingResponse = await this.mistralService.getEmbeddings(content)
+          const embeddingResponse = await this.embeddingService.getEmbeddings(content)
           const embedding = embeddingResponse.data[0]?.embedding
           if (embedding) {
             embeddingString = `[${embedding.join(',')}]`
@@ -283,8 +285,10 @@ export class ConversationHistoryService {
   // ── Rolling summary ─────────────────────────────────────────────────────────
 
   /**
-   * Incrementally update Session.summary by feeding Mistral the current
-   * summary + the new exchange. One LLM call per exchange, fixed input size.
+   * Incrementally update Session.summary by appending new exchange.
+   * Uses simple truncation to keep size bounded — no LLM call.
+   * The LLM-based summary is done lazily only when messageCount hits
+   * a threshold (every 10 messages) to save API quota.
    */
   private async updateRollingSummary(
     sessionId: string,
@@ -301,29 +305,41 @@ export class ConversationHistoryService {
 
       const currentSummary = session.summary ?? ''
       const newCount = (session.messageCount ?? 0) + 1
-      const label = source === 'voice' ? 'Voice call' : 'Text chat'
+      const label = source === 'voice' ? 'Voice' : 'Text'
+      const truncatedAi = aiSummary.length > 200 ? aiSummary.slice(0, 197) + '...' : aiSummary
+      const newLine = `- [${label}] Patient: ${userMessage.slice(0, 100)} → AI: ${truncatedAi}`
 
-      const newExchange = `[${label}] Patient: ${userMessage}\nAI: ${aiSummary}`
+      let updatedSummary: string
 
-      const result = await this.mistralService.getChatCompletion([
-        {
-          role: 'system',
-          content:
-            'You are a medical scribe maintaining a running summary of a cardiovascular patient\'s chat session. ' +
-            'You receive the current summary and one new exchange. Produce an updated summary that incorporates the new information. ' +
-            'Keep it to 4–8 bullet points. Preserve specific numbers (BP values, weight, dates). ' +
-            'Drop older details if the summary gets too long. Return only the bullet points, no headings.',
-        },
-        {
-          role: 'user',
-          content: currentSummary
-            ? `CURRENT SUMMARY:\n${currentSummary}\n\nNEW EXCHANGE:\n${newExchange}`
-            : `FIRST EXCHANGE:\n${newExchange}`,
-        },
-      ])
-
-      const updatedSummary =
-        (result.choices?.[0]?.message?.content as string | undefined)?.trim() ?? currentSummary
+      // Every 10 messages, use LLM to compress the summary
+      if (newCount % 10 === 0 && currentSummary.length > 500) {
+        try {
+          const result = await this.geminiService.getChatCompletion([
+            {
+              role: 'system',
+              content:
+                'You are a medical scribe. Compress this chat summary into 4–6 bullet points. ' +
+                'Preserve specific numbers (BP values, weight, dates). Return only bullet points.',
+            },
+            { role: 'user', content: currentSummary + '\n' + newLine },
+          ])
+          updatedSummary =
+            (result.choices?.[0]?.message?.content as string | undefined)?.trim() ?? (currentSummary + '\n' + newLine)
+        } catch {
+          // LLM failed — just append
+          updatedSummary = currentSummary + '\n' + newLine
+        }
+      } else {
+        // Simple append — keep last ~2000 chars
+        updatedSummary = currentSummary + '\n' + newLine
+        if (updatedSummary.length > 2000) {
+          const lines = updatedSummary.split('\n')
+          while (updatedSummary.length > 1500 && lines.length > 3) {
+            lines.shift()
+            updatedSummary = lines.join('\n')
+          }
+        }
+      }
 
       await this.prisma.session.update({
         where: { id: sessionId },
@@ -337,27 +353,12 @@ export class ConversationHistoryService {
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   /**
-   * Condense a long text (AI response) into 2-3 sentences.
-   * Returns the original if it's already short enough (<300 chars).
+   * Truncate a long text to a reasonable size for storage.
+   * No LLM call — just keeps the first ~300 chars to save API quota.
    */
-  private async summariseText(text: string, role: 'ai' | 'patient'): Promise<string> {
-    if (!text || text.length < 300) return text
-
-    try {
-      const roleLabel = role === 'ai' ? "an AI health assistant's response" : "a patient's message"
-      const result = await this.mistralService.getChatCompletion([
-        {
-          role: 'system',
-          content:
-            `Summarise ${roleLabel} in 2–3 concise sentences. Preserve any specific numbers ` +
-            '(BP values, weight, dates). Return only the summary, no headings.',
-        },
-        { role: 'user', content: text },
-      ])
-
-      return (result.choices?.[0]?.message?.content as string | undefined)?.trim() || text
-    } catch {
-      return text
-    }
+  private summariseText(text: string): string {
+    if (!text) return text
+    if (text.length <= 500) return text
+    return text.slice(0, 497) + '...'
   }
 }
