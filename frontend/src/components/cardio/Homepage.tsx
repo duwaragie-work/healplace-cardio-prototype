@@ -6,12 +6,18 @@ import { useRouter } from 'next/navigation';
 import { Mic, Send, Activity, Heart, MessageCircle, CheckCircle, AlertTriangle, Brain, Building2 } from 'lucide-react';
 import { BsSoundwave } from "react-icons/bs";
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/lib/auth-context';
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
 
 export default function Homepage() {
   const { t } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
+
+  const handleChatClick = () => {
+    router.push(isAuthenticated ? '/chat' : '/sign-in');
+  };
 
   return (
     <div className="bg-[#fef7ff] flex flex-col min-h-screen overflow-x-hidden">
@@ -69,7 +75,7 @@ export default function Homepage() {
 
             <div className="flex flex-col items-center justify-center gap-5 md:gap-6 max-w-[672px] mx-auto w-full">
               <form
-                onSubmit={(e) => { e.preventDefault(); router.push('/sign-in'); }}
+                onSubmit={(e) => { e.preventDefault(); handleChatClick(); }}
                 className="w-full backdrop-blur-md bg-white/10 border-2 border-[rgba(92,0,169,0.2)] rounded-full p-1.5 sm:p-2.5 flex items-center shadow-2xl"
               >
                 <div className="pl-2 sm:pl-4 shrink-0">
@@ -78,9 +84,9 @@ export default function Homepage() {
                 <input
                   type="text"
                   readOnly
-                  onFocus={() => router.push('/sign-in')}
+                  onFocus={handleChatClick}
                   placeholder={t('home.aiPlaceholder')}
-                  className="flex-1 px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-transparent outline-none text-black placeholder-white min-w-0 cursor-pointer"
+                  className="flex-1 px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-transparent outline-none text-black placeholder-white min-w-0 cursor-text"
                 />
                 <button
                   type="submit"
