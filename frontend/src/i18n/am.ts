@@ -534,6 +534,7 @@ const am: Record<TranslationKey, string> = {
   'landing.yourEmail': 'ኢሜልዎ',
   'landing.yourMessage': 'መልዕክትዎ',
   'landing.sendMessage': 'መልዕክት ላክ',
+  'landing.sending': 'በመላክ ላይ...',
 
   // ─── Homepage ─────────────────────────────────────────────────────────────
   'home.heroBadge': 'AI-ተኮር የልብ ክትትል',
