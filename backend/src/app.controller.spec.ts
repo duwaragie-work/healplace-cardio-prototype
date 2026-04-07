@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { Test, TestingModule } from '@nestjs/testing'
 import { AppController } from './app.controller.js'
 import { AppService } from './app.service.js'
+import { EmailService } from './email/email.service.js'
 
 describe('AppController', () => {
   let appController: AppController
@@ -16,6 +17,12 @@ describe('AppController', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string, defaultValue?: string) => defaultValue),
+          },
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendOtp: jest.fn(),
           },
         },
       ],

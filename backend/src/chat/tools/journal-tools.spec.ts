@@ -33,14 +33,15 @@ describe('journal-tools', () => {
   })
 
   describe('getJournalToolDeclarations', () => {
-    it('should return 4 tool declarations', () => {
+    it('should return 5 tool declarations', () => {
       const declarations = getJournalToolDeclarations()
-      expect(declarations).toHaveLength(4)
+      expect(declarations).toHaveLength(5)
       expect(declarations.map((d) => d.name)).toEqual([
         'submit_checkin',
         'get_recent_readings',
         'update_checkin',
         'delete_checkin',
+        'flag_emergency',
       ])
     })
 
@@ -50,6 +51,20 @@ describe('journal-tools', () => {
       expect(submit.parameters?.required).toContain('systolic_bp')
       expect(submit.parameters?.required).toContain('diastolic_bp')
       expect(submit.parameters?.required).toContain('medication_taken')
+    })
+
+    it('should have required fields on update_checkin', () => {
+      const declarations = getJournalToolDeclarations()
+      const update = declarations.find((d) => d.name === 'update_checkin')!
+      expect(update.parameters?.required).toContain('entry_date')
+      expect(update.parameters?.required).toContain('original_time')
+    })
+
+    it('should have required fields on delete_checkin', () => {
+      const declarations = getJournalToolDeclarations()
+      const del = declarations.find((d) => d.name === 'delete_checkin')!
+      expect(del.parameters?.required).toContain('entry_date')
+      expect(del.parameters?.required).toContain('original_time')
     })
   })
 
@@ -72,7 +87,7 @@ describe('journal-tools', () => {
 
       const result = await executeJournalTool(
         'submit_checkin',
-        { entry_date: '2026-04-06', systolic_bp: 120, diastolic_bp: 80, medication_taken: true },
+        { entry_date: '2026-04-06', systolic_bp: 120, diastolic_bp: 80, medication_taken: true, symptoms: ['headache'] },
         mockJournalService as any,
         'user-1',
       )
@@ -83,6 +98,19 @@ describe('journal-tools', () => {
         systolicBP: 120,
         diastolicBP: 80,
       }))
+    })
+
+    it('should reject submit_checkin when missing required fields', async () => {
+      const result = await executeJournalTool(
+        'submit_checkin',
+        { entry_date: '2026-04-06', systolic_bp: 120, diastolic_bp: 80 },
+        mockJournalService as any,
+        'user-1',
+      )
+
+      const parsed = JSON.parse(result)
+      expect(parsed.saved).toBe(false)
+      expect(parsed.message).toContain('REJECTED')
     })
 
     it('should execute get_recent_readings', async () => {
@@ -102,14 +130,17 @@ describe('journal-tools', () => {
       expect(parsed.readings).toHaveLength(1)
     })
 
-    it('should execute update_checkin', async () => {
+    it('should execute update_checkin with date/time lookup', async () => {
+      mockJournalService.findAll.mockResolvedValue({
+        data: [{ id: '123', entryDate: '2026-04-07T00:00:00.000Z', measurementTime: '14:30', systolicBP: 120, diastolicBP: 80 }],
+      })
       mockJournalService.update.mockResolvedValue({
         data: { id: '123', systolicBP: 125 },
       })
 
       const result = await executeJournalTool(
         'update_checkin',
-        { entry_id: '123', systolic_bp: 125 },
+        { entry_date: '2026-04-07', original_time: '14:30', systolic_bp: 125 },
         mockJournalService as any,
         'user-1',
       )
@@ -118,12 +149,15 @@ describe('journal-tools', () => {
       expect(parsed.updated).toBe(true)
     })
 
-    it('should execute delete_checkin', async () => {
+    it('should execute delete_checkin with date/time lookup', async () => {
+      mockJournalService.findAll.mockResolvedValue({
+        data: [{ id: '123', entryDate: '2026-04-07T00:00:00.000Z', measurementTime: '14:30' }],
+      })
       mockJournalService.delete.mockResolvedValue(undefined)
 
       const result = await executeJournalTool(
         'delete_checkin',
-        { entry_id: '123' },
+        { entry_date: '2026-04-07', original_time: '14:30' },
         mockJournalService as any,
         'user-1',
       )
