@@ -365,22 +365,13 @@ export default function ProviderDashboard() {
               </p>
             </div>
           </div>
-          {/* Provider identity */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
-                {user?.name ?? 'Provider'}
-              </p>
-              <p className="text-[11px]" style={{ color: 'var(--brand-text-muted)' }}>
-                {t('provider.role')} &middot; {t('provider.clinic')}
-              </p>
-            </div>
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-[11px] shrink-0"
-              style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
-            >
-              {(user?.name ?? 'P').split(/\s+/).map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
+          <div className="text-right">
+            <p className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+              {user?.name ?? 'Provider'}
+            </p>
+            <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
+              {t('provider.role')} &middot; {t('provider.clinic')}
+            </p>
           </div>
         </div>
 
@@ -604,7 +595,7 @@ export default function ProviderDashboard() {
                       <tr
                         key={alert.id}
                         className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-purple-300' : 'hover:brightness-[0.97]'}`}
-                        style={{ backgroundColor: bg, borderLeft: `4px solid ${accent}` }}
+                        style={{ backgroundColor: bg, borderLeft: `4px solid ${accent}`, borderRadius: '12px', outline: isSelected ? undefined : 'none' }}
                         onMouseEnter={() => handleRowHover(alert)}
                         onClick={() => handleRowHover(alert)}
                       >
@@ -833,9 +824,11 @@ export default function ProviderDashboard() {
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: '#94A3B8', fontSize: 10 }}
-                        tickFormatter={(v: string) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        interval={Math.max(0, Math.floor(bpTrendData.length / 7) - 1)}
-                      />
+                        tickFormatter={(v: string) => { try { return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return String(v); } }}
+                        interval={bpTrendData.length <= 7 ? 0 : Math.max(0, Math.floor(bpTrendData.length / 6) - 1)}
+                      >
+                        <Label value="Date" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
+                      </XAxis>
                       <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
                         <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
                       </YAxis>
@@ -912,6 +905,37 @@ export default function ProviderDashboard() {
 
             </>
           )}
+        </div>
+
+        {/* Alert Level Legend — mobile/tablet */}
+        <div className="lg:hidden bg-white p-5 rounded-2xl mt-6" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+          <h3 className="text-[13px] font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
+            {t('provider.alertLegendTitle')}
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-warning-amber-light)', borderLeft: '3px solid var(--brand-warning-amber)' }}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-warning-amber)' }} />
+                <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-warning-amber)' }}>
+                  {t('provider.level1')}
+                </span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
+                {t('provider.legendL1Desc')}
+              </p>
+            </div>
+            <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-alert-red-light)', borderLeft: '3px solid var(--brand-alert-red)' }}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-alert-red)' }} />
+                <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-alert-red)' }}>
+                  {t('provider.level2')}
+                </span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
+                {t('provider.legendL2Desc')}
+              </p>
+            </div>
+          </div>
         </div>
       </main>
 
