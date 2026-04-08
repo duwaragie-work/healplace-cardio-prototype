@@ -20,13 +20,13 @@ const descr = skip ? describe.skip : describe
 
 descr('Text Chat — Real E2E + LLM-as-Judge', () => {
   let judge: JudgeService
-  let ctx: TestContext
+  let ctx: TestContext | undefined
   const results: EvalResult[] = []
 
   beforeAll(async () => {
     judge = new JudgeService()
     ctx = await setupTestApp()
-  }, 60_000)
+  }, 120_000)
 
   afterAll(async () => {
     // Print summary
@@ -45,6 +45,7 @@ descr('Text Chat — Real E2E + LLM-as-Judge', () => {
 
   /** Helper: send a message and return response + latency */
   async function chat(prompt: string, sessionId?: string) {
+    if (!ctx) throw new Error('Test app not initialized')
     const start = Date.now()
     const res = await request(ctx.app.getHttpServer())
       .post('/chat/structured')

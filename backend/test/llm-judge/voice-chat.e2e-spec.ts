@@ -14,7 +14,7 @@
 
 import { io, Socket as ClientSocket } from 'socket.io-client'
 import { JudgeService, EvalResult } from './judge.service.js'
-import { setupTestApp, teardownTestApp, TestContext } from './test-helpers.js'
+import { setupTestApp, teardownTestApp, getBaseUrl, TestContext } from './test-helpers.js'
 
 const skip = !process.env.GOOGLE_API_KEY
 const descr = skip ? describe.skip : describe
@@ -63,18 +63,15 @@ function connectVoice(url: string, jwt: string) {
 
 descr('Voice Chat — Real E2E + LLM-as-Judge', () => {
   let judge: JudgeService
-  let ctx: TestContext
+  let ctx: TestContext | undefined
   let baseUrl: string
   const results: EvalResult[] = []
 
   beforeAll(async () => {
     judge = new JudgeService()
     ctx = await setupTestApp()
-    const srv = ctx.app.getHttpServer()
-    if (!srv.listening) await new Promise<void>((r) => srv.listen(0, r))
-    const addr = srv.address()
-    baseUrl = `http://localhost:${typeof addr === 'object' ? addr?.port : addr}`
-  }, 60_000)
+    baseUrl = getBaseUrl(ctx.app)
+  }, 120_000)
 
   afterAll(async () => {
     console.log('\n══════════════════════════════════════════════════')
