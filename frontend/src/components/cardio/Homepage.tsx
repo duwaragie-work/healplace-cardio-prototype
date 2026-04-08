@@ -36,73 +36,81 @@ export default function Homepage() {
 
           <div className="relative z-10 max-w-[1280px] w-full py-12 md:py-20 px-2 sm:px-4 md:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-16">
-            <div className="flex flex-col gap-4 md:gap-6 justify-center">
-              {/* Badge */}
-              <div className="bg-[#7b00e0] inline-flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full w-fit">
-                <Activity className="w-3.5 h-3.5 text-white" />
-                <span className="font-semibold text-white text-xs sm:text-sm">{t('home.heroBadge')}</span>
-              </div>
-              {/* Title */}
-              <div>
-                <h1 className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[72px] leading-[1.05] tracking-tight"
-                 style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)', color: '#ffffff' }}>
-                  {t('home.heroTitle1')}
-                </h1>
-                <h1 className="font-bold italic text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[72px] leading-[1.05] tracking-tight mt-1"
-                  style={{ textShadow: '0 2px 16px rgba(0, 0, 0, 0.3)', color: '#d4a5ff' }}>
-                  {t('home.heroTitle2')}
-                </h1>
-              </div>
-              <p className="text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed max-w-[576px]"
-               style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)', color: '#ffffff' }}>
-                {t('home.heroDesc')}
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center justify-center gap-5 md:gap-6 max-w-[672px] mx-auto w-full">
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleChatClick(); }}
-                className="w-full backdrop-blur-md bg-white/10 border-2 border-[rgba(92,0,169,0.2)] rounded-full p-1.5 sm:p-2.5 flex items-center shadow-2xl"
-              >
-                <div className="pl-2 sm:pl-4 shrink-0">
-                  <Image src="/logo.svg" alt="" width={36} height={36} className="md:w-[42px] md:h-[42px]" />
+              <div className="flex flex-col gap-4 md:gap-6 justify-center">
+                {/* Badge */}
+                <div className="bg-[#7b00e0] inline-flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full w-fit">
+                  <Activity className="w-3.5 h-3.5 text-white" />
+                  <span className="font-semibold text-white text-xs sm:text-sm">{t('home.heroBadge')}</span>
                 </div>
-                <input
-                  type="text"
-                  readOnly
-                  onFocus={handleChatClick}
-                  placeholder={t('home.aiPlaceholder')}
-                  className="flex-1 px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-transparent outline-none text-black placeholder-white min-w-0 cursor-text"
-                />
-                <button
-                  type="submit"
-                  className="bg-[#7b00e0] rounded-full w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center shrink-0 shadow-lg hover:bg-[#6600bc] transition-colors"
-                >
-                  <Send className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </button>
-              </form>
-              {/* Prompt chips */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {(['home.chip1', 'home.chip2', 'home.chip3'] as const).map((key) => (
-                  <button
-                    key={key}
-                    onClick={handleChatClick}
-                    className="backdrop-blur-md bg-white/20 border border-white/30 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-white/30 transition-colors cursor-pointer"
-                  >
-                    {t(key)}
-                  </button>
-                ))}
+                {/* Title */}
+                <div>
+                  <h1 className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[72px] leading-[1.05] tracking-tight"
+                    style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)', color: '#ffffff' }}>
+                    {t('home.heroTitle1')}
+                  </h1>
+                  <h1 className="font-bold italic text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-[72px] leading-[1.05] tracking-tight mt-1"
+                    style={{ textShadow: '0 2px 16px rgba(0, 0, 0, 0.3)', color: '#d4a5ff' }}>
+                    {t('home.heroTitle2')}
+                  </h1>
+                </div>
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed max-w-[576px]"
+                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)', color: '#ffffff' }}>
+                  {t('home.heroDesc')}
+                </p>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
-                <Link href="/sign-in" className="bg-[#7b00e0] text-white font-bold text-sm sm:text-base md:text-lg px-6 sm:px-8 md:px-10 py-3 md:py-3.5 rounded-full hover:bg-[#6600bc] transition-colors">
-                  {t('home.startCheckin')}
-                </Link>
-                <Link href="#features" className="backdrop-blur-sm bg-white/80 border border-[#cfc2d8] text-gray-600 font-semibold text-sm sm:text-base md:text-lg px-6 sm:px-8 md:px-10 py-3 md:py-3.5 rounded-full hover:bg-white transition-colors">
-                  {t('home.howItWorks')}
-                </Link>
+
+              <div className="flex flex-col items-center justify-end gap-5 md:gap-6 max-w-[672px] mx-auto w-full">
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleChatClick(); }}
+                  className="w-full backdrop-blur-md bg-white/10 border-2 border-[rgba(92,0,169,0.2)] rounded-full p-1.5 sm:p-2.5 flex items-center shadow-2xl"
+                >
+                  <div className="pl-2 sm:pl-4 shrink-0">
+                    <Image src="/logo.svg" alt="" width={36} height={36} className="md:w-[42px] md:h-[42px]" />
+                  </div>
+                  <input
+                    type="text"
+                    readOnly
+                    onFocus={handleChatClick}
+                    placeholder={t('home.aiPlaceholder')}
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-transparent outline-none text-black placeholder-white min-w-0 cursor-text"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#7b00e0] rounded-full w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center shrink-0 shadow-lg hover:bg-[#6600bc] transition-colors"
+                  >
+                    <Send className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  </button>
+                </form>
+                {/* Prompt chips */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-white/70 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Try now</span>
+                  {(['home.chip1', 'home.chip2', 'home.chip3'] as const).map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        const text = t(key);
+                        if (isAuthenticated) {
+                          router.push(`/chat?q=${encodeURIComponent(text)}`);
+                        } else {
+                          router.push('/sign-in');
+                        }
+                      }}
+                      className="backdrop-blur-md bg-white/15 border border-white/25 text-white text-[10px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hover:bg-white/25 transition-colors cursor-pointer"
+                    >
+                      {t(key)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
+                  <Link href="/sign-in" className="bg-[#7b00e0] text-white font-bold text-sm sm:text-base md:text-lg px-6 sm:px-8 md:px-10 py-3 md:py-3.5 rounded-full hover:bg-[#6600bc] transition-colors">
+                    {t('home.startCheckin')}
+                  </Link>
+                  <Link href="#features" className="backdrop-blur-sm bg-white/80 border border-[#cfc2d8] text-gray-600 font-semibold text-sm sm:text-base md:text-lg px-6 sm:px-8 md:px-10 py-3 md:py-3.5 rounded-full hover:bg-white transition-colors">
+                    {t('home.howItWorks')}
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </section>
 
@@ -138,10 +146,10 @@ export default function Homepage() {
             <div className="bg-[#f5eafa] rounded-[32px] sm:rounded-[48px] p-6 sm:p-8 flex flex-col min-h-[320px] sm:min-h-[480px] transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-[#efe5f4] active:scale-[0.98]">
               <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-6 sm:mb-8">
                 <svg width="25" height="20" viewBox="0 0 25 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="1" width="23" height="18" rx="3" stroke="#7b00e0" strokeWidth="2"/>
-                  <path d="M1 7h23" stroke="#7b00e0" strokeWidth="2"/>
-                  <rect x="5" y="11" width="4" height="3" rx="0.5" fill="#7b00e0"/>
-                  <rect x="11" y="11" width="4" height="3" rx="0.5" fill="#7b00e0"/>
+                  <rect x="1" y="1" width="23" height="18" rx="3" stroke="#7b00e0" strokeWidth="2" />
+                  <path d="M1 7h23" stroke="#7b00e0" strokeWidth="2" />
+                  <rect x="5" y="11" width="4" height="3" rx="0.5" fill="#7b00e0" />
+                  <rect x="11" y="11" width="4" height="3" rx="0.5" fill="#7b00e0" />
                 </svg>
               </div>
               <h3 className="text-[#1f1924] text-xl sm:text-xl font-bold leading-snug mb-3 sm:mb-4">{t('home.bpCheckins')}</h3>
@@ -215,7 +223,7 @@ export default function Homepage() {
             <div className="flex-1 flex flex-col gap-4 md:gap-6">
               <div className="bg-[rgba(92,0,169,0.1)] inline-flex items-center gap-2 px-5 py-3 rounded-full w-fit">
                 <svg width="13" height="11" viewBox="0 0 13 11" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 5.5h2l1.5-4L7 9.5l1.5-4H12" stroke="#5c00a9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M1 5.5h2l1.5-4L7 9.5l1.5-4H12" stroke="#5c00a9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span className="text-[#5c00a9] text-xs md:text-sm font-semibold tracking-wide">{t('home.silentLiteracy')}</span>
               </div>
