@@ -14,6 +14,8 @@ env:
   LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
   LANGSMITH_PROJECT: healplace-cardio-ci
   LANGSMITH_TRACING_V2: 'true'
+  RESEND_API_KEY: re_dummy_key_for_ci
+  EMAIL_FROM: 'Test <test@test.com>'
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────

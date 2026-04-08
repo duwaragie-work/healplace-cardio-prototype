@@ -50,16 +50,18 @@ export async function setupTestApp(): Promise<TestContext> {
   return { app, jwt, userId: user.id, prisma }
 }
 
-export async function teardownTestApp(ctx: TestContext) {
-  // Clean up test data
-  const sessions = await ctx.prisma.session.findMany({
-    where: { userId: ctx.userId },
-    select: { id: true },
-  })
-  const ids = sessions.map((s) => s.id)
-  if (ids.length) {
-    await ctx.prisma.conversation.deleteMany({ where: { sessionId: { in: ids } } })
-    await ctx.prisma.session.deleteMany({ where: { id: { in: ids } } })
-  }
-  await ctx.app.close()
+export async function teardownTestApp(ctx: TestContext | undefined) {
+  if (!ctx) return
+  try {
+    const sessions = await ctx.prisma.session.findMany({
+      where: { userId: ctx.userId },
+      select: { id: true },
+    })
+    const ids = sessions.map((s) => s.id)
+    if (ids.length) {
+      await ctx.prisma.conversation.deleteMany({ where: { sessionId: { in: ids } } })
+      await ctx.prisma.session.deleteMany({ where: { id: { in: ids } } })
+    }
+  } catch { /* best effort */ }
+  try { await ctx.app.close() } catch { /* already closed */ }
 }
