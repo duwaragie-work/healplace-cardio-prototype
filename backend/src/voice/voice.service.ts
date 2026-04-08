@@ -404,19 +404,31 @@ export class VoiceService implements OnModuleDestroy {
             riskTier: true,
             dateOfBirth: true,
             preferredLanguage: true,
+            timezone: true,
+            communicationPreference: true,
           },
         }),
         this.prisma.journalEntry.findMany({
           where: { userId },
           orderBy: { entryDate: 'desc' },
-          take: 7,
+          select: {
+            entryDate: true,
+            systolicBP: true,
+            diastolicBP: true,
+            weight: true,
+            medicationTaken: true,
+            measurementTime: true,
+            symptoms: true,
+          },
         }),
         this.prisma.baselineSnapshot.findFirst({
           where: { userId },
           orderBy: { computedForDate: 'desc' },
+          select: { baselineSystolic: true, baselineDiastolic: true },
         }),
         this.prisma.deviationAlert.findMany({
-          where: { userId, status: 'OPEN' },
+          where: { userId, acknowledgedAt: null },
+          select: { type: true, severity: true },
           take: 5,
         }),
         sessionId
@@ -427,6 +439,7 @@ export class VoiceService implements OnModuleDestroy {
           : Promise.resolve(null),
       ])
 
+      // ── Profile ────────────────────────────────────────────────────────────
       const profileLines: string[] = []
       if (user?.name) profileLines.push(`Patient name: ${user.name}`)
       if (user?.primaryCondition) profileLines.push(`Primary condition: ${user.primaryCondition}`)
@@ -442,41 +455,92 @@ export class VoiceService implements OnModuleDestroy {
         ? profileLines.join('. ') + '.'
         : 'Patient profile not available.'
 
-      const readingsSummary =
-        entries.length > 0
-          ? entries
-              .map(
-                (e) =>
-                  `${new Date(e.entryDate).toLocaleDateString()}: ${e.systolicBP ?? '?'}/${e.diastolicBP ?? '?'} mmHg`,
-              )
-              .join('; ')
-          : 'No recent readings'
-
-      const completeEntries = entries.filter((e) => e.systolicBP != null && e.diastolicBP != null)
-      const entryCount = completeEntries.length
-
-      let baselineSummary: string
-      if (baseline) {
-        baselineSummary = `7-day baseline: ${baseline.baselineSystolic ?? '?'}/${baseline.baselineDiastolic ?? '?'} mmHg (based on ${entryCount} readings)`
-      } else if (entryCount >= 3) {
-        baselineSummary = `No baseline yet — ${entryCount} readings recorded, baseline should be available shortly (may need readings on 3 different days)`
-      } else if (entryCount > 0) {
-        const remaining = 3 - entryCount
-        baselineSummary = `No baseline yet — ${entryCount} of 3 required readings recorded, needs ${remaining} more on different days within 7 days`
+      // ── BP readings (all entries, Decimal→Number) ─────────────────────────
+      const lines: string[] = ['--- PATIENT HEALTH DATA (HISTORICAL — do NOT treat as current conversation input) ---']
+      lines.push(`All BP readings (${entries.length} total):`)
+      if (entries.length === 0) {
+        lines.push('- No readings recorded yet')
       } else {
-        baselineSummary = 'No baseline yet — 0 of 3 required readings recorded (needs readings on 3 different days within 7 days)'
+        for (const e of entries) {
+          const date = new Date(e.entryDate).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+          })
+          const time = e.measurementTime ?? 'unknown time'
+          const sys = e.systolicBP != null ? Number(e.systolicBP) : null
+          const dia = e.diastolicBP != null ? Number(e.diastolicBP) : null
+          const bp = sys != null && dia != null ? `${sys}/${dia} mmHg` : 'not recorded'
+          const med =
+            e.medicationTaken === true
+              ? 'taken'
+              : e.medicationTaken === false
+                ? 'missed'
+                : 'not recorded'
+          const wt = e.weight != null ? `, Weight: ${Number(e.weight)} lbs` : ''
+          const sym = (e.symptoms as string[] | null)?.length ? `, Symptoms: ${(e.symptoms as string[]).join(', ')}` : ''
+          lines.push(`- ${date} at ${time}: ${bp}, Medication: ${med}${wt}${sym}`)
+        }
       }
 
-      const alertSummary =
-        alerts.length > 0
-          ? `Active alerts: ${alerts.map((a) => `${a.type} (${a.severity})`).join(', ')}`
-          : 'No active alerts'
+      // ── Baseline ───────────────────────────────────────────────────────────
+      lines.push('')
+      const completeEntries = entries.filter((e) => e.systolicBP != null && e.diastolicBP != null)
+      const entryCount = completeEntries.length
+      if (baseline && baseline.baselineSystolic != null && baseline.baselineDiastolic != null) {
+        lines.push(
+          `Baseline: ${Number(baseline.baselineSystolic)}/${Number(baseline.baselineDiastolic)} mmHg`,
+        )
+      } else if (entryCount >= 3) {
+        lines.push(
+          `Baseline: Not yet computed (${entryCount} readings recorded — baseline should be available shortly, may need readings on 3 different days)`,
+        )
+      } else if (entryCount > 0) {
+        const remaining = 3 - entryCount
+        lines.push(
+          `Baseline: Not yet established — ${entryCount} of 3 required readings recorded (needs ${remaining} more on different days within 7 days)`,
+        )
+      } else {
+        lines.push('Baseline: Not yet established — 0 of 3 required readings recorded (needs readings on 3 different days within 7 days)')
+      }
+
+      // ── Alerts (aligned filter: acknowledgedAt: null) ─────────────────────
+      lines.push('')
+      if (alerts.length === 0) {
+        lines.push('Active alerts: None')
+      } else {
+        lines.push('Active alerts:')
+        for (const alert of alerts) {
+          lines.push(`- ${alert.type} (${alert.severity})`)
+        }
+      }
+
+      // ── Communication preference ──────────────────────────────────────────
+      lines.push('')
+      lines.push(`Communication preference: ${user?.communicationPreference || 'Not set'}`)
+
+      lines.push('--- END PATIENT DATA ---')
+
+      // ── Current date/time in patient timezone ─────────────────────────────
+      const tz = user?.timezone ?? 'America/New_York'
+      const now = new Date()
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      })
+      const parts = formatter.formatToParts(now)
+      const y = parts.find(p => p.type === 'year')?.value
+      const mo = parts.find(p => p.type === 'month')?.value
+      const d = parts.find(p => p.type === 'day')?.value
+      const h = parts.find(p => p.type === 'hour')?.value
+      const mi = parts.find(p => p.type === 'minute')?.value
+      const currentDate = `${y}-${mo}-${d}`
+      const currentTime = `${h}:${mi}`
 
       const historySummary = sessionData?.summary
         ? `\n\nSESSION HISTORY SUMMARY:\n${sessionData.summary}`
         : ''
 
-      return `${profileSummary}\n\n${readingsSummary}. ${baselineSummary}. ${alertSummary}.${historySummary}`
+      return `${profileSummary}\n\n${lines.join('\n')}\n\nCURRENT DATE AND TIME (patient timezone ${tz}): ${currentDate} at ${currentTime}. When the patient says "now", "today", or "right now", use EXACTLY this date and time. NEVER guess a different date or time.${historySummary}`
     } catch {
       return 'Patient context unavailable.'
     }
