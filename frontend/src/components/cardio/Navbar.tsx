@@ -255,7 +255,7 @@ export default function Navbar() {
       {/* Mobile Menu Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 top-16 bg-white z-40 md:hidden"
+          className="fixed inset-0 top-16 bg-white z-40 md:hidden overflow-y-auto"
           onClick={() => setMobileOpen(false)}
         >
           <nav className="p-4" onClick={(e) => e.stopPropagation()}>
@@ -280,6 +280,39 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {/* Language selector inside mobile menu */}
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--brand-border)' }}>
+              <div className="relative" ref={langRef}>
+                <button
+                  onClick={() => setLangOpen((v) => !v)}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-semibold"
+                  style={{ color: 'var(--brand-text-secondary)' }}
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>{currentLocale?.flag} {currentLocale?.nativeName}</span>
+                </button>
+                {langOpen && (
+                  <div className="mt-1 mx-2 bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.1)', border: '1px solid var(--brand-border)' }}>
+                    {ALL_LOCALES.map((l) => {
+                      const supported = isLocaleSupported(l.code);
+                      const active = locale === l.code;
+                      return (
+                        <button
+                          key={l.code}
+                          onClick={() => { setLocale(l.code); setLangOpen(false); setMobileOpen(false); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px]"
+                          style={{ backgroundColor: active ? 'var(--brand-primary-purple-light)' : undefined, color: active ? 'var(--brand-primary-purple)' : 'var(--brand-text-primary)', fontWeight: active ? 700 : 500 }}
+                        >
+                          <span className="text-base">{l.flag}</span>
+                          <span className="flex-1">{l.nativeName}</span>
+                          {!supported && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}>Soon</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </nav>
         </div>
       )}

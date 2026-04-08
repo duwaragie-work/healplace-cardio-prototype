@@ -37,7 +37,7 @@ export default function LanguageSelector() {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl overflow-hidden z-50"
+          className="fixed sm:absolute right-2 sm:right-0 top-auto sm:top-full mt-1 w-[calc(100vw-16px)] sm:w-52 bg-white rounded-xl overflow-hidden z-50"
           style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12)', border: '1px solid var(--brand-border)' }}
         >
           {ALL_LOCALES.map((l) => {

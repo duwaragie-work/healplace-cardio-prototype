@@ -52,7 +52,7 @@ function BPTrendSkeleton() {
         ))}
       </div>
       <div className="flex justify-between mt-3 px-2">
-        {[1,2,3,4,5,6,7].map((_, i) => (
+        {[1, 2, 3, 4, 5, 6, 7].map((_, i) => (
           <div key={i} className="h-2.5 rounded-full" style={{ backgroundColor: '#F3EEFB', width: 16 }} />
         ))}
       </div>
@@ -348,28 +348,40 @@ export default function ProviderDashboard() {
     >
       {/* Main Content */}
       <main className="p-4 md:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
-            >
-              <Shield className="w-5 h-5 text-white" />
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, #7B00E0, #9333EA)' }}
+              >
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+                  {t('provider.dashboard')}
+                </h1>
+                <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
+                  {t('provider.dcWards')}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
-                {t('provider.dashboard')}
-              </h1>
+            {/* Provider info — desktop: right side */}
+            <div className="hidden md:block text-right">
+              <p className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+                {user?.name ?? 'Provider'}
+              </p>
               <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
-                {t('provider.dcWards')}
+                {t('provider.role')} &middot; {t('provider.clinic')}
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xl font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+          {/* Provider info — mobile: second row, smaller */}
+          <div className="md:hidden mt-2 ml-[52px]">
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
               {user?.name ?? 'Provider'}
             </p>
-            <p className="text-[12px]" style={{ color: 'var(--brand-text-muted)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>
               {t('provider.role')} &middot; {t('provider.clinic')}
             </p>
           </div>
@@ -506,405 +518,405 @@ export default function ProviderDashboard() {
           ) : (
             <>
 
-          {/* Alert Queue */}
-          <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <div className="flex flex-col gap-3 mb-4">
-              {/* Title row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[15px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>
-                    {t('provider.alertQueue')}
-                  </h2>
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
-                    style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}
-                  >
-                    {activeAlerts.length}
-                  </span>
-                </div>
-                <span
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold"
-                  style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}
-                >
-                  {t('provider.requiresAction')}
-                </span>
-              </div>
+              {/* Alert Queue */}
+              <div className="lg:col-span-3 bg-white p-4 md:p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                <div className="flex flex-col gap-3 mb-4">
+                  {/* Title row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-[15px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>
+                        {t('provider.alertQueue')}
+                      </h2>
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}
+                      >
+                        {activeAlerts.length}
+                      </span>
+                    </div>
+                    <span
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                      style={{ backgroundColor: 'var(--brand-warning-amber-light)', color: 'var(--brand-warning-amber)' }}
+                    >
+                      {t('provider.requiresAction')}
+                    </span>
+                  </div>
 
-              {/* Filters row */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Search */}
-                <div
-                  className="flex items-center gap-2 px-3 h-8 rounded-full flex-1 min-w-[140px] max-w-[220px]"
-                  style={{ backgroundColor: 'var(--brand-background)', border: '1.5px solid var(--brand-border)' }}
-                >
-                  <Search className="w-3 h-3 shrink-0" style={{ color: 'var(--brand-text-muted)' }} />
-                  <input
-                    type="text"
-                    value={alertSearch}
-                    onChange={(e) => setAlertSearch(e.target.value)}
-                    placeholder={t('provider.searchPatients')}
-                    className="flex-1 text-[11px] outline-none bg-transparent"
-                    style={{ color: 'var(--brand-text-primary)' }}
-                  />
-                  {alertSearch && (
-                    <button onClick={() => setAlertSearch('')} className="shrink-0">
-                      <X className="w-2.5 h-2.5" style={{ color: 'var(--brand-text-muted)' }} />
-                    </button>
-                  )}
+                  {/* Filters row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Search */}
+                    <div
+                      className="flex items-center gap-2 px-3 h-8 rounded-full flex-1 min-w-[140px] max-w-[220px]"
+                      style={{ backgroundColor: 'var(--brand-background)', border: '1.5px solid var(--brand-border)' }}
+                    >
+                      <Search className="w-3 h-3 shrink-0" style={{ color: 'var(--brand-text-muted)' }} />
+                      <input
+                        type="text"
+                        value={alertSearch}
+                        onChange={(e) => setAlertSearch(e.target.value)}
+                        placeholder={t('provider.searchPatients')}
+                        className="flex-1 text-[11px] outline-none bg-transparent"
+                        style={{ color: 'var(--brand-text-primary)' }}
+                      />
+                      {alertSearch && (
+                        <button onClick={() => setAlertSearch('')} className="shrink-0">
+                          <X className="w-2.5 h-2.5" style={{ color: 'var(--brand-text-muted)' }} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Level filter */}
+                    <div className="relative">
+                      <select
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value)}
+                        className="appearance-none h-8 pl-2.5 pr-6 rounded-full text-[11px] font-semibold outline-none cursor-pointer"
+                        style={{ backgroundColor: 'var(--brand-background)', border: '1.5px solid var(--brand-border)', color: 'var(--brand-text-secondary)' }}
+                      >
+                        <option value="ALL">{t('provider.allLevels')}</option>
+                        <option value="L1">{t('provider.level1')}</option>
+                        <option value="L2">{t('provider.level2')}</option>
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: 'var(--brand-text-muted)' }} />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Level filter */}
-                <div className="relative">
-                  <select
-                    value={levelFilter}
-                    onChange={(e) => setLevelFilter(e.target.value)}
-                    className="appearance-none h-8 pl-2.5 pr-6 rounded-full text-[11px] font-semibold outline-none cursor-pointer"
-                    style={{ backgroundColor: 'var(--brand-background)', border: '1.5px solid var(--brand-border)', color: 'var(--brand-text-secondary)' }}
-                  >
-                    <option value="ALL">{t('provider.allLevels')}</option>
-                    <option value="L1">{t('provider.level1')}</option>
-                    <option value="L2">{t('provider.level2')}</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: 'var(--brand-text-muted)' }} />
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-y-auto provider-scroll" style={{ maxHeight: '75vh' }}>
+                  <table className="w-full" style={{ borderSpacing: '0 8px', borderCollapse: 'separate' }}>
+                    <thead>
+                      <tr
+                        className="text-[11px] font-semibold text-left sticky top-0 z-10 uppercase tracking-wider"
+                        style={{ backgroundColor: 'var(--brand-background)', color: 'var(--brand-text-muted)' }}
+                      >
+                        <th className="py-2.5 pl-3 pr-2" style={{ width: '30%' }}>Patient</th>
+                        <th className="py-2.5 px-2" style={{ width: '15%' }}>BP</th>
+                        <th className="py-2.5 px-2" style={{ width: '15%' }}>Type</th>
+                        <th className="py-2.5 px-2" style={{ width: '22%' }}>Level</th>
+                        <th className="py-2.5 px-2 pr-3 text-right" style={{ width: '10%' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeAlerts.map((alert) => {
+                        const isL2 = alert.level === 'L2';
+                        const bg = isL2 ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)';
+                        const accent = isL2 ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)';
+                        const isSelected = trendAlert?.id === alert.id;
+                        return (
+                          <tr
+                            key={alert.id}
+                            className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-purple-300' : 'hover:brightness-[0.97]'}`}
+                            style={{ backgroundColor: bg, borderLeft: `4px solid ${accent}`, borderRadius: '12px', outline: isSelected ? undefined : 'none' }}
+                            onMouseEnter={() => handleRowHover(alert)}
+                            onClick={() => handleRowHover(alert)}
+                          >
+                            {/* Patient */}
+                            <td className="py-3 pl-3 pr-2 rounded-l-xl" style={{ borderLeft: `4px solid ${accent}` }}>
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-[10px] shrink-0"
+                                  style={{ backgroundColor: accent }}
+                                >
+                                  {alert.initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
+                                  <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.location}</div>
+                                </div>
+                              </div>
+                            </td>
+                            {/* BP Reading */}
+                            <td className="py-3 px-2">
+                              <div className="text-[12px] font-bold" style={{ color: accent }}>
+                                {alert.reading}
+                              </div>
+                            </td>
+                            {/* Type */}
+                            <td className="py-3 px-2">
+                              <div className="text-[11px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
+                            </td>
+                            {/* Level flag */}
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                                  <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
+                                    {isL2 ? t('provider.level2') : t('provider.level1')}
+                                  </span>
+                                </div>
+                                <span className="text-[9px]" style={{ color: accent, opacity: 0.8 }}>
+                                  {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
+                                </span>
+                                {alert.followUpScheduledAt && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
+                                    {t('provider.callScheduled')}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {/* Action */}
+                            <td className="py-3 px-2 pr-3 text-right rounded-r-xl">
+                              <button
+                                className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all hover:brightness-95"
+                                style={{ borderColor: accent, color: accent, backgroundColor: 'rgba(255,255,255,0.6)' }}
+                                onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
+                              >
+                                {t('provider.review')}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </div>
 
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-y-auto provider-scroll" style={{ maxHeight: '75vh' }}>
-              <table className="w-full" style={{ borderSpacing: '0 8px', borderCollapse: 'separate' }}>
-                <thead>
-                  <tr
-                    className="text-[11px] font-semibold text-left sticky top-0 z-10 uppercase tracking-wider"
-                    style={{ backgroundColor: 'var(--brand-background)', color: 'var(--brand-text-muted)' }}
-                  >
-                    <th className="py-2.5 pl-3 pr-2" style={{ width: '30%' }}>Patient</th>
-                    <th className="py-2.5 px-2" style={{ width: '15%' }}>BP</th>
-                    <th className="py-2.5 px-2" style={{ width: '15%' }}>Type</th>
-                    <th className="py-2.5 px-2" style={{ width: '22%' }}>Level</th>
-                    <th className="py-2.5 px-2 pr-3 text-right" style={{ width: '10%' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-2.5 overflow-y-auto provider-scroll" style={{ maxHeight: '60vh' }}>
                   {activeAlerts.map((alert) => {
                     const isL2 = alert.level === 'L2';
                     const bg = isL2 ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)';
                     const accent = isL2 ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)';
                     const isSelected = trendAlert?.id === alert.id;
                     return (
-                      <tr
+                      <div
                         key={alert.id}
-                        className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-purple-300' : 'hover:brightness-[0.97]'}`}
-                        style={{ backgroundColor: bg, borderLeft: `4px solid ${accent}`, borderRadius: '12px', outline: isSelected ? undefined : 'none' }}
-                        onMouseEnter={() => handleRowHover(alert)}
+                        className={`p-3.5 rounded-xl cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-purple-300' : ''}`}
+                        style={{
+                          backgroundColor: bg,
+                          borderLeft: `4px solid ${accent}`,
+                        }}
                         onClick={() => handleRowHover(alert)}
                       >
-                        {/* Patient */}
-                        <td className="py-3 pl-3 pr-2 rounded-l-xl" style={{ borderLeft: `4px solid ${accent}` }}>
-                          <div className="flex items-center gap-2.5">
-                            <div
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-[10px] shrink-0"
-                              style={{ backgroundColor: accent }}
-                            >
-                              {alert.initials}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
-                              <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.location}</div>
-                            </div>
+                        {/* Level flag */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                            <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
+                              {isL2 ? t('provider.level2') : t('provider.level1')}
+                            </span>
                           </div>
-                        </td>
-                        {/* BP Reading */}
-                        <td className="py-3 px-2">
-                          <div className="text-[12px] font-bold" style={{ color: accent }}>
+                          <span className="text-[10px]" style={{ color: accent, opacity: 0.8 }}>
+                            {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
+                          </span>
+                        </div>
+                        {/* Patient + BP */}
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-[11px] shrink-0"
+                            style={{ backgroundColor: accent }}
+                          >
+                            {alert.initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
+                            <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
+                          </div>
+                          <div className="text-[14px] font-bold shrink-0" style={{ color: accent }}>
                             {alert.reading}
                           </div>
-                        </td>
-                        {/* Type */}
-                        <td className="py-3 px-2">
-                          <div className="text-[11px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
-                        </td>
-                        {/* Level flag */}
-                        <td className="py-3 px-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <div className="flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-                              <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
-                                {isL2 ? t('provider.level2') : t('provider.level1')}
-                              </span>
-                            </div>
-                            <span className="text-[9px]" style={{ color: accent, opacity: 0.8 }}>
-                              {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
+                        </div>
+                        {/* Actions row */}
+                        <div className="flex items-center justify-between">
+                          {alert.followUpScheduledAt ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
+                              Call scheduled
                             </span>
-                            {alert.followUpScheduledAt && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
-                                {t('provider.callScheduled')}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        {/* Action */}
-                        <td className="py-3 px-2 pr-3 text-right rounded-r-xl">
+                          ) : <span />}
                           <button
-                            className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all hover:brightness-95"
+                            className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all"
                             style={{ borderColor: accent, color: accent, backgroundColor: 'rgba(255,255,255,0.6)' }}
                             onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
                           >
                             {t('provider.review')}
                           </button>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-2.5 overflow-y-auto provider-scroll" style={{ maxHeight: '60vh' }}>
-              {activeAlerts.map((alert) => {
-                const isL2 = alert.level === 'L2';
-                const bg = isL2 ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)';
-                const accent = isL2 ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)';
-                const isSelected = trendAlert?.id === alert.id;
-                return (
-                  <div
-                    key={alert.id}
-                    className={`p-3.5 rounded-xl cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-purple-300' : ''}`}
-                    style={{
-                      backgroundColor: bg,
-                      borderLeft: `4px solid ${accent}`,
-                    }}
-                    onClick={() => handleRowHover(alert)}
-                  >
-                    {/* Level flag */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-                        <span className="text-[11px] font-extrabold uppercase" style={{ color: accent }}>
-                          {isL2 ? t('provider.level2') : t('provider.level1')}
-                        </span>
-                      </div>
-                      <span className="text-[10px]" style={{ color: accent, opacity: 0.8 }}>
-                        {isL2 ? t('provider.alertImmediate') : t('provider.alert24hr')}
-                      </span>
-                    </div>
-                    {/* Patient + BP */}
-                    <div className="flex items-center gap-2.5 mb-2.5">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-[11px] shrink-0"
-                        style={{ backgroundColor: accent }}
-                      >
-                        {alert.initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-bold truncate" style={{ color: 'var(--brand-text-primary)' }}>{alert.name}</div>
-                        <div className="text-[10px] truncate" style={{ color: 'var(--brand-text-muted)' }}>{alert.type}</div>
-                      </div>
-                      <div className="text-[14px] font-bold shrink-0" style={{ color: accent }}>
-                        {alert.reading}
-                      </div>
-                    </div>
-                    {/* Actions row */}
-                    <div className="flex items-center justify-between">
-                      {alert.followUpScheduledAt ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: '#CCFBF1', color: '#0D9488' }}>
-                          Call scheduled
-                        </span>
-                      ) : <span />}
+              {/* Right column: BP Trend + Legend — desktop only */}
+              <div className="hidden lg:flex lg:flex-col lg:col-span-2 gap-6 lg:sticky lg:top-24 lg:self-start">
+                <div className="bg-white p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                  {/* Title */}
+                  <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
+                    {vitalToggle === 'systolic' ? t('provider.systolicTrend')
+                      : vitalToggle === 'diastolic' ? t('provider.diastolicTrend')
+                        : t('provider.bpTrend')}
+                    {' '}&middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? t('provider.selectPatient')}
+                  </h2>
+
+                  {/* Vital toggle */}
+                  <div className="flex items-center gap-1 mb-3">
+                    {(['systolic', 'diastolic', 'both'] as VitalToggle[]).map((v) => (
                       <button
-                        className="h-7 px-3 rounded-lg text-[11px] font-semibold border transition-all"
-                        style={{ borderColor: accent, color: accent, backgroundColor: 'rgba(255,255,255,0.6)' }}
-                        onClick={(e) => { e.stopPropagation(); handleSelectAlert(alert); }}
+                        key={v}
+                        onClick={() => setVitalToggle(v)}
+                        className="px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
+                        style={{
+                          backgroundColor: vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-background)',
+                          color: vitalToggle === v ? '#fff' : 'var(--brand-text-muted)',
+                          border: `1px solid ${vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                        }}
                       >
-                        {t('provider.review')}
+                        {v === 'systolic' ? t('provider.systolic') : v === 'diastolic' ? t('provider.diastolic') : t('provider.both')}
                       </button>
+                    ))}
+                  </div>
+
+                  {/* Preset buttons + date pickers */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    {['7D', '30D', '60D', '90D'].map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => handleTrendPreset(p)}
+                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
+                        style={{
+                          backgroundColor: trendPreset === p ? 'var(--brand-primary-purple-light)' : 'var(--brand-background)',
+                          color: trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-text-muted)',
+                          border: `1px solid ${trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-1 ml-auto">
+                      <input
+                        type="date"
+                        value={trendStartDate}
+                        max={trendEndDate}
+                        onChange={(e) => { setTrendStartDate(e.target.value); setTrendPreset(''); }}
+                        className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
+                        style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
+                      />
+                      <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>–</span>
+                      <input
+                        type="date"
+                        value={trendEndDate}
+                        min={trendStartDate}
+                        max={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => { setTrendEndDate(e.target.value); setTrendPreset(''); }}
+                        className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
+                        style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
+                      />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Right column: BP Trend + Legend — desktop only */}
-          <div className="hidden lg:flex lg:flex-col lg:col-span-2 gap-6 lg:sticky lg:top-24 lg:self-start">
-          <div className="bg-white p-6 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            {/* Title */}
-            <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
-              {vitalToggle === 'systolic' ? t('provider.systolicTrend')
-                : vitalToggle === 'diastolic' ? t('provider.diastolicTrend')
-                : t('provider.bpTrend')}
-              {' '}&middot; {trendDetail?.patient?.name ?? trendAlert?.name ?? t('provider.selectPatient')}
-            </h2>
+                  {/* Chart */}
+                  {trendLoading ? (
+                    <BPTrendSkeleton />
+                  ) : bpTrendData.length > 0 ? (() => {
+                    const showSys = vitalToggle === 'systolic' || vitalToggle === 'both';
+                    const showDia = vitalToggle === 'diastolic' || vitalToggle === 'both';
+                    const allVals = [
+                      ...(showSys ? bpTrendData.map((d) => d.systolic).filter((v): v is number => v != null) : []),
+                      ...(showDia ? bpTrendData.map((d) => d.diastolic).filter((v): v is number => v != null) : []),
+                    ];
+                    const yMin = allVals.length > 0 ? Math.floor((Math.min(...allVals) - 10) / 10) * 10 : 60;
+                    const yMax = allVals.length > 0 ? Math.ceil((Math.max(...allVals) + 10) / 10) * 10 : 190;
+                    const yTicks: number[] = [];
+                    for (let v = yMin; v <= yMax; v += 10) yTicks.push(v);
 
-            {/* Vital toggle */}
-            <div className="flex items-center gap-1 mb-3">
-              {(['systolic', 'diastolic', 'both'] as VitalToggle[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setVitalToggle(v)}
-                  className="px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
-                  style={{
-                    backgroundColor: vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-background)',
-                    color: vitalToggle === v ? '#fff' : 'var(--brand-text-muted)',
-                    border: `1px solid ${vitalToggle === v ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
-                  }}
-                >
-                  {v === 'systolic' ? t('provider.systolic') : v === 'diastolic' ? t('provider.diastolic') : t('provider.both')}
-                </button>
-              ))}
-            </div>
-
-            {/* Preset buttons + date pickers */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {['7D', '30D', '60D', '90D'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handleTrendPreset(p)}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
-                  style={{
-                    backgroundColor: trendPreset === p ? 'var(--brand-primary-purple-light)' : 'var(--brand-background)',
-                    color: trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-text-muted)',
-                    border: `1px solid ${trendPreset === p ? 'var(--brand-primary-purple)' : 'var(--brand-border)'}`,
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-              <div className="flex items-center gap-1 ml-auto">
-                <input
-                  type="date"
-                  value={trendStartDate}
-                  max={trendEndDate}
-                  onChange={(e) => { setTrendStartDate(e.target.value); setTrendPreset(''); }}
-                  className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
-                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
-                />
-                <span className="text-[10px]" style={{ color: 'var(--brand-text-muted)' }}>–</span>
-                <input
-                  type="date"
-                  value={trendEndDate}
-                  min={trendStartDate}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => { setTrendEndDate(e.target.value); setTrendPreset(''); }}
-                  className="text-[10px] px-1.5 py-0.5 rounded border outline-none"
-                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-text-secondary)' }}
-                />
-              </div>
-            </div>
-
-            {/* Chart */}
-            {trendLoading ? (
-              <BPTrendSkeleton />
-            ) : bpTrendData.length > 0 ? (() => {
-              const showSys = vitalToggle === 'systolic' || vitalToggle === 'both';
-              const showDia = vitalToggle === 'diastolic' || vitalToggle === 'both';
-              const allVals = [
-                ...(showSys ? bpTrendData.map((d) => d.systolic).filter((v): v is number => v != null) : []),
-                ...(showDia ? bpTrendData.map((d) => d.diastolic).filter((v): v is number => v != null) : []),
-              ];
-              const yMin = allVals.length > 0 ? Math.floor((Math.min(...allVals) - 10) / 10) * 10 : 60;
-              const yMax = allVals.length > 0 ? Math.ceil((Math.max(...allVals) + 10) / 10) * 10 : 190;
-              const yTicks: number[] = [];
-              for (let v = yMin; v <= yMax; v += 10) yTicks.push(v);
-
-              return (
-                <div style={{ height: 250 }} className="relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={bpTrendData}>
-                      <defs>
-                        <linearGradient id="colorSysDesktop" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#DC2626" stopOpacity={0.06} />
-                          <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorDiaDesktop" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.06} />
-                          <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#94A3B8', fontSize: 10 }}
-                        tickFormatter={(v: string) => { try { return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return String(v); } }}
-                        interval={bpTrendData.length <= 7 ? 0 : Math.max(0, Math.floor(bpTrendData.length / 6) - 1)}
-                      >
-                        <Label value="Date" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
-                      </XAxis>
-                      <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
-                        <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
-                      </YAxis>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const item = payload[0].payload as BpPoint;
-                            const dateStr = item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                            return (
-                              <div className="bg-white px-3 py-2 rounded-xl text-xs font-semibold" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'var(--brand-text-primary)', border: '1px solid #E9D5FF' }}>
-                                {showSys && <div style={{ color: '#DC2626' }}>Sys: {item.systolic ?? '—'}</div>}
-                                {showDia && <div style={{ color: '#2563EB' }}>Dia: {item.diastolic ?? '—'}</div>}
-                                {dateStr && <div style={{ color: '#94A3B8' }}>{dateStr}</div>}
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      {showSys && <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />}
-                      {showDia && <ReferenceLine y={90} stroke="#2563EB" strokeWidth={1} strokeDasharray="4 4" />}
-                      {showSys && (
-                        <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2} fill="url(#colorSysDesktop)" dot={{ fill: '#DC2626', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
-                      )}
-                      {showDia && (
-                        <Area type="monotone" dataKey="diastolic" stroke="#2563EB" strokeWidth={2} fill="url(#colorDiaDesktop)" dot={{ fill: '#2563EB', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
+                    return (
+                      <div style={{ height: 250 }} className="relative">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={bpTrendData}>
+                            <defs>
+                              <linearGradient id="colorSysDesktop" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#DC2626" stopOpacity={0.06} />
+                                <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="colorDiaDesktop" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.06} />
+                                <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis
+                              dataKey="date"
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: '#94A3B8', fontSize: 10 }}
+                              tickFormatter={(v: string) => { try { return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return String(v); } }}
+                              interval={bpTrendData.length <= 7 ? 0 : Math.max(0, Math.floor(bpTrendData.length / 6) - 1)}
+                            >
+                              <Label value="Date" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
+                            </XAxis>
+                            <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
+                              <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
+                            </YAxis>
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const item = payload[0].payload as BpPoint;
+                                  const dateStr = item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                                  return (
+                                    <div className="bg-white px-3 py-2 rounded-xl text-xs font-semibold" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'var(--brand-text-primary)', border: '1px solid #E9D5FF' }}>
+                                      {showSys && <div style={{ color: '#DC2626' }}>Sys: {item.systolic ?? '—'}</div>}
+                                      {showDia && <div style={{ color: '#2563EB' }}>Dia: {item.diastolic ?? '—'}</div>}
+                                      {dateStr && <div style={{ color: '#94A3B8' }}>{dateStr}</div>}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            {showSys && <ReferenceLine y={160} stroke="#DC2626" strokeWidth={1} strokeDasharray="4 4" />}
+                            {showDia && <ReferenceLine y={90} stroke="#2563EB" strokeWidth={1} strokeDasharray="4 4" />}
+                            {showSys && (
+                              <Area type="monotone" dataKey="systolic" stroke="#DC2626" strokeWidth={2} fill="url(#colorSysDesktop)" dot={{ fill: '#DC2626', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
+                            )}
+                            {showDia && (
+                              <Area type="monotone" dataKey="diastolic" stroke="#2563EB" strokeWidth={2} fill="url(#colorDiaDesktop)" dot={{ fill: '#2563EB', r: 3, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} />
+                            )}
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    );
+                  })() : (
+                    <div className="h-40 flex items-center justify-center">
+                      <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>
+                        {trendAlert ? t('provider.noBpData') : t('provider.hoverToSee')}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              );
-            })() : (
-              <div className="h-40 flex items-center justify-center">
-                <p className="text-[13px]" style={{ color: 'var(--brand-text-muted)' }}>
-                  {trendAlert ? t('provider.noBpData') : t('provider.hoverToSee')}
-                </p>
-              </div>
-            )}
-          </div>
 
-          {/* Alert Level Legend */}
-          <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-            <h3 className="text-[13px] font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
-              {t('provider.alertLegendTitle')}
-            </h3>
-            <div className="space-y-3">
-              {/* Level 1 */}
-              <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-warning-amber-light)', borderLeft: '3px solid var(--brand-warning-amber)' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-warning-amber)' }} />
-                  <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-warning-amber)' }}>
-                    {t('provider.level1')}
-                  </span>
+                {/* Alert Level Legend */}
+                <div className="bg-white p-5 rounded-2xl" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
+                  <h3 className="text-[13px] font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
+                    {t('provider.alertLegendTitle')}
+                  </h3>
+                  <div className="space-y-3">
+                    {/* Level 1 */}
+                    <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-warning-amber-light)', borderLeft: '3px solid var(--brand-warning-amber)' }}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-warning-amber)' }} />
+                        <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-warning-amber)' }}>
+                          {t('provider.level1')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
+                        {t('provider.legendL1Desc')}
+                      </p>
+                    </div>
+                    {/* Level 2 */}
+                    <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-alert-red-light)', borderLeft: '3px solid var(--brand-alert-red)' }}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-alert-red)' }} />
+                        <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-alert-red)' }}>
+                          {t('provider.level2')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
+                        {t('provider.legendL2Desc')}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
-                  {t('provider.legendL1Desc')}
-                </p>
               </div>
-              {/* Level 2 */}
-              <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--brand-alert-red-light)', borderLeft: '3px solid var(--brand-alert-red)' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--brand-alert-red)' }} />
-                  <span className="text-[11px] font-extrabold uppercase" style={{ color: 'var(--brand-alert-red)' }}>
-                    {t('provider.level2')}
-                  </span>
-                </div>
-                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
-                  {t('provider.legendL2Desc')}
-                </p>
-              </div>
-            </div>
-          </div>
-          </div>
 
             </>
           )}
@@ -967,7 +979,7 @@ export default function ProviderDashboard() {
                   <h3 className="text-[14px] font-bold" style={{ color: 'var(--brand-text-primary)' }}>
                     {vitalToggle === 'systolic' ? t('provider.systolicTrend')
                       : vitalToggle === 'diastolic' ? t('provider.diastolicTrend')
-                      : t('provider.bpTrend')}
+                        : t('provider.bpTrend')}
                     {' '}&middot; {trendDetail?.patient?.name ?? trendAlert.name}
                   </h3>
                 </div>
@@ -1041,7 +1053,9 @@ export default function ProviderDashboard() {
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10 }}
                           tickFormatter={(v: string) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           interval={Math.max(0, Math.floor(bpTrendData.length / 5) - 1)}
-                        />
+                        >
+                          <Label value="Date" position="insideBottom" offset={-2} style={{ fill: '#000000', fontSize: 10 }} />
+                        </XAxis>
                         <YAxis domain={[yMin, yMax]} ticks={yTicks} axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 11 }} width={38}>
                           <Label value="mmHg" angle={-90} position="insideLeft" offset={-3} style={{ fill: '#000000', fontSize: 10 }} />
                         </YAxis>
