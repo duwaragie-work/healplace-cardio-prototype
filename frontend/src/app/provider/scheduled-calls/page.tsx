@@ -692,7 +692,7 @@ export default function ScheduledCallsPage() {
 
         {/* Summary Stats */}
         {!loading && (
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
             {[
               { ...STATUS_META.upcoming, count: counts.upcoming },
               { ...STATUS_META.completed, count: counts.completed },
@@ -703,19 +703,19 @@ export default function ScheduledCallsPage() {
                 <button
                   key={s.label}
                   onClick={() => setStatusFilter(s.label === statusFilter ? 'ALL' : s.label.toLowerCase())}
-                  className="bg-white p-4 rounded-2xl text-left transition-all hover:scale-[1.01]"
+                  className="bg-white p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all hover:scale-[1.01]"
                   style={{
                     boxShadow: '0 1px 20px rgba(123,0,224,0.07)',
                     border: statusFilter === s.label.toLowerCase() ? `2px solid ${s.color}` : '2px solid transparent',
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className="w-4 h-4" style={{ color: s.color }} />
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--brand-text-muted)' }}>
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" style={{ color: s.color }} />
+                    <span className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: 'var(--brand-text-muted)' }}>
                       {{ Upcoming: t('provider.upcoming'), Completed: t('provider.completed'), Missed: t('provider.missed'), Cancelled: t('provider.cancelled') }[s.label] ?? s.label}
                     </span>
                   </div>
-                  <p className="text-2xl font-bold" style={{ color: s.color }}>
+                  <p className="text-xl sm:text-2xl font-bold" style={{ color: s.color }}>
                     {s.count}
                   </p>
                 </button>

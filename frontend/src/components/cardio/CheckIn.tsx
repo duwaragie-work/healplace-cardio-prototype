@@ -525,40 +525,6 @@ function Step2BP({
         )}
       </AnimatePresence>
 
-      <div className="h-px" style={{ backgroundColor: 'var(--brand-border)' }} />
-
-      {/* Medication toggle */}
-      <div>
-        <p className="text-[15px] font-semibold mb-3" style={{ color: 'var(--brand-text-primary)' }}>
-          {t('checkin.medicationQuestion')}
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { value: 'yes', label: t('checkin.medicationTaken'), activeColor: 'var(--brand-success-green)' },
-            { value: 'no', label: t('checkin.medicationMissed'), activeColor: 'var(--brand-alert-red)' },
-          ].map((opt) => {
-            const isActive = form.medication === opt.value;
-            return (
-              <motion.button
-                key={opt.value}
-                onClick={() => onChange('medication', opt.value)}
-                className="h-12 rounded-full text-sm font-semibold transition-all border-2"
-                style={{
-                  backgroundColor: isActive ? opt.activeColor : 'white',
-                  borderColor: isActive ? opt.activeColor : 'var(--brand-border)',
-                  color: isActive ? 'white' : 'var(--brand-text-secondary)',
-                  boxShadow: isActive ? `0 4px 12px ${opt.activeColor}40` : 'none',
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                {opt.label}
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
     </div>
   );
 }
@@ -911,6 +877,7 @@ export default function CheckIn() {
   const [submitted, setSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [validationError, setValidationError] = useState('');
   const [recentReadings, setRecentReadings] = useState<RecentReading[]>([]);
   const [readingsLoading, setReadingsLoading] = useState(true);
   const [baseline, setBaseline] = useState<Baseline | null>(null);
@@ -960,6 +927,7 @@ export default function CheckIn() {
   }, []);
 
   const onChange = (key: keyof FormData, value: string) => {
+    if (validationError) setValidationError('');
     setForm((prev) => {
       if (key === 'symptoms') {
         try { return { ...prev, symptoms: JSON.parse(value) }; } catch { return prev; }
@@ -998,6 +966,32 @@ export default function CheckIn() {
   };
 
   const goNext = () => {
+    setValidationError('');
+
+    // Step 0 (Date): date is required
+    if (step === 0 && !form.date) {
+      setValidationError('Please select a date.');
+      return;
+    }
+
+    // Step 1 (BP): systolic and diastolic are required
+    if (step === 1) {
+      const sys = parseInt(form.systolic || '0', 10);
+      const dia = parseInt(form.diastolic || '0', 10);
+      if (!form.systolic || !form.diastolic) {
+        setValidationError('Please enter both systolic (top) and diastolic (bottom) numbers.');
+        return;
+      }
+      if (sys < 60 || sys > 250) {
+        setValidationError('Systolic should be between 60 and 250.');
+        return;
+      }
+      if (dia < 40 || dia > 150) {
+        setValidationError('Diastolic should be between 40 and 150.');
+        return;
+      }
+    }
+
     if (step < 4) {
       setDir(1);
       setStep((s) => s + 1);
@@ -1036,12 +1030,12 @@ export default function CheckIn() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--brand-background)' }}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ backgroundColor: 'var(--brand-background)' }}>
       {/* Body */}
       <div className="flex-1 w-full max-w-300 mx-auto px-4 md:px-8 pt-5 md:pt-8 pb-24 lg:pb-10">
-        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-stretch">
           {/* Left: Form column */}
-          <div className="w-full lg:flex-1 flex flex-col min-w-0">
+          <div className="w-full lg:flex-1 flex flex-col min-w-0 max-w-full">
             <div className="hidden lg:block">
               <StepBar current={step} />
             </div>
@@ -1170,10 +1164,10 @@ export default function CheckIn() {
               </div>
 
               {/* Submit error */}
-              {submitError && (
+              {(submitError || validationError) && (
                 <div className="px-6 pb-2">
-                  <p className="text-[13px] text-center" style={{ color: 'var(--brand-alert-red)' }}>
-                    {submitError}
+                  <p className="text-[13px] text-center font-semibold px-3 py-1.5 rounded-lg" style={{ color: 'var(--brand-alert-red)', backgroundColor: 'var(--brand-alert-red-light)' }}>
+                    {validationError || submitError}
                   </p>
                 </div>
               )}
@@ -1227,9 +1221,15 @@ export default function CheckIn() {
 
       {/* Mobile sticky bottom nav buttons */}
       <div
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white px-4 py-3 flex gap-3 z-30"
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white px-4 py-3 z-30"
         style={{ borderTop: '1px solid var(--brand-border)', boxShadow: '0 -4px 16px rgba(0,0,0,0.07)' }}
       >
+        {validationError && (
+          <p className="text-[11px] font-semibold text-center mb-2 px-2 py-1.5 rounded-lg" style={{ color: 'var(--brand-alert-red)', backgroundColor: 'var(--brand-alert-red-light)' }}>
+            {validationError}
+          </p>
+        )}
+        <div className="flex gap-3">
         <button
           onClick={goBack}
           className="h-12 px-5 rounded-full border-2 text-sm font-semibold flex items-center gap-1.5 shrink-0"
@@ -1247,6 +1247,7 @@ export default function CheckIn() {
         >
           {step === 4 ? (isSubmitting ? t('checkin.submitting') : t('common.submit')) : t('common.next')}
         </motion.button>
+        </div>
       </div>
     </div>
   );

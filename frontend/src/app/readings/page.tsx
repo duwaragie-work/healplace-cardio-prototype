@@ -752,7 +752,7 @@ export default function ReadingsPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#FAFBFF' }}>
       <div className="max-w-2xl mx-auto px-4 md:px-8 py-6">
         {/* Page header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <Link
               href="/check-in"

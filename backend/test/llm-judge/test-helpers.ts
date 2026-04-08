@@ -21,53 +21,56 @@ export async function setupTestApp(): Promise<TestContext> {
 
   const app = moduleFixture.createNestApplication()
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
-  await app.init()
+
+  // Use listen(0) instead of init() so the HTTP server is actually bound
+  // (required for Socket.IO voice tests and supertest)
+  await app.listen(0)
 
   const prisma = app.get(PrismaService)
   const jwtService = app.get(JwtService)
 
-  // Create or find a test user
-  const testEmail = 'llm-judge-test@healplace.test'
-  let user = await prisma.user.findFirst({ where: { email: testEmail } })
-
+  // Create or find test user — use Prisma enum values
+  const email = 'llm-judge-test@healplace.test'
+  let user = await prisma.user.findFirst({ where: { email } })
   if (!user) {
     user = await prisma.user.create({
       data: {
-        email: testEmail,
+        email,
         name: 'Test Patient',
         primaryCondition: 'hypertension',
-        riskTier: 'moderate',
+        riskTier: 'ELEVATED' as any,
         preferredLanguage: 'en',
         dateOfBirth: new Date('1975-06-15'),
       },
     })
   }
 
-  // Generate JWT
-  const jwt = jwtService.sign(
-    { sub: user.id, email: user.email },
-    { secret: process.env.JWT_ACCESS_SECRET || 'test-secret' },
-  )
+  // Sign JWT using the same secret the app reads from env
+  const jwt = jwtService.sign({ sub: user.id, email: user.email })
 
   return { app, jwt, userId: user.id, prisma }
 }
 
-export async function teardownTestApp(ctx: TestContext): Promise<void> {
-  // Clean up test sessions and conversations
-  const sessions = await ctx.prisma.session.findMany({
-    where: { userId: ctx.userId },
-    select: { id: true },
-  })
-  const sessionIds = sessions.map((s) => s.id)
-
-  if (sessionIds.length > 0) {
-    await ctx.prisma.conversation.deleteMany({
-      where: { sessionId: { in: sessionIds } },
+export async function teardownTestApp(ctx: TestContext | undefined) {
+  if (!ctx) return
+  try {
+    const sessions = await ctx.prisma.session.findMany({
+      where: { userId: ctx.userId },
+      select: { id: true },
     })
-    await ctx.prisma.session.deleteMany({
-      where: { id: { in: sessionIds } },
-    })
-  }
+    const ids = sessions.map((s) => s.id)
+    if (ids.length) {
+      await ctx.prisma.conversation.deleteMany({ where: { sessionId: { in: ids } } })
+      await ctx.prisma.session.deleteMany({ where: { id: { in: ids } } })
+    }
+  } catch { /* best effort cleanup */ }
+  try { await ctx.app.close() } catch { /* already closed */ }
+}
 
-  await ctx.app.close()
+/** Get the base URL of the running test app */
+export function getBaseUrl(app: INestApplication): string {
+  const srv = app.getHttpServer()
+  const addr = srv.address()
+  const port = typeof addr === 'object' ? addr?.port : addr
+  return `http://localhost:${port}`
 }
