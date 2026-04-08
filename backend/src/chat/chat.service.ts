@@ -200,51 +200,39 @@ export class ChatService {
 
         console.log(`Executing tool: ${toolName}`, JSON.stringify(toolArgs))
 
-        // Guard: before executing submit_checkin, verify the check-in flow
-        // was actually followed — BP numbers provided, weight/medication/symptoms asked.
         let resultStr: string
+
+        // Guard submit_checkin: verify the model actually asked about medication,
+        // symptoms, and weight in the conversation before allowing the save.
         if (toolName === 'submit_checkin') {
-          const allUserText = contents
-            .filter((c) => c.role === 'user')
-            .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => p.text) ?? [])
-            .join(' ')
           const allModelText = contents
             .filter((c) => c.role === 'model')
             .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => p.text) ?? [])
             .join(' ')
             .toLowerCase()
 
-          const hasBPNumbers = /\d{2,3}\s*(\/|and|over|,)\s*\d{2,3}/.test(allUserText)
-          const askedDate = /date|when|what day/.test(allModelText)
-          const askedTime = /time|when.*taken/.test(allModelText)
-          const askedWeight = /weight/.test(allModelText)
-          const askedMedication = /medication/.test(allModelText)
-          const askedSymptoms = /symptom/.test(allModelText)
+          const askedMedication = /medication|meds|medicine|pills/.test(allModelText)
+          const askedSymptoms = /symptom|headache|dizziness|chest/.test(allModelText)
+          const askedWeight = /weight|weigh|lbs|pounds/.test(allModelText)
 
-          const missingSteps: string[] = []
-          if (!askedDate) missingSteps.push('date (ask: "What date is this reading for?")')
-          if (!askedTime) missingSteps.push('time (ask: "What time was this reading taken?")')
-          if (!hasBPNumbers) missingSteps.push('BP numbers (ask for the systolic/top number and diastolic/bottom number)')
-          if (!askedWeight) missingSteps.push('weight (ask: "What is your weight today in pounds? You can skip this if you don\'t know.")')
-          if (!askedMedication) missingSteps.push('medication (ask: "Did you take your medication today?")')
-          if (!askedSymptoms) missingSteps.push('symptoms (ask: "Any symptoms like headache, dizziness, chest tightness, or shortness of breath?")')
+          const missing: string[] = []
+          if (!askedMedication) missing.push('medication (ask: "Did you take your medication today?")')
+          if (!askedSymptoms) missing.push('symptoms (ask: "Any symptoms like headache, dizziness, or chest tightness?")')
+          if (!askedWeight) missing.push('weight (ask: "Do you know your weight today? Totally fine to skip.")')
 
-          if (missingSteps.length > 0) {
-            console.log(`[submit_checkin BLOCKED] Missing steps: ${missingSteps.join(', ')}`)
+          if (missing.length > 0) {
+            console.log(`[submit_checkin BLOCKED] Not yet asked about: ${missing.join(', ')}`)
             resultStr = JSON.stringify({
               saved: false,
-              message:
-                `REJECTED: You have not completed the check-in flow. Missing steps: ${missingSteps.join('; ')}. ` +
-                'You MUST ask each of these questions and wait for the patient to answer before calling submit_checkin.',
+              message: `You still need to ask the patient about: ${missing.join('; ')}. Ask the next missing question now.`,
             })
           } else {
             resultStr = await executeJournalTool(toolName, toolArgs, this.dailyJournalService, userId)
           }
-        } else if (toolName === 'update_checkin' || toolName === 'delete_checkin') {
-          resultStr = await executeJournalTool(toolName, toolArgs, this.dailyJournalService, userId)
         } else {
           resultStr = await executeJournalTool(toolName, toolArgs, this.dailyJournalService, userId)
         }
+
         console.log(`Tool result [${toolName}]:`, resultStr.slice(0, 200))
 
         // Detect emergency from flag_emergency tool
@@ -262,40 +250,14 @@ export class ChatService {
 
         if (toolName !== 'flag_emergency') {
           try {
-            const parsed = JSON.parse(resultStr)
-            // Only add to toolResults if the tool actually succeeded (not rejected)
-            if (!parsed.message?.startsWith('REJECTED:')) {
-              toolResults.push({ tool: toolName, result: parsed })
-            }
+            toolResults.push({ tool: toolName, result: JSON.parse(resultStr) })
           } catch {
             toolResults.push({ tool: toolName, result: { message: resultStr } })
           }
         }
       }
 
-      // Check if any tool calls were rejected and add appropriate hints
       contents.push({ role: 'user', parts: functionResponseParts })
-      const rejections = functionResponseParts.filter((p) => {
-        const resp = p.functionResponse?.response
-        return resp?.message?.startsWith('REJECTED:')
-      })
-      if (rejections.length > 0) {
-        // Check what type of rejection — update/delete needs get_recent_readings first
-        const needsReadings = rejections.some((p) =>
-          p.functionResponse?.response?.message?.includes('get_recent_readings'),
-        )
-        if (needsReadings) {
-          contents.push({
-            role: 'user',
-            parts: [{ text: 'The tool call was rejected because you need to call get_recent_readings first. Call get_recent_readings now to get the correct entry IDs, then retry the update or delete with the exact ID from the response.' }],
-          })
-        } else {
-          contents.push({
-            role: 'user',
-            parts: [{ text: 'The tool call was rejected. Please respond to the patient with a text message asking for the missing information.' }],
-          })
-        }
-      }
     }
 
     return { text: fullText, toolResults, emergency }

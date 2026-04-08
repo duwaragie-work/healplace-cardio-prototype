@@ -57,24 +57,28 @@ export function getJournalToolDeclarations(): FunctionDeclaration[] {
     {
       name: 'submit_checkin',
       description:
-        'Submit a new blood pressure check-in for the patient. ' +
-        'STRICT RULE: You MUST ask the patient for their systolic and diastolic BP numbers ' +
-        'and WAIT for their reply BEFORE calling this tool. NEVER use default, assumed, or ' +
-        'round numbers (e.g. 120/80). If the patient has not explicitly stated their BP ' +
-        'numbers in this conversation, DO NOT call this tool — ask them first.',
+        'Submit a new blood pressure check-in. ' +
+        'BEFORE calling this tool you MUST have asked the patient AND received their answer for ALL of these: ' +
+        '1) BP numbers (systolic and diastolic), ' +
+        '2) Did they take their medication? (must be a real yes/no from the patient), ' +
+        '3) Any symptoms? (must be a real answer from the patient — even "none" counts), ' +
+        '4) Their weight (they can skip). ' +
+        'If ANY of these have not been explicitly answered by the patient in the conversation, ' +
+        'DO NOT call this tool — ask the missing question first. ' +
+        'After collecting everything, you must summarise and get the patient to confirm before calling.',
       parameters: {
         type: Type.OBJECT,
         properties: {
-          entry_date: { type: Type.STRING, description: 'Date in YYYY-MM-DD format. Use today if not specified.' },
-          measurement_time: { type: Type.STRING, description: 'Time the reading was taken in HH:mm 24-hour format (e.g. "08:30", "14:15"). Omit to use current time.' },
-          systolic_bp: { type: Type.NUMBER, description: 'Systolic (top number) of the blood pressure reading (60–250). MUST be explicitly stated by the patient.' },
-          diastolic_bp: { type: Type.NUMBER, description: 'Diastolic (bottom number) of the blood pressure reading (40–150). MUST be explicitly stated by the patient.' },
-          medication_taken: { type: Type.BOOLEAN, description: 'Whether the patient took their medications today. You MUST ask and get a yes/no answer before calling this tool.' },
-          weight: { type: Type.NUMBER, description: 'Weight in lbs. Omit if the patient skips this.' },
-          symptoms: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'List of symptoms reported. ALWAYS in English regardless of conversation language.' },
-          notes: { type: Type.STRING, description: 'Any extra notes. ALWAYS in English regardless of conversation language.' },
+          entry_date: { type: Type.STRING, description: 'Date in YYYY-MM-DD format.' },
+          measurement_time: { type: Type.STRING, description: 'Time in HH:mm 24-hour format (e.g. "08:30", "14:15").' },
+          systolic_bp: { type: Type.NUMBER, description: 'Systolic (top number, 60–250). Must come from the patient.' },
+          diastolic_bp: { type: Type.NUMBER, description: 'Diastolic (bottom number, 40–150). Must come from the patient.' },
+          medication_taken: { type: Type.BOOLEAN, description: 'Did the patient take their meds? Must be explicitly answered by the patient.' },
+          weight: { type: Type.NUMBER, description: 'Weight in lbs. Omit if skipped.' },
+          symptoms: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Symptoms list in English. Empty array [] if patient said none.' },
+          notes: { type: Type.STRING, description: 'Extra notes in English. Omit if none.' },
         },
-        required: ['entry_date', 'systolic_bp', 'diastolic_bp', 'medication_taken'],
+        required: ['entry_date', 'measurement_time', 'systolic_bp', 'diastolic_bp', 'medication_taken', 'symptoms'],
       },
     },
     {
