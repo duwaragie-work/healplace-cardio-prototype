@@ -42,6 +42,12 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
     """
     messages: list[voice_pb2.ServerMessage] = []
 
+    # Debug: log event attributes to see what Gemini is sending
+    event_attrs = [a for a in dir(event) if not a.startswith('_')]
+    has_content = hasattr(event, 'content') and event.content is not None
+    has_sc = hasattr(event, 'server_content') and event.server_content is not None
+    logger.info("[EVENT] attrs=%s has_content=%s has_server_content=%s", event_attrs[:10], has_content, has_sc)
+
     # ── Standard ADK content path ──────────────────────────────────────────
     content = getattr(event, "content", None)
     if content:
@@ -140,6 +146,14 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
                 )
             )
 
+    # Debug: log what was extracted
+    transcript_msgs = [m for m in messages if m.HasField("transcript") and m.transcript.text.strip()]
+    audio_msgs = [m for m in messages if m.HasField("audio")]
+    if transcript_msgs:
+        logger.info("[EVENT] Extracted %d transcripts: %s", len(transcript_msgs), [(m.transcript.speaker, m.transcript.text[:50]) for m in transcript_msgs])
+    if audio_msgs:
+        logger.info("[EVENT] Extracted %d audio chunks", len(audio_msgs))
+
     return messages
 
 
@@ -168,6 +182,7 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
         mode = init.mode or "chat"
         patient_context = init.patient_context or "No context available."
         auth_token = init.auth_token
+        language = init.language or "en-US"
 
         logger.info(
             "New voice session [user=%s mode=%s]", user_id, mode
@@ -203,15 +218,18 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
         # ── Step 4a: Task — run ADK agent, push events to out_queue ───────
         async def run_agent_task() -> None:
             try:
-                # gemini-3.1-flash-live-preview is a native-audio model.
-                # Transcription configs with language_codes=null cause 1007,
-                # so we disable them. History is captured via tool call args
-                # and text sent through the input queue.
+                # Enable transcription so voice conversations are persisted.
+                try:
+                    _tx_config = genai_types.AudioTranscriptionConfig()
+                except Exception:
+                    _tx_config = None
+
                 run_config = RunConfig(
                     response_modalities=["AUDIO"],
-                    output_audio_transcription=None,
-                    input_audio_transcription=None,
+                    output_audio_transcription=_tx_config,
+                    input_audio_transcription=_tx_config,
                 )
+                logger.info("[Config] RunConfig: modalities=AUDIO, transcription=%s", "enabled" if _tx_config else "disabled")
                 async for event in runner.run_live(
                     user_id=user_id,
                     session_id=session.id,

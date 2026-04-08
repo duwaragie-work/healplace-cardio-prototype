@@ -24,6 +24,7 @@ def make_tools(
     auth_token: str,
     out_queue: asyncio.Queue,
     loop: asyncio.AbstractEventLoop,
+    patient_timezone: str = "America/New_York",
 ) -> list:
     """
     Return the list of ADK tool functions for a single voice session.
@@ -80,22 +81,34 @@ def make_tools(
             voice_pb2.ServerMessage(
                 action=voice_pb2.ActionNotice(
                     type="submitting_checkin",
-                    detail="Saving your check-in…",
+                    detail=f"BP={systolic_bp}/{diastolic_bp} meds={'taken' if medication_taken else 'missed'} symptoms={','.join(symptoms) if symptoms else 'none'} weight={weight or 'N/A'}",
                 )
             )
         )
 
-        resolved_date = datetime.now().strftime("%Y-%m-%d")
+        # Resolve date/time in the patient's timezone
+        try:
+            from zoneinfo import ZoneInfo
+            patient_now = datetime.now(ZoneInfo(patient_timezone))
+        except Exception:
+            patient_now = datetime.now()
+
+        resolved_date = patient_now.strftime("%Y-%m-%d")
         if entry_date and entry_date.strip():
             try:
                 datetime.strptime(entry_date.strip(), "%Y-%m-%d")
                 resolved_date = entry_date.strip()
             except ValueError:
-                logger.warning("Invalid entry_date '%s', defaulting to today", entry_date)
+                logger.warning("Invalid entry_date '%s', defaulting to today in %s", entry_date, patient_timezone)
 
-        resolved_time = ""
+        resolved_time = patient_now.strftime("%H:%M")
         if measurement_time and measurement_time.strip():
-            resolved_time = measurement_time.strip()
+            mt = measurement_time.strip().lower()
+            if mt in ("now", "current", "current time", "right now"):
+                resolved_time = patient_now.strftime("%H:%M")
+                logger.info("Resolved 'now' to %s in timezone %s", resolved_time, patient_timezone)
+            else:
+                resolved_time = measurement_time.strip()
 
         payload: dict[str, Any] = {
             "entryDate": resolved_date,
@@ -165,6 +178,12 @@ def make_tools(
             dict with 'readings' (list of entries) and 'count' (int).
         """
         days = max(1, min(30, days))
+        from generated import voice_pb2 as _vpb_fetch
+        _put(
+            _vpb_fetch.ServerMessage(
+                action=_vpb_fetch.ActionNotice(type="fetching_readings", detail=f"Fetching last {days} days")
+            )
+        )
         try:
             resp = requests.get(
                 f"{NESTJS_URL}/daily-journal",
@@ -245,14 +264,27 @@ def make_tools(
         if not payload:
             return {"updated": False, "message": "No fields to update."}
 
-        # Notify client that we are updating
+        # Notify client that we are updating — include changed values in detail
+        changes = []
+        if systolic_bp is not None:
+            changes.append(f"systolic={systolic_bp}")
+        if diastolic_bp is not None:
+            changes.append(f"diastolic={diastolic_bp}")
+        if medication_taken is not None:
+            changes.append(f"medication={'taken' if medication_taken else 'missed'}")
+        if weight is not None and weight > 0:
+            changes.append(f"weight={weight}lbs")
+        if symptoms is not None:
+            changes.append(f"symptoms={','.join(symptoms) if symptoms else 'none'}")
+        detail_str = f"entry={entry_id or entry_date or 'unknown'} changes=[{', '.join(changes)}]"
+
         from generated import voice_pb2
 
         _put(
             voice_pb2.ServerMessage(
                 action=voice_pb2.ActionNotice(
                     type="updating_checkin",
-                    detail="Updating your reading…",
+                    detail=detail_str,
                 )
             )
         )
@@ -342,6 +374,12 @@ def make_tools(
         Returns:
             dict with 'deleted' (bool) and 'message' (str).
         """
+        from generated import voice_pb2 as _vpb_del
+        _put(
+            _vpb_del.ServerMessage(
+                action=_vpb_del.ActionNotice(type="deleting_checkin", detail=f"Deleting entry {entry_id}")
+            )
+        )
         try:
             resp = requests.delete(
                 f"{NESTJS_URL}/daily-journal/{entry_id}",
