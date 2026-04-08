@@ -178,18 +178,22 @@ export async function executeJournalTool(
         console.log(`[submit_checkin REJECTED] Missing fields: ${missing.join(', ')}`)
         return JSON.stringify({
           saved: false,
-          message:
-            `REJECTED: Missing required fields: ${missing.join(', ')}. ` +
-            'Before saving, you MUST ask the patient about: ' +
-            '1) Blood pressure (top and bottom number), 2) Their weight (they can skip), ' +
-            '3) Whether they took their medication, 4) Any symptoms. ' +
-            'Then summarise all values and ask "Shall I save this?" ' +
-            'Only call submit_checkin after the patient confirms.',
+          _internal: true,
+          next_action: `Ask about: ${missing[0]}`,
+        })
+      }
+      // Block future dates
+      const entryDate = args.entry_date || new Date().toISOString().slice(0, 10)
+      const today = new Date().toISOString().slice(0, 10)
+      if (entryDate > today) {
+        return JSON.stringify({
+          saved: false,
+          message: `Cannot save a check-in for a future date (${entryDate}). Check-ins can only be recorded for today or past dates. Please use today's date.`,
         })
       }
       try {
         const result = await journalService.create(userId, {
-          entryDate: args.entry_date || new Date().toISOString().slice(0, 10),
+          entryDate,
           measurementTime: normaliseTime(args.measurement_time),
           systolicBP: args.systolic_bp,
           diastolicBP: args.diastolic_bp,

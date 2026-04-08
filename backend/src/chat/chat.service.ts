@@ -76,7 +76,7 @@ export class ChatService {
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, communicationPreference: true, preferredLanguage: true },
+        select: { name: true, timezone: true, communicationPreference: true, preferredLanguage: true },
       }),
     ])
 
@@ -101,6 +101,24 @@ export class ChatService {
       systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
     }
     systemPrompt = systemPrompt + '\n\n' + patientContext
+
+    // Inject current date/time so the AI knows what "now" and "today" mean
+    const tz = user?.timezone ?? 'America/New_York'
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    const parts = formatter.formatToParts(now)
+    const y = parts.find(p => p.type === 'year')?.value
+    const mo = parts.find(p => p.type === 'month')?.value
+    const d = parts.find(p => p.type === 'day')?.value
+    const h = parts.find(p => p.type === 'hour')?.value
+    const mi = parts.find(p => p.type === 'minute')?.value
+    const currentDate = `${y}-${mo}-${d}`
+    const currentTime = `${h}:${mi}`
+    systemPrompt += `\n\nCURRENT DATE AND TIME (patient timezone ${tz}): ${currentDate} at ${currentTime}. When the patient says "now", "today", or "right now", use EXACTLY this date and time. NEVER guess a different date or time.`
 
     return systemPrompt
   }
@@ -205,26 +223,27 @@ export class ChatService {
         // Guard submit_checkin: verify the model actually asked about medication,
         // symptoms, and weight in the conversation before allowing the save.
         if (toolName === 'submit_checkin') {
-          const allModelText = contents
-            .filter((c) => c.role === 'model')
-            .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => p.text) ?? [])
+          // Check the tool args — if required fields are missing, the tool-level guard handles it.
+          // Here we just check that medication and symptoms were explicitly discussed in the conversation.
+          const allConvText = contents
+            .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => (p.text as string).toLowerCase()) ?? [])
             .join(' ')
-            .toLowerCase()
 
-          const askedMedication = /medication|meds|medicine|pills/.test(allModelText)
-          const askedSymptoms = /symptom|headache|dizziness|chest/.test(allModelText)
-          const askedWeight = /weight|weigh|lbs|pounds/.test(allModelText)
+          const hasMedicationDiscussion = /medication|meds|did you take/.test(allConvText) && /yes|no|took|missed|taken/.test(allConvText)
+          const hasSymptomsDiscussion = /symptom|headache|dizziness|chest/.test(allConvText) && /none|nope|no|headache|dizz|fine|good/.test(allConvText)
+          const hasWeightQuestion = /weight|weigh|lbs/.test(allConvText)
 
           const missing: string[] = []
-          if (!askedMedication) missing.push('medication (ask: "Did you take your medication today?")')
-          if (!askedSymptoms) missing.push('symptoms (ask: "Any symptoms like headache, dizziness, or chest tightness?")')
-          if (!askedWeight) missing.push('weight (ask: "Do you know your weight today? Totally fine to skip.")')
+          if (!hasMedicationDiscussion) missing.push('medication')
+          if (!hasSymptomsDiscussion) missing.push('symptoms')
+          if (!hasWeightQuestion) missing.push('weight')
 
           if (missing.length > 0) {
-            console.log(`[submit_checkin BLOCKED] Not yet asked about: ${missing.join(', ')}`)
+            console.log(`[submit_checkin BLOCKED] Missing discussion: ${missing.join(', ')}`)
             resultStr = JSON.stringify({
               saved: false,
-              message: `You still need to ask the patient about: ${missing.join('; ')}. Ask the next missing question now.`,
+              _internal: true,
+              next_action: `Continue asking. Missing: ${missing[0]}`,
             })
           } else {
             resultStr = await executeJournalTool(toolName, toolArgs, this.dailyJournalService, userId)
@@ -250,7 +269,14 @@ export class ChatService {
 
         if (toolName !== 'flag_emergency') {
           try {
-            toolResults.push({ tool: toolName, result: JSON.parse(resultStr) })
+            const parsed = JSON.parse(resultStr)
+            // Only add to toolResults if the tool actually succeeded
+            // Blocked/rejected calls (saved:false, updated:false from guards) stay internal
+            const wasBlocked = (toolName === 'submit_checkin' && parsed.saved === false) ||
+                               (toolName === 'update_checkin' && parsed.updated === false)
+            if (!wasBlocked) {
+              toolResults.push({ tool: toolName, result: parsed })
+            }
           } catch {
             toolResults.push({ tool: toolName, result: { message: resultStr } })
           }
@@ -260,23 +286,35 @@ export class ChatService {
       contents.push({ role: 'user', parts: functionResponseParts })
     }
 
-    // If AI returned no text but tools executed, generate a confirmation from tool results
-    if (!fullText.trim() && toolResults.length > 0) {
+    // Strip any leaked internal guard messages from the AI response
+    const guardPatterns = [
+      /You still need to ask the patient about:.*?(?:Ask the next|Do NOT call)/gs,
+      /REJECTED:.*?(?:Only call submit_checkin|before saving)/gs,
+      /You still need to ask.*?answered\./gs,
+      /Ask the next missing question ONE AT A TIME.*?\./g,
+      /Do NOT call submit_checkin again until all questions are answered\./g,
+    ]
+    for (const pattern of guardPatterns) {
+      fullText = fullText.replace(pattern, '').trim()
+    }
+
+    // Ensure tool results always produce a user-facing message
+    if (toolResults.length > 0) {
       for (const tr of toolResults) {
-        if (tr.tool === 'submit_checkin') {
-          fullText = tr.result.saved
-            ? `Your check-in has been saved successfully. ${tr.result.message || ''}`
-            : `I wasn't able to save your check-in. ${tr.result.message || 'Please try again.'}`
-        } else if (tr.tool === 'update_checkin') {
-          fullText = tr.result.updated
-            ? `Your reading has been updated successfully. ${tr.result.message || ''}`
-            : `I wasn't able to update your reading. ${tr.result.message || 'Please try again.'}`
+        if (tr.tool === 'submit_checkin' && tr.result.saved) {
+          if (!fullText.trim()) {
+            fullText = `Your check-in has been saved successfully! ${tr.result.message || ''}`
+          }
+        } else if (tr.tool === 'update_checkin' && tr.result.updated) {
+          if (!fullText.trim()) {
+            fullText = `Your reading has been updated successfully! ${tr.result.message || ''}`
+          }
         } else if (tr.tool === 'delete_checkin') {
-          fullText = tr.result.deleted
-            ? `Your reading has been deleted. ${tr.result.message || ''}`
-            : `I wasn't able to delete your reading. ${tr.result.message || 'Please try again.'}`
-        } else if (tr.result?.message) {
-          fullText = tr.result.message
+          if (!fullText.trim()) {
+            fullText = tr.result.deleted
+              ? `Your reading has been deleted. ${tr.result.message || ''}`
+              : `I wasn't able to delete your reading. ${tr.result.message || 'Please try again.'}`
+          }
         }
       }
     }
@@ -375,7 +413,26 @@ export class ChatService {
       const contents = this.buildGeminiContents(chatHistory, prompt)
 
       // ── Tier 2: Single Gemini call — LLM response + emergency detection via tool ──
-      const { text: responseText, toolResults, emergency } = await this.runToolLoop(systemPrompt, contents, userId, prompt)
+      let { text: responseText, toolResults, emergency } = await this.runToolLoop(systemPrompt, contents, userId, prompt)
+
+      // Guard: if AI just echoed the user's exact input, retry once with stronger instruction
+      const trimmedResponse = responseText.trim().toLowerCase()
+      const trimmedPrompt = prompt.trim().toLowerCase()
+      const isExactEcho = trimmedResponse === trimmedPrompt && trimmedResponse.length > 0
+      if (isExactEcho && !toolResults.length) {
+        console.log(`[AI echo detected] Response "${trimmedResponse}" = prompt "${trimmedPrompt}" — retrying`)
+        const retry = await this.runToolLoop(
+          systemPrompt + `\n\nThe patient just said: "${prompt}". This is NOT your response — it is the patient's message. You must respond to it naturally. If the patient is confirming something (yes/ok/sure), proceed with the action. If the patient said "now" for time, use the current time and ask the next question.`,
+          contents,
+          userId,
+          prompt,
+        )
+        if (retry.text.trim().length > 0 || retry.toolResults.length > 0) {
+          responseText = retry.text
+          toolResults = retry.toolResults
+          emergency = retry.emergency
+        }
+      }
 
       if (emergency.isEmergency) {
         this.recordEmergencyEvent(sessionId, userId, prompt, emergency.emergencySituation!)
