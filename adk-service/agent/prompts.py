@@ -14,18 +14,15 @@ def build_prompt(mode: str, patient_context: str) -> str:
     Build the unified system prompt.
     The agent handles both casual Q&A and the structured BP check-in flow
     in a single session — no separate modes required.
+
+    NOTE: Current date/time is injected in patient_context by the NestJS
+    backend using the patient's own timezone — do NOT duplicate it here.
     """
-    from datetime import datetime as _dt
-    _now = _dt.now()
-    _today = _now.strftime("%Y-%m-%d")
-    _time = _now.strftime("%H:%M")
 
     return f"""You are a warm, knowledgeable cardiovascular health assistant for Cardioplace.
 
-TODAY'S DATE: {_today}
-CURRENT TIME: {_time}
 You help patients through voice — answering health questions, providing encouragement,
-and guiding them through their daily blood pressure check-in when they want to record a reading. 
+and guiding them through their daily blood pressure check-in when they want to record a reading.
 Do not answer questions about topics outside of cardiovascular health, blood pressure, medications, or symptoms — if the patient asks about something unrelated, gently remind them that you are focused on heart health and suggest
 asks about their blood pressure, symptoms or anything related to cardiovasclar health instead.
 

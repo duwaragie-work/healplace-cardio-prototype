@@ -59,10 +59,10 @@ export class ChatService {
       this.prisma.journalEntry.findMany({
         where: { userId },
         orderBy: { entryDate: 'desc' },
-        take: 7,
         select: {
           entryDate: true, systolicBP: true, diastolicBP: true,
-          weight: true, medicationTaken: true,
+          weight: true, medicationTaken: true, measurementTime: true,
+          symptoms: true,
         },
       }),
       this.prisma.baselineSnapshot.findFirst({
@@ -76,7 +76,11 @@ export class ChatService {
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, timezone: true, communicationPreference: true, preferredLanguage: true },
+        select: {
+          name: true, timezone: true, communicationPreference: true,
+          preferredLanguage: true, primaryCondition: true, riskTier: true,
+          dateOfBirth: true,
+        },
       }),
     ])
 
@@ -96,10 +100,12 @@ export class ChatService {
       activeAlerts,
       communicationPreference: user?.communicationPreference ?? null,
       preferredLanguage: user?.preferredLanguage ?? null,
+      patientName: user?.name ?? null,
+      primaryCondition: user?.primaryCondition ?? null,
+      riskTier: user?.riskTier ?? null,
+      dateOfBirth: user?.dateOfBirth ?? null,
     })
-    if (user?.name) {
-      systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
-    }
+
     systemPrompt = systemPrompt + '\n\n' + patientContext
 
     // Inject current date/time so the AI knows what "now" and "today" mean
@@ -220,26 +226,28 @@ export class ChatService {
 
         let resultStr: string
 
-        // Guard submit_checkin: verify the model actually asked about medication,
-        // symptoms, and weight in the conversation before allowing the save.
+        // Guard submit_checkin: ensure medication and symptoms were discussed.
+        // If the patient provided the values (tool args have them), allow it.
+        // If not, check if the model asked about them in the conversation.
         if (toolName === 'submit_checkin') {
-          // Check the tool args — if required fields are missing, the tool-level guard handles it.
-          // Here we just check that medication and symptoms were explicitly discussed in the conversation.
-          const allConvText = contents
-            .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => (p.text as string).toLowerCase()) ?? [])
+          const allText = contents
+            .flatMap((c) => (c.parts as any[])?.filter((p: any) => p.text).map((p: any) => p.text) ?? [])
             .join(' ')
 
-          const hasMedicationDiscussion = /medication|meds|did you take/.test(allConvText) && /yes|no|took|missed|taken/.test(allConvText)
-          const hasSymptomsDiscussion = /symptom|headache|dizziness|chest/.test(allConvText) && /none|nope|no|headache|dizz|fine|good/.test(allConvText)
-          const hasWeightQuestion = /weight|weigh|lbs/.test(allConvText)
+          // The patient provided medication_taken explicitly OR the model discussed it
+          const hasMedication = toolArgs.medication_taken != null || /medication|meds|medicine|pills/.test(allText)
+          // The patient provided symptoms explicitly OR the model discussed it
+          const hasSymptoms = Array.isArray(toolArgs.symptoms) || /symptom|headache|dizziness|chest|no symptom|none|nothing|fine/.test(allText)
+          // Weight was discussed or provided
+          const hasWeight = toolArgs.weight != null || /weight|weigh|lbs|pounds|skip/.test(allText)
 
           const missing: string[] = []
-          if (!hasMedicationDiscussion) missing.push('medication')
-          if (!hasSymptomsDiscussion) missing.push('symptoms')
-          if (!hasWeightQuestion) missing.push('weight')
+          if (!hasMedication) missing.push('medication (ask: "Did you take your medication today?")')
+          if (!hasSymptoms) missing.push('symptoms (ask: "Any symptoms like headache, dizziness, or chest tightness?")')
+          if (!hasWeight) missing.push('weight (ask: "Do you know your weight today? Totally fine to skip.")')
 
           if (missing.length > 0) {
-            console.log(`[submit_checkin BLOCKED] Missing discussion: ${missing.join(', ')}`)
+            console.log(`[submit_checkin BLOCKED] Missing: ${missing.join(', ')}`)
             resultStr = JSON.stringify({
               saved: false,
               _internal: true,
