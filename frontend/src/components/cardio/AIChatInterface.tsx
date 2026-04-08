@@ -1258,38 +1258,12 @@ export default function AIChatInterface() {
           .catch(() => {});
       }
 
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now() + 1, type: response.isEmergency ? 'teachback' : 'ai', source: 'text', text: response.data, time: nowTimeStr() },
-      ]);
-
-      // Show popup cards for tool results (checkin saved, updated, etc.)
-      if (response.toolResults) {
-        for (const tr of response.toolResults) {
-          if (tr.tool === 'submit_checkin' && tr.result.saved) {
-            const d = tr.result.data;
-            setPendingCheckin({
-              systolicBP: d?.systolicBP,
-              diastolicBP: d?.diastolicBP,
-              weight: d?.weight,
-              medicationTaken: d?.medicationTaken,
-              symptoms: d?.symptoms ?? [],
-              saved: true,
-            });
-          } else if (tr.tool === 'update_checkin' && tr.result.updated) {
-            const d = tr.result.data;
-            setPendingUpdateCard({
-              entryId: d?.id ?? '',
-              entryDate: d?.entryDate,
-              systolicBP: d?.systolicBP,
-              diastolicBP: d?.diastolicBP,
-              weight: d?.weight,
-              medicationTaken: d?.medicationTaken,
-              symptoms: d?.symptoms ?? [],
-              updated: true,
-            });
-          }
-        }
+      // Only add AI message if there's actual text content
+      if (response.data && response.data.trim()) {
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, type: response.isEmergency ? 'teachback' : 'ai', source: 'text', text: response.data, time: nowTimeStr() },
+        ]);
       }
     } catch {
       setIsTyping(false);
@@ -1313,6 +1287,8 @@ export default function AIChatInterface() {
     setActiveSessionId(null);
     setMessages([]);
     setShowSessions(false);
+    setPendingCheckin(null);
+    setPendingUpdateCard(null);
   };
 
   const handleRequestDelete = (sessionId: string) => {
@@ -1341,6 +1317,8 @@ export default function AIChatInterface() {
   const handleSelectSession = (id: string) => {
     setActiveSessionId(id);
     setShowSessions(false);
+    setPendingCheckin(null);
+    setPendingUpdateCard(null);
   };
 
   const handleMicClick = async () => {

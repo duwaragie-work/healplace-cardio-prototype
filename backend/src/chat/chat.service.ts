@@ -260,6 +260,27 @@ export class ChatService {
       contents.push({ role: 'user', parts: functionResponseParts })
     }
 
+    // If AI returned no text but tools executed, generate a confirmation from tool results
+    if (!fullText.trim() && toolResults.length > 0) {
+      for (const tr of toolResults) {
+        if (tr.tool === 'submit_checkin') {
+          fullText = tr.result.saved
+            ? `Your check-in has been saved successfully. ${tr.result.message || ''}`
+            : `I wasn't able to save your check-in. ${tr.result.message || 'Please try again.'}`
+        } else if (tr.tool === 'update_checkin') {
+          fullText = tr.result.updated
+            ? `Your reading has been updated successfully. ${tr.result.message || ''}`
+            : `I wasn't able to update your reading. ${tr.result.message || 'Please try again.'}`
+        } else if (tr.tool === 'delete_checkin') {
+          fullText = tr.result.deleted
+            ? `Your reading has been deleted. ${tr.result.message || ''}`
+            : `I wasn't able to delete your reading. ${tr.result.message || 'Please try again.'}`
+        } else if (tr.result?.message) {
+          fullText = tr.result.message
+        }
+      }
+    }
+
     return { text: fullText, toolResults, emergency }
   }
 
