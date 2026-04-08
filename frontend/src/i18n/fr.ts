@@ -576,7 +576,7 @@ const fr: Record<TranslationKey, string> = {
   'home.forCareTeamsSubtitle': 'Médecins, Infirmiers et Coordinateurs de Soins',
   'home.careTeam1': 'Alertes patients priorisées avant que les urgences ne surviennent.',
   'home.careTeam2': 'Tableau de bord soignant intégré aux flux de travail existants.',
-  'home.careTeam3': 'Parcours de facturation RPM et CCM intégrés dès le premier jour, avec activation complète au Mois 9 (d'inscription au programme).',
+  'home.careTeam3': 'Parcours de facturation RPM et CCM intégrés dès le premier jour, avec activation complète au Mois 9 (d\'inscription au programme).',
   'home.careTeam4': 'Données longitudinales réelles sur les patients les plus difficiles à atteindre.',
   'home.forSystems': 'Pour les Systèmes de Santé',
   'home.forSystemsSubtitle': 'Dirigeants Hospitaliers et Responsables de la Sécurité des Patients',
