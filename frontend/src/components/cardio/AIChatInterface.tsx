@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -115,7 +116,7 @@ function TypingIndicator() {
         className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
         style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)', boxShadow: '0 2px 8px rgba(123,0,224,0.3)' }}
       >
-        <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
+        <Image src="/logo.svg" alt="Cardioplace" width={30} height={30} />
       </div>
       <div
         className="flex items-center gap-1.5 px-4 py-3.5"
@@ -175,7 +176,7 @@ function MessageBubble({ msg }: { msg: Message }) {
         transition={{ duration: 0.2 }}
       >
         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)' }}>
-          <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
+          <Image src="/logo.svg" alt="Cardioplace" width={30} height={30} />
         </div>
         <div
           className="max-w-[75%] sm:max-w-[65%] px-4 py-3.5"
@@ -202,7 +203,7 @@ function MessageBubble({ msg }: { msg: Message }) {
       transition={{ duration: 0.2 }}
     >
       <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)', boxShadow: '0 8px 28px rgba(123, 0, 224, 0.14)' }}>
-        <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
+        <Image src="/logo.svg" alt="Cardioplace" width={30} height={30} />
       </div>
       <div
         className="max-w-[80%] sm:max-w-[70%] px-4 py-3.5"
@@ -519,7 +520,7 @@ function SidebarContent({
                   {/* Delete button — visible on hover */}
                   <button
                     onClick={(e) => { e.stopPropagation(); onDeleteSession(s.id); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-3 h-3" style={{ color: 'var(--brand-alert-red)' }} />
@@ -672,7 +673,7 @@ function LiveTranscriptBubbles({ lines }: { lines: TranscriptLine[] }) {
         >
           {group.speaker === 'agent' && (
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)' }}>
-              <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
+              <Image src="/logo.svg" alt="Cardioplace" width={30} height={30} />
             </div>
           )}
           <div
@@ -1016,6 +1017,7 @@ function mapSessions(arr: Array<{ id: string; title: string; summary?: string | 
 export default function AIChatInterface() {
   const { user, token } = useAuth();
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -1031,6 +1033,7 @@ export default function AIChatInterface() {
   const [deleteTarget, setDeleteTarget] = useState<Session | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const justCreatedSessionRef = useRef(false);
 
   const userInitials = getUserInitials(user?.name);
   const userName = user?.name ?? 'Patient';
@@ -1161,6 +1164,17 @@ export default function AIChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, transcript]);
 
+  // ── Pre-fill input from query param (e.g. /chat?q=My%20BP%20readings) ────
+  const qParamHandled = useRef(false);
+  useEffect(() => {
+    if (qParamHandled.current) return;
+    const q = searchParams?.get('q');
+    if (q) {
+      setInputValue(q);
+      qParamHandled.current = true;
+    }
+  }, [searchParams]);
+
   // ── Load sessions ─────────────────────────────────────────────────────────
   useEffect(() => {
     setIsLoadingSessions(true);
@@ -1178,6 +1192,12 @@ export default function AIChatInterface() {
   useEffect(() => {
     if (!activeSessionId) {
       setMessages([]);
+      return;
+    }
+    // Skip history fetch when we just created this session in handleSend —
+    // messages are already in state and the backend hasn't persisted them yet.
+    if (justCreatedSessionRef.current) {
+      justCreatedSessionRef.current = false;
       return;
     }
     setIsLoadingHistory(true);
@@ -1241,6 +1261,7 @@ export default function AIChatInterface() {
       setIsTyping(false);
 
       if (!activeSessionId && response.sessionId) {
+        justCreatedSessionRef.current = true;
         setActiveSessionId(response.sessionId);
         getChatSessions()
           .then((data) => {
@@ -1250,38 +1271,12 @@ export default function AIChatInterface() {
           .catch(() => {});
       }
 
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now() + 1, type: response.isEmergency ? 'teachback' : 'ai', source: 'text', text: response.data, time: nowTimeStr() },
-      ]);
-
-      // Show popup cards for tool results (checkin saved, updated, etc.)
-      if (response.toolResults) {
-        for (const tr of response.toolResults) {
-          if (tr.tool === 'submit_checkin' && tr.result.saved) {
-            const d = tr.result.data;
-            setPendingCheckin({
-              systolicBP: d?.systolicBP,
-              diastolicBP: d?.diastolicBP,
-              weight: d?.weight,
-              medicationTaken: d?.medicationTaken,
-              symptoms: d?.symptoms ?? [],
-              saved: true,
-            });
-          } else if (tr.tool === 'update_checkin' && tr.result.updated) {
-            const d = tr.result.data;
-            setPendingUpdateCard({
-              entryId: d?.id ?? '',
-              entryDate: d?.entryDate,
-              systolicBP: d?.systolicBP,
-              diastolicBP: d?.diastolicBP,
-              weight: d?.weight,
-              medicationTaken: d?.medicationTaken,
-              symptoms: d?.symptoms ?? [],
-              updated: true,
-            });
-          }
-        }
+      // Only add AI message if there's actual text content
+      if (response.data && response.data.trim()) {
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, type: response.isEmergency ? 'teachback' : 'ai', source: 'text', text: response.data, time: nowTimeStr() },
+        ]);
       }
     } catch {
       setIsTyping(false);
@@ -1305,6 +1300,8 @@ export default function AIChatInterface() {
     setActiveSessionId(null);
     setMessages([]);
     setShowSessions(false);
+    setPendingCheckin(null);
+    setPendingUpdateCard(null);
   };
 
   const handleRequestDelete = (sessionId: string) => {
@@ -1333,6 +1330,8 @@ export default function AIChatInterface() {
   const handleSelectSession = (id: string) => {
     setActiveSessionId(id);
     setShowSessions(false);
+    setPendingCheckin(null);
+    setPendingUpdateCard(null);
   };
 
   const handleMicClick = async () => {
@@ -1393,7 +1392,7 @@ export default function AIChatInterface() {
           </button>
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)', boxShadow: '0 8px 28px rgba(123, 0, 224, 0.14)' }}>
-              <Image src="/logo.svg" alt="Healplace" width={30} height={30} />
+              <Image src="/logo.svg" alt="Cardioplace" width={30} height={30} />
             </div>
             <div>
               <p className="text-[14px] font-semibold leading-tight" style={{ color: 'var(--brand-text-primary)' }}>{t('chat.title')}</p>
@@ -1456,7 +1455,7 @@ export default function AIChatInterface() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-xs mx-auto">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg, #7b00e017, #9233ea43)', boxShadow: '0 8px 28px rgba(123, 0, 224, 0.14)' }}>
-                  <Image src="/logo.svg" alt="Healplace" width={50} height={50} />
+                  <Image src="/logo.svg" alt="Cardioplace" width={50} height={50} />
                 </div>
                 <p className="text-[16px] font-bold mb-1.5" style={{ color: 'var(--brand-text-primary)' }}>{t('chat.howCanIHelp')}</p>
                 <p className="text-[13px] leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>

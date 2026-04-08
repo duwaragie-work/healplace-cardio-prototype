@@ -29,10 +29,10 @@ export default function About() {
   ];
 
   const dchaStats = [
-    t('about.dchaStat1'),
-    t('about.dchaStat2'),
-    t('about.dchaStat3'),
-    t('about.dchaStat4'),
+    { num: '$3B', desc: t('about.dchaStat1') },
+    { num: '$2.2B', desc: t('about.dchaStat2') },
+    { num: '828K', desc: t('about.dchaStat3') },
+    { num: '$100M', desc: t('about.dchaStat4') },
   ];
 
   return (
@@ -47,7 +47,7 @@ export default function About() {
               <div className="bg-[#7b00e0] inline-flex items-center justify-center px-4 py-1.5 md:py-2 rounded-full w-fit">
                 <span className="font-bold text-white text-xs md:text-sm tracking-widest uppercase">{t('about.visionBadge')}</span>
               </div>
-              <h1 className="font-bold text-[#191c1d] text-3xl sm:text-4xl md:text-5xl lg:text-[64px] leading-[1.1] tracking-tight">
+              <h1 className="font-bold text-[#191c1d] text-2xl sm:text-3xl md:text-5xl lg:text-[64px] leading-[1.1] tracking-tight">
                 {t('about.heroTitle').split(t('about.heroTitleHighlight')).map((part, i, arr) => (
                   <span key={i}>
                     {part}
@@ -65,7 +65,7 @@ export default function About() {
               <div className="absolute -right-20 -top-16 w-96 h-96 rounded-full bg-[rgba(92,0,169,0.05)] blur-[32px]" />
               <div className="relative">
                 <div className="bg-white border border-[rgba(207,194,216,0.2)] rounded-[32px] sm:rounded-[40px] p-3 sm:p-4 shadow-2xl relative z-10 w-full max-w-[448px]" style={{ transform: 'rotate(2deg)' }}>
-                  <div className="bg-[#f3f4f5] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 min-h-[400px] sm:min-h-[500px] flex flex-col">
+                  <div className="bg-[#f3f4f5] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 min-h-[320px] sm:min-h-[400px] md:min-h-[500px] flex flex-col">
                     <div className="flex items-center gap-3 pb-4 border-b border-[rgba(207,194,216,0.1)]">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundImage: 'linear-gradient(135deg, #7b00e0 0%, #5c00a9 100%)' }}>
                         <Image src="/logo2.png" alt="" width={22} height={22} />
@@ -113,12 +113,32 @@ export default function About() {
           </div>
         </section>
 
+        {/* ============ WHERE IT STARTED ============ */}
+        <section className="w-full bg-white py-12 md:py-20">
+          <div className="max-w-[800px] mx-auto px-4 sm:px-6 md:px-8 flex flex-col gap-6 md:gap-8">
+            <div className="flex flex-col gap-3">
+              <span className="text-[#5c00a9] text-xs md:text-sm font-bold tracking-[0.2em] uppercase">{t('about.whereItStartedLabel')}</span>
+              <h2 className="font-bold text-[#191c1d] text-2xl sm:text-3xl md:text-4xl leading-tight">{t('about.whereItStartedHeading')}</h2>
+            </div>
+            <div className="flex flex-col gap-5 text-[#4c4355] text-base md:text-lg leading-relaxed">
+              <p>{t('about.whereItStartedP1')}</p>
+              <p>{t('about.whereItStartedP2')}</p>
+              <p className="italic font-semibold text-[#191c1d]">{t('about.whereItStartedQuestions')}</p>
+              <p>{t('about.whereItStartedP3')}</p>
+              <p>{t('about.whereItStartedP4')}</p>
+              <p>{t('about.whereItStartedP5')}</p>
+              <p className="font-semibold text-[#191c1d]">{t('about.whereItStartedP6')}</p>
+              <p className="italic text-[#5c00a9] text-sm md:text-base">{t('about.whereItStartedAttribution')}</p>
+            </div>
+          </div>
+        </section>
+
         {/* ============ PARTNERSHIP SECTION ============ */}
         <section className="w-full bg-[#f5eafa] py-12 md:py-24">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8">
             <div className="flex flex-col items-center gap-4 md:gap-6 mb-10 md:mb-16">
-              <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#eedbff]">
-                <Image src="/DCHA-Logo.png" alt="DC Hospital Association" width={120} height={48} className="object-contain" />
+              <div className="bg-white rounded-2xl px-4 py-2 sm:px-5 sm:py-3 shadow-md border border-[#eedbff]">
+                <Image src="/DCHA-Logo.png" alt="DC Hospital Association" width={300} height={300} className="w-28 h-20 sm:w-32 sm:h-24 md:w-36 md:h-28 object-contain" />
               </div>
               <h2 className="font-semibold text-[#7b00e0] text-2xl sm:text-3xl md:text-4xl lg:text-[48px] text-center">{t('about.partnershipTitle')}</h2>
             </div>
@@ -129,10 +149,11 @@ export default function About() {
               <p className="text-[#4c4355] text-base md:text-lg leading-relaxed">{t('about.partnershipDesc3')}</p>
 
               {/* DCHA Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 my-6 md:my-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6 md:my-8">
                 {dchaStats.map((stat, i) => (
-                  <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 border border-[#eedbff] shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[#7b00e0]/30 active:scale-[0.98]">
-                    <p className="text-[#1f1924] text-sm sm:text-base leading-relaxed">{stat}</p>
+                  <div key={i} className="bg-white rounded-2xl p-4 sm:p-6 border border-[#eedbff] shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[#7b00e0]/30 active:scale-[0.98] flex flex-col">
+                    <p className="text-[#5c00a9] text-xl sm:text-2xl md:text-3xl font-bold leading-none mb-2 sm:mb-3">{stat.num}</p>
+                    <p className="text-[#4c4355] text-xs sm:text-sm leading-relaxed">{stat.desc}</p>
                   </div>
                 ))}
               </div>
@@ -155,7 +176,7 @@ export default function About() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 w-full">
               {principles.map((p) => (
                 <div key={p.num} className="bg-white rounded-[24px] sm:rounded-[32px] border-b-4 border-[#5c00a9] p-6 sm:p-8 md:p-10 flex flex-col gap-3 sm:gap-4">
-                  <span className="text-[#7b00e0] text-3xl sm:text-4xl">{p.num}</span>
+                  <span className="text-[#5c00a9] text-4xl sm:text-5xl font-bold leading-none">{p.num}</span>
                   <h3 className="text-[#1f1924] text-base sm:text-lg leading-snug font-semibold">{p.title}</h3>
                   <p className="text-[#4c4355] text-sm sm:text-base leading-relaxed">{p.desc}</p>
                 </div>
@@ -239,7 +260,6 @@ export default function About() {
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8">
             <div className="flex flex-col items-center gap-4 md:gap-6 mb-10 md:mb-20 text-center">
               <h2 className="font-semibold text-[#7b00e0] text-2xl sm:text-3xl md:text-4xl lg:text-[48px]">{t('about.teamTitle')}</h2>
-              <p className="text-[#4c4355] text-base sm:text-lg md:text-xl leading-relaxed max-w-[896px]">{t('about.teamSubtitle')}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8 md:mb-12">
@@ -251,7 +271,6 @@ export default function About() {
                 <h3 className="text-[#1f1924] text-lg sm:text-xl font-semibold">Gayle Olano Hurt</h3>
                 <p className="text-[#7b00e0] text-xs sm:text-sm mt-1">{t('about.gayleCredentials')}</p>
                 <p className="text-[#4c4355] text-xs sm:text-sm font-medium mt-2">{t('about.gayleRole')}</p>
-                <p className="text-[#5c00a9] text-[10px] sm:text-xs mt-0.5">{t('about.gayleOrg')}</p>
                 <p className="text-[#4c4355] text-xs sm:text-sm leading-relaxed mt-4 sm:mt-5">{t('about.gayleBio')}</p>
               </div>
 
@@ -282,8 +301,8 @@ export default function About() {
             {/* Engineering Team */}
             <div className="bg-white rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 md:p-10 border border-[#eedbff] shadow-sm">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
-                <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0">
-                  <Users className="w-6 h-6 sm:w-7 sm:h-7 text-[#7b00e0]" />
+                <div className="bg-[#eedbff] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 border-2 border-[#7b00e0]/20">
+                  <Image src="/logo.svg" alt="Cardioplace" width={32} height={32} className="w-7 h-7 sm:w-8 sm:h-8" />
                 </div>
                 <div>
                   <h3 className="text-[#1f1924] text-lg sm:text-xl font-semibold">{t('about.engTeamTitle')}</h3>

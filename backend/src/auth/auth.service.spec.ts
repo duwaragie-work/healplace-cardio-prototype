@@ -16,6 +16,7 @@ import {
   RiskTier,
   UserRole,
 } from '../generated/prisma/enums.js'
+import { EmailService } from '../email/email.service.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { AuthService } from './auth.service.js'
 import { BcryptService } from './bcrypt.service.js'
@@ -127,7 +128,7 @@ describe('AuthService', () => {
                 GOOGLE_CLIENT_ID: 'mock-google-client-id',
                 APPLE_CLIENT_ID: 'mock-apple-client-id',
                 RESEND_API_KEY: 'test-resend-key',
-                EMAIL_FROM: 'Healplace <onboarding@resend.dev>',
+                EMAIL_FROM: 'Cardioplace <onboarding@resend.dev>',
               }
               return config[key] ?? defaultValue
             }),
@@ -138,6 +139,12 @@ describe('AuthService', () => {
           useValue: {
             hash: jest.fn(),
             compare: jest.fn(),
+          },
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendOtp: jest.fn(),
           },
         },
       ],
@@ -878,6 +885,7 @@ describe('AuthService', () => {
         emailVerified: mockUser.isVerified,
         accountStatus: 'active',
         dateOfBirth: null,
+        diagnosisDate: null,
         communicationPreference: null,
         preferredLanguage: 'en',
         riskTier: RiskTier.STANDARD,

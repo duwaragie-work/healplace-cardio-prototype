@@ -5,7 +5,6 @@ import * as protoLoader from '@grpc/proto-loader'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service.js'
-import { MistralService } from '../mistral/mistral.service.js'
 import { ConversationHistoryService } from '../chat/services/conversation-history.service.js'
 
 export interface VoiceSessionCallbacks {
@@ -50,8 +49,6 @@ interface SessionActivity {
   checkins: CheckinSummary[]
 }
 
-const TRANSCRIPTION_INTERVAL_MS = 2_000 // Transcribe every 2 seconds
-
 interface ActiveSession {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   call: any
@@ -59,12 +56,7 @@ interface ActiveSession {
   sessionId: string
   transcriptBuffer: TranscriptEntry[]
   activity: SessionActivity
-  userAudioBuffer: Buffer[]
-  agentAudioBuffer: Buffer[]
-  transcriptionTimer: ReturnType<typeof setInterval> | null
   callbacks: VoiceSessionCallbacks
-  isAgentSpeaking: boolean
-  isTranscribing: boolean
 }
 
 @Injectable()
@@ -77,7 +69,6 @@ export class VoiceService implements OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly mistral: MistralService,
     private readonly conversationHistory: ConversationHistoryService,
   ) {
     this.initGrpcClient()
@@ -137,21 +128,9 @@ export class VoiceService implements OnModuleDestroy {
     const activeSession: ActiveSession = {
       call, userId, sessionId, transcriptBuffer: [],
       activity: { userTexts: [], agentTexts: [], checkins: [] },
-      userAudioBuffer: [],
-      agentAudioBuffer: [],
-      transcriptionTimer: null,
       callbacks,
-      isAgentSpeaking: false,
-      isTranscribing: false,
     }
     this.sessions.set(socketId, activeSession)
-
-    // Start periodic transcription of both user and agent audio
-    activeSession.transcriptionTimer = setInterval(() => {
-      this.transcribeBufferedAudio(socketId).catch((err) =>
-        this.logger.error('Periodic transcription error', err),
-      )
-    }, TRANSCRIPTION_INTERVAL_MS)
 
     // ── Handle messages from ADK service ──────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,12 +145,6 @@ export class VoiceService implements OnModuleDestroy {
           : Buffer.from(msg.audio.data)
         const audioBase64 = rawData.toString('base64')
         callbacks.onAudio(audioBase64)
-        // Buffer agent audio for transcription
-        const sessA = this.sessions.get(socketId)
-        if (sessA) {
-          sessA.agentAudioBuffer.push(rawData)
-          sessA.isAgentSpeaking = true
-        }
       } else if (payload === 'transcript') {
         const t = msg.transcript
         const text: string = t.text ?? ''
@@ -231,9 +204,7 @@ export class VoiceService implements OnModuleDestroy {
         this.logger.warn(`ADK error [socket=${socketId}]: ${msg.error.message}`)
         callbacks.onError(msg.error.message ?? 'Unknown voice service error')
       } else if (payload === 'closed') {
-        this.cleanupTimer(socketId)
-        this.transcribeBufferedAudio(socketId)
-          .then(() => this.saveVoiceTranscript(socketId))
+        this.saveVoiceTranscript(socketId)
           .then(() => {
             this.sessions.delete(socketId)
             callbacks.onClose()
@@ -243,9 +214,7 @@ export class VoiceService implements OnModuleDestroy {
 
     call.on('error', (err: Error) => {
       this.logger.error(`gRPC stream error [socket=${socketId}]`, err.message)
-      this.cleanupTimer(socketId)
-      this.transcribeBufferedAudio(socketId)
-        .then(() => this.saveVoiceTranscript(socketId))
+      this.saveVoiceTranscript(socketId)
         .then(() => {
           this.sessions.delete(socketId)
           callbacks.onError('Voice service connection lost. Please try again.')
@@ -254,9 +223,7 @@ export class VoiceService implements OnModuleDestroy {
 
     call.on('end', () => {
       this.logger.log(`gRPC stream ended [socket=${socketId}]`)
-      this.cleanupTimer(socketId)
-      this.transcribeBufferedAudio(socketId)
-        .then(() => this.saveVoiceTranscript(socketId))
+      this.saveVoiceTranscript(socketId)
         .then(() => {
           this.sessions.delete(socketId)
           callbacks.onClose()
@@ -284,9 +251,6 @@ export class VoiceService implements OnModuleDestroy {
       session.call.write({
         audio: { data, mimeType: 'audio/pcm;rate=16000' },
       })
-      // Buffer user audio for Voxtral transcription
-      session.userAudioBuffer.push(data)
-      session.isAgentSpeaking = false
     } catch (err) {
       this.logger.error('Failed to forward audio to ADK service', err)
     }
@@ -314,12 +278,6 @@ export class VoiceService implements OnModuleDestroy {
     const session = this.sessions.get(socketId)
     if (!session) return
 
-    // Stop the periodic transcription timer
-    if (session.transcriptionTimer) {
-      clearInterval(session.transcriptionTimer)
-      session.transcriptionTimer = null
-    }
-
     try {
       session.call.write({ end: {} })
       session.call.end()
@@ -327,9 +285,6 @@ export class VoiceService implements OnModuleDestroy {
       // Stream may already be closed
     }
 
-    // Final transcription of any remaining audio (force through)
-    session.isTranscribing = false
-    await this.transcribeBufferedAudio(socketId)
     await this.saveVoiceTranscript(socketId)
     this.sessions.delete(socketId)
     this.logger.log(`Voice session ended [socket=${socketId}]`)
@@ -343,12 +298,8 @@ export class VoiceService implements OnModuleDestroy {
 
   // ── Private helpers ───────────────────────────────────────────────────────────
 
-  /**
-   * Resolve to an existing session or create a new one for the user.
-   */
   private async resolveSession(chatSessionId: string | undefined, userId: string): Promise<string> {
     if (chatSessionId) {
-      // Verify the session belongs to this user
       const existing = await this.prisma.session.findFirst({
         where: { id: chatSessionId, userId },
         select: { id: true },
@@ -356,100 +307,12 @@ export class VoiceService implements OnModuleDestroy {
       if (existing) return existing.id
     }
 
-    // Create a new session for this voice interaction
     const newId = randomUUID()
     await this.prisma.session.create({
       data: { id: newId, title: 'Voice Session', userId },
     })
     this.logger.log(`Created new session for voice [sessionId=${newId}]`)
     return newId
-  }
-
-  /**
-   * Summarise the accumulated voice transcript via Mistral into patient-side
-   * and AI-side summaries, then delegate to ConversationHistoryService which
-   * generates an embedding and saves to the Conversation table.
-   */
-  private cleanupTimer(socketId: string): void {
-    const session = this.sessions.get(socketId)
-    if (session?.transcriptionTimer) {
-      clearInterval(session.transcriptionTimer)
-      session.transcriptionTimer = null
-    }
-  }
-
-  /**
-   * Take buffered audio chunks for both user and agent, send to Voxtral
-   * for transcription, emit transcripts to the frontend, and push to buffers.
-   */
-  private async transcribeBufferedAudio(socketId: string): Promise<void> {
-    const session = this.sessions.get(socketId)
-    if (!session) return
-
-    // Skip if a previous transcription is still running
-    if (session.isTranscribing) return
-    session.isTranscribing = true
-
-    const hasUser = session.userAudioBuffer.length > 0
-    const hasAgent = session.agentAudioBuffer.length > 0
-    if (!hasUser && !hasAgent) {
-      session.isTranscribing = false
-      return
-    }
-
-    // Snapshot and clear buffers
-    const userChunks = hasUser ? [...session.userAudioBuffer] : []
-    const agentChunks = hasAgent ? [...session.agentAudioBuffer] : []
-    session.userAudioBuffer = []
-    session.agentAudioBuffer = []
-
-    // Minimum audio length: ~0.8s worth of audio to avoid sending tiny fragments
-    // User: 16kHz 16-bit = 32000 bytes/sec → 0.8s = 25600 bytes
-    // Agent: 24kHz 16-bit = 48000 bytes/sec → 0.8s = 38400 bytes
-    const MIN_USER = 25600
-    const MIN_AGENT = 38400
-
-    const jobs: Promise<void>[] = []
-
-    if (hasUser) {
-      const combined = Buffer.concat(userChunks)
-      if (combined.length >= MIN_USER) {
-        jobs.push(
-          this.mistral.transcribeAudio(combined).then((text) => {
-            if (text.trim()) {
-              this.logger.log(`Voxtral user transcript [${socketId}]: ${text.slice(0, 80)}`)
-              session.transcriptBuffer.push({ speaker: 'user', text: text.trim() })
-              session.activity.userTexts.push(text.trim())
-              session.callbacks.onTranscript(text.trim(), true, 'user')
-            }
-          }).catch((err) => this.logger.error('User transcription failed', err)),
-        )
-      } else {
-        // Put back if too short — will be picked up next cycle
-        session.userAudioBuffer.push(combined)
-      }
-    }
-
-    if (hasAgent) {
-      const combined = Buffer.concat(agentChunks)
-      if (combined.length >= MIN_AGENT) {
-        jobs.push(
-          this.mistral.transcribeAudio(combined).then((text) => {
-            if (text.trim()) {
-              this.logger.log(`Voxtral agent transcript [${socketId}]: ${text.slice(0, 80)}`)
-              session.transcriptBuffer.push({ speaker: 'agent', text: text.trim() })
-              session.activity.agentTexts.push(text.trim())
-              session.callbacks.onTranscript(text.trim(), true, 'agent')
-            }
-          }).catch((err) => this.logger.error('Agent transcription failed', err)),
-        )
-      } else {
-        session.agentAudioBuffer.push(combined)
-      }
-    }
-
-    await Promise.all(jobs)
-    session.isTranscribing = false
   }
 
   private async saveVoiceTranscript(socketId: string): Promise<void> {
@@ -480,7 +343,6 @@ export class VoiceService implements OnModuleDestroy {
       if (buffer.length > 0) {
         lines = buffer
       } else {
-        // Build lines from activity data
         for (const t of activitySnapshot.userTexts) {
           lines.push({ speaker: 'user', text: t })
         }
@@ -516,7 +378,6 @@ export class VoiceService implements OnModuleDestroy {
         const bp = c.systolicBP && c.diastolicBP ? `${c.systolicBP}/${c.diastolicBP}` : null
         title = bp ? `BP Check-in ${bp}` : 'Voice Check-in'
       } else if (activitySnapshot.userTexts.length > 0) {
-        // Use first user message as title hint (truncated)
         const firstMsg = activitySnapshot.userTexts[0].slice(0, 40)
         title = `Voice: ${firstMsg}${activitySnapshot.userTexts[0].length > 40 ? '…' : ''}`
       }
@@ -566,7 +427,6 @@ export class VoiceService implements OnModuleDestroy {
           : Promise.resolve(null),
       ])
 
-      // Patient profile
       const profileLines: string[] = []
       if (user?.name) profileLines.push(`Patient name: ${user.name}`)
       if (user?.primaryCondition) profileLines.push(`Primary condition: ${user.primaryCondition}`)
@@ -592,7 +452,6 @@ export class VoiceService implements OnModuleDestroy {
               .join('; ')
           : 'No recent readings'
 
-      // Count entries with complete BP data in the last 7 days
       const completeEntries = entries.filter((e) => e.systolicBP != null && e.diastolicBP != null)
       const entryCount = completeEntries.length
 

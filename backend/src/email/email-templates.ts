@@ -1,14 +1,14 @@
 const HEADER = `
   <div style="background: #7B00E0; padding: 24px; text-align: center;">
     <h1 style="color: #ffffff; margin: 0; font-family: sans-serif; font-size: 22px; letter-spacing: 1px;">
-      Healplace Cardio
+      Cardioplace
     </h1>
   </div>
 `
 
 const FOOTER = `
   <div style="padding: 16px 24px; text-align: center; color: #9ca3af; font-size: 12px; font-family: sans-serif; border-top: 1px solid #e5e7eb;">
-    This is an automated alert from Healplace Cardio. Do not reply to this email.
+    This is an automated alert from Cardioplace. Do not reply to this email.
   </div>
 `
 
@@ -89,6 +89,65 @@ export function scheduleCallEmailHtml(
     </div>
     <p style="color: #374151; line-height: 1.6;">
       Your care team will contact you at the number on file.
+    </p>
+  `)
+}
+
+export function otpEmailHtml(otp: string): string {
+  return wrap(`
+    <div style="text-align: center;">
+      <div style="margin-bottom: 16px;">
+        <span style="display: inline-block; width: 56px; height: 56px; line-height: 56px;
+                     border-radius: 50%; background: #f3f0ff; font-size: 28px;">
+          🔐
+        </span>
+      </div>
+      <h2 style="margin: 0 0 8px; color: #1a1a2e; font-size: 20px;">Your verification code</h2>
+      <p style="color: #6b7280; margin: 0 0 20px; font-size: 14px;">Enter this code to verify your identity</p>
+      <div style="background: #f5f3ff; border: 2px dashed #7B00E0; border-radius: 12px; padding: 20px; margin: 0 auto; max-width: 280px;">
+        <p style="font-size: 36px; font-weight: bold; letter-spacing: 10px;
+                   color: #7B00E0; margin: 0; font-family: monospace;">
+          ${otp}
+        </p>
+      </div>
+      <p style="color: #374151; margin: 20px 0 8px; font-size: 14px; line-height: 1.6;">
+        This code expires in <strong>10 minutes</strong>.
+      </p>
+      <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+        If you didn't request this, you can safely ignore this email.
+      </p>
+    </div>
+  `)
+}
+
+export function contactFormEmailHtml(
+  senderEmail: string,
+  message: string,
+): string {
+  return wrap(`
+    <h2 style="color: #1f2937; font-size: 18px; margin: 0 0 16px;">
+      New Contact Form Message
+    </h2>
+    <div style="background: #f3f0ff; border-left: 4px solid #7B00E0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+      <table style="width: 100%; font-size: 14px; color: #374151;">
+        <tr>
+          <td style="padding: 6px 0; font-weight: 600; width: 80px; vertical-align: top;">From</td>
+          <td style="padding: 6px 0;">
+            <a href="mailto:${senderEmail}" style="color: #7B00E0; text-decoration: none;">${senderEmail}</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: 600; vertical-align: top;">Date</td>
+          <td style="padding: 6px 0;">${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td>
+        </tr>
+      </table>
+    </div>
+    <div style="background: #fafafa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+      <p style="color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px;">Message</p>
+      <p style="color: #1f2937; font-size: 14px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${message}</p>
+    </div>
+    <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+      Reply directly to <a href="mailto:${senderEmail}" style="color: #7B00E0;">${senderEmail}</a> to respond.
     </p>
   `)
 }
