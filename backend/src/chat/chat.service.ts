@@ -59,10 +59,10 @@ export class ChatService {
       this.prisma.journalEntry.findMany({
         where: { userId },
         orderBy: { entryDate: 'desc' },
-        take: 7,
         select: {
           entryDate: true, systolicBP: true, diastolicBP: true,
-          weight: true, medicationTaken: true,
+          weight: true, medicationTaken: true, measurementTime: true,
+          symptoms: true,
         },
       }),
       this.prisma.baselineSnapshot.findFirst({
@@ -76,7 +76,11 @@ export class ChatService {
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, communicationPreference: true, preferredLanguage: true },
+        select: {
+          name: true, timezone: true, communicationPreference: true,
+          preferredLanguage: true, primaryCondition: true, riskTier: true,
+          dateOfBirth: true,
+        },
       }),
     ])
 
@@ -96,11 +100,31 @@ export class ChatService {
       activeAlerts,
       communicationPreference: user?.communicationPreference ?? null,
       preferredLanguage: user?.preferredLanguage ?? null,
+      patientName: user?.name ?? null,
+      primaryCondition: user?.primaryCondition ?? null,
+      riskTier: user?.riskTier ?? null,
+      dateOfBirth: user?.dateOfBirth ?? null,
     })
-    if (user?.name) {
-      systemPrompt = systemPrompt + `\n\nPatient name: ${user.name}`
-    }
+
     systemPrompt = systemPrompt + '\n\n' + patientContext
+
+    // Inject current date/time so the AI knows what "now" and "today" mean
+    const tz = user?.timezone ?? 'America/New_York'
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    const parts = formatter.formatToParts(now)
+    const y = parts.find(p => p.type === 'year')?.value
+    const mo = parts.find(p => p.type === 'month')?.value
+    const d = parts.find(p => p.type === 'day')?.value
+    const h = parts.find(p => p.type === 'hour')?.value
+    const mi = parts.find(p => p.type === 'minute')?.value
+    const currentDate = `${y}-${mo}-${d}`
+    const currentTime = `${h}:${mi}`
+    systemPrompt += `\n\nCURRENT DATE AND TIME (patient timezone ${tz}): ${currentDate} at ${currentTime}. When the patient says "now", "today", or "right now", use EXACTLY this date and time. NEVER guess a different date or time.`
 
     return systemPrompt
   }

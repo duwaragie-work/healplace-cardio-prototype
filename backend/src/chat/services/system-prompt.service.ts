@@ -7,6 +7,8 @@ interface PatientContext {
     diastolicBP: number | null
     weight: number | null
     medicationTaken: boolean | null
+    measurementTime?: string | null
+    symptoms?: string[]
   }>
   baseline: {
     baselineSystolic: number | null
@@ -18,6 +20,10 @@ interface PatientContext {
   }>
   communicationPreference: string | null
   preferredLanguage: string | null
+  patientName?: string | null
+  primaryCondition?: string | null
+  riskTier?: string | null
+  dateOfBirth?: Date | null
 }
 
 @Injectable()
@@ -199,7 +205,24 @@ Patient health data below is HISTORICAL reference only — never treat it as cur
       '--- PATIENT HEALTH DATA (HISTORICAL — do NOT treat as current conversation input) ---',
     ]
 
-    lines.push('Recent BP readings (last 7 days):')
+    // ── Patient profile ───────────────────────────────────────────────────
+    const profileParts: string[] = []
+    if (data.patientName) profileParts.push(`Patient name: ${data.patientName}`)
+    if (data.primaryCondition) profileParts.push(`Primary condition: ${data.primaryCondition}`)
+    if (data.riskTier) profileParts.push(`Risk tier: ${data.riskTier}`)
+    if (data.dateOfBirth) {
+      const age = Math.floor(
+        (Date.now() - new Date(data.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+      )
+      profileParts.push(`Age: ${age}`)
+    }
+    if (profileParts.length > 0) {
+      lines.push(profileParts.join('. ') + '.')
+      lines.push('')
+    }
+
+    // ── BP readings ───────────────────────────────────────────────────────
+    lines.push(`All BP readings (${data.recentEntries.length} total):`)
     if (data.recentEntries.length === 0) {
       lines.push('- No readings recorded yet')
     } else {
@@ -209,6 +232,7 @@ Patient health data below is HISTORICAL reference only — never treat it as cur
           day: 'numeric',
           year: 'numeric',
         })
+        const time = entry.measurementTime ?? 'unknown time'
         const bp =
           entry.systolicBP != null && entry.diastolicBP != null
             ? `${entry.systolicBP}/${entry.diastolicBP} mmHg`
@@ -219,7 +243,9 @@ Patient health data below is HISTORICAL reference only — never treat it as cur
             : entry.medicationTaken === false
               ? 'missed'
               : 'not recorded'
-        lines.push(`- ${date}: ${bp}, Medication: ${med}`)
+        const wt = entry.weight != null ? `, Weight: ${entry.weight} lbs` : ''
+        const sym = entry.symptoms?.length ? `, Symptoms: ${entry.symptoms.join(', ')}` : ''
+        lines.push(`- ${date} at ${time}: ${bp}, Medication: ${med}${wt}${sym}`)
       }
     }
 
