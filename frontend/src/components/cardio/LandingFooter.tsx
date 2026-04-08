@@ -39,18 +39,31 @@ export default function LandingFooter() {
       id="contact"
       style={{ backgroundImage: 'linear-gradient(159deg, #5c00a9 0%, #a04cee 46%, #c79afd 93%)' }}
     >
-      <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 px-4 sm:px-6 md:px-8 lg:px-12 py-10 md:py-20">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12 pt-10 md:pt-16 pb-2">
+        <a
+          href="/sign-in"
+          className="block w-full md:w-auto md:inline-flex items-center justify-center bg-white text-[#5c00a9] font-bold text-base px-8 py-3 rounded-full hover:bg-white/90 transition-colors text-center"
+        >
+          {t('home.startCheckin')}
+        </a>
+      </div>
+      <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 px-4 sm:px-6 md:px-8 lg:px-12 py-8 md:py-12">
         {/* Col 1 - Brand */}
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-1">
-            <Image src="/logo2.png" alt="Healplace Cardio" width={42} height={42} />
+            <Image src="/logo2.png" alt="Cardioplace" width={42} height={42} />
             <span className="font-bold text-white text-2xl tracking-tight">
-              Healplace Cardio
+              Cardioplace
             </span>
           </div>
-          <p className="text-white/70 text-sm leading-relaxed">
-            {t('landing.copyright')}
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="bg-white rounded-lg px-2 py-1.5 shrink-0">
+              <Image src="/DCHA-Logo.png" alt="DC Hospital Association" width={64} height={48} className="w-16 h-10 object-contain" />
+            </div>
+            <p className="text-white/70 text-sm leading-relaxed">
+              {t('landing.copyright')}
+            </p>
+          </div>
         </div>
 
         {/* Col 2 - Links */}
@@ -92,7 +105,7 @@ export default function LandingFooter() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('landing.yourEmail')}
                 required
-                className="w-full h-11 px-4 rounded-xl text-sm outline-none bg-white/15 backdrop-blur-sm text-white placeholder-white/50 border border-white/20 focus:border-white/50 transition"
+                className="w-full h-11 px-4 rounded-xl text-sm outline-none bg-white/15 backdrop-blur-sm text-white placeholder-white/60 border border-white/40 focus:border-white/60 transition"
               />
               <textarea
                 value={message}
@@ -100,12 +113,12 @@ export default function LandingFooter() {
                 placeholder={t('landing.yourMessage')}
                 required
                 rows={3}
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none bg-white/15 backdrop-blur-sm text-white placeholder-white/50 border border-white/20 focus:border-white/50 transition resize-none"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none bg-white/15 backdrop-blur-sm text-white placeholder-white/60 border border-white/40 focus:border-white/60 transition resize-none"
               />
               <button
                 type="submit"
                 disabled={sending}
-                className="w-full h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-[#5c00a9] hover:bg-white/90 transition active:scale-[0.98] disabled:opacity-60"
+                className="w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-white text-[#5B21B6] hover:bg-white/90 transition active:scale-[0.98] disabled:opacity-60"
               >
                 <Send className={`w-3.5 h-3.5 ${sending ? 'animate-pulse' : ''}`} />
                 {sending ? t('landing.sending') : t('landing.sendMessage')}
