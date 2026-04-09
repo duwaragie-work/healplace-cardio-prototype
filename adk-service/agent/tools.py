@@ -198,24 +198,24 @@ def make_tools(
             resp = requests.get(
                 f"{NESTJS_URL}/daily-journal",
                 headers=headers,
-                params={"startDate": start_date, "endDate": end_date, "limit": "15"},
+                params={"startDate": start_date, "endDate": end_date, "limit": "5"},
                 timeout=REQUEST_TIMEOUT,
             )
             logger.info("GET /daily-journal responded %s (%d bytes)", resp.status_code, len(resp.content))
             if resp.status_code == 200:
                 data = resp.json()
                 entries = data if isinstance(data, list) else data.get("data", [])
-                readings = []
-                for e in entries[:15]:
-                    readings.append({
-                        "id": e.get("id", ""),
-                        "date": e.get("entryDate", ""),
-                        "systolic": e.get("systolicBP"),
-                        "diastolic": e.get("diastolicBP"),
-                        "medication_taken": e.get("medicationTaken"),
-                    })
-                logger.info("Returning %d readings to Gemini", len(readings))
-                return {"readings": readings, "count": len(readings)}
+                # Build a compact text summary for Gemini Live voice output
+                lines = []
+                for e in entries[:5]:
+                    d = e.get("entryDate", "unknown")
+                    s = e.get("systolicBP", "?")
+                    di = e.get("diastolicBP", "?")
+                    med = "yes" if e.get("medicationTaken") else "no"
+                    lines.append(f"{d}: {s}/{di}, meds {med}")
+                summary = "; ".join(lines) if lines else "No readings found."
+                logger.info("Returning %d readings to Gemini (%d chars)", len(lines), len(summary))
+                return {"summary": summary, "count": len(lines)}
             else:
                 logger.warning("GET /daily-journal returned %s: %s", resp.status_code, resp.text[:200])
                 return {"readings": [], "count": 0}
