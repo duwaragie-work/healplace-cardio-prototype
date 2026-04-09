@@ -111,9 +111,8 @@ async def serve() -> None:
     port = int(os.getenv("GRPC_PORT", "50051"))
 
     server = aio.server(options=[
-        ('grpc.keepalive_permit_without_calls', 1),
-        ('grpc.http2.min_recv_ping_interval_without_data_ms', 20_000),
-        ('grpc.http2.max_ping_strikes', 0),
+        ("grpc.max_receive_message_length", 10 * 1024 * 1024),
+        ("grpc.max_send_message_length", 10 * 1024 * 1024),
     ])
     voice_pb2_grpc.add_VoiceAgentServicer_to_server(VoiceAgentServicer(), server)
     server.add_insecure_port(f"{host}:{port}")
