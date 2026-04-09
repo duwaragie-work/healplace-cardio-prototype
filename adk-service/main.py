@@ -85,13 +85,32 @@ logger.info("Applied send_realtime patch: audio field replaces media_chunks")
 _original_send_content = GeminiLlmConnection.send_content
 
 async def _patched_send_content(self, content):
-    if content.parts and content.parts[0].function_response:
-        # Function responses must still use the tool-response path
-        await _original_send_content(self, content)
+    parts = content.parts or []
+    has_function_response = any(
+        getattr(p, "function_response", None) for p in parts
+    )
+    if has_function_response:
+        # Function responses — send via tool_response API for reliability
+        func_responses = []
+        for p in parts:
+            fr = getattr(p, "function_response", None)
+            if fr:
+                func_responses.append(fr)
+        if func_responses:
+            try:
+                await self._gemini_session.send_tool_response(
+                    function_responses=func_responses
+                )
+                logger.info("Sent %d function response(s) via send_tool_response", len(func_responses))
+            except Exception as exc:
+                logger.error("send_tool_response failed, falling back to original: %s", exc)
+                await _original_send_content(self, content)
+        else:
+            await _original_send_content(self, content)
     else:
-        # Concatenate all text parts and send as realtime text input
+        # Non-function content — send as realtime text input
         text = "".join(
-            p.text for p in (content.parts or []) if p.text
+            p.text for p in parts if getattr(p, "text", None)
         )
         if text:
             await self._gemini_session.send_realtime_input(text=text)

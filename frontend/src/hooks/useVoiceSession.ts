@@ -170,7 +170,8 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     sourceRef.current = source;
 
     // ScriptProcessorNode — captures raw PCM and sends to backend
-    const bufferSize = 4096;
+    // 2048 samples at 16kHz = 128ms chunks (lower = less input latency)
+    const bufferSize = 2048;
     // eslint-disable-next-line @typescript-eslint/no-deprecated
     const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
     processorRef.current = processor;
@@ -305,7 +306,7 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
 
       socket.on('action', (data: { type: string; detail: string }) => {
         setActionType(data.type);
-        if (['submitting_checkin', 'updating_checkin', 'deleting_checkin'].includes(data.type)) {
+        if (['submitting_checkin', 'updating_checkin', 'deleting_checkin', 'fetching_readings'].includes(data.type)) {
           setSessionState('processing');
         }
       });

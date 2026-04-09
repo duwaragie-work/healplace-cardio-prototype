@@ -18,7 +18,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 NESTJS_URL = os.getenv("NESTJS_INTERNAL_URL", "http://localhost:8080/api")
-REQUEST_TIMEOUT = 15  # seconds
+REQUEST_TIMEOUT = 8  # seconds — keep short to avoid long silences on failure
 
 
 def make_tools(
@@ -213,26 +213,27 @@ def make_tools(
             if resp.status_code == 200:
                 data = resp.json()
                 entries = data if isinstance(data, list) else data.get("data", [])
-                # Build a compact text summary for Gemini Live voice output
-                # MUST include entry IDs so update/delete tools can reference them
+                # Build a compact summary — include entry IDs for update/delete
                 lines = []
                 for e in entries[:5]:
-                    eid = e.get("id", "unknown")
+                    entry_id = e.get("id", "unknown")
                     d = e.get("entryDate", "unknown")
+                    t = e.get("measurementTime", "")
                     s = e.get("systolicBP", "?")
                     di = e.get("diastolicBP", "?")
                     med = "yes" if e.get("medicationTaken") else "no"
                     sym = ", ".join(e.get("symptoms", [])) if e.get("symptoms") else "none"
-                    lines.append(f"[id={eid}] {d}: {s}/{di}, meds {med}, symptoms: {sym}")
-                summary = "; ".join(lines) if lines else "No readings found."
+                    time_str = f" at {t}" if t else ""
+                    lines.append(f"entry_id=\"{entry_id}\" | {d}{time_str} | BP {s}/{di} | meds {med} | symptoms: {sym}")
+                summary = "\n".join(lines) if lines else "No readings found."
                 logger.info("Returning %d readings to Gemini (%d chars)", len(lines), len(summary))
                 return {"summary": summary, "count": len(lines)}
             else:
                 logger.warning("GET /daily-journal returned %s: %s", resp.status_code, resp.text[:200])
                 return {"readings": [], "count": 0}
         except requests.RequestException as exc:
-            logger.error("Failed to GET /daily-journal: %s", exc)
-            return {"readings": [], "count": 0}
+            logger.error("Failed to GET /daily-journal (url=%s): %s", NESTJS_URL, exc)
+            return {"summary": f"Could not fetch readings — connection to backend failed ({exc})", "count": 0}
 
     # ── Tool 3: Update an existing reading ────────────────────────────────────
 

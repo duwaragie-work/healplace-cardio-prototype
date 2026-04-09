@@ -169,13 +169,15 @@ function StateLabel({ state }: { state: SessionState }) {
 function ActionOverlay({ type }: { type: string }) {
   const isDelete = type === 'deleting_checkin';
   const isUpdate = type === 'updating_checkin';
-  const color = isDelete ? '#ef4444' : isUpdate ? '#7B00E0' : '#f59e0b';
+  const isFetch = type === 'fetching_readings';
+  const color = isDelete ? '#ef4444' : isUpdate ? '#7B00E0' : isFetch ? '#3b82f6' : '#f59e0b';
   const gradient = isDelete
     ? 'linear-gradient(135deg, #ef4444, #dc2626)'
     : isUpdate ? 'linear-gradient(135deg, #7B00E0, #9333EA)'
+    : isFetch ? 'linear-gradient(135deg, #3b82f6, #2563eb)'
     : 'linear-gradient(135deg, #f59e0b, #d97706)';
-  const label = isDelete ? 'Deleting reading' : isUpdate ? 'Updating reading' : 'Saving check-in';
-  const sub = isDelete ? 'Removing your entry...' : isUpdate ? 'Updating your entry...' : 'Recording your data...';
+  const label = isDelete ? 'Deleting reading' : isUpdate ? 'Updating reading' : isFetch ? 'Fetching readings' : 'Saving check-in';
+  const sub = isDelete ? 'Removing your entry...' : isUpdate ? 'Updating your entry...' : isFetch ? 'Looking up your records...' : 'Recording your data...';
   const Icon = isDelete ? Trash2 : isUpdate ? Pencil : Heart;
 
   return (
@@ -225,7 +227,7 @@ function ActionOverlay({ type }: { type: string }) {
         <div className="w-48 mx-auto mt-3 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${color}15` }}>
           <motion.div className="h-full rounded-full" style={{ backgroundColor: color }} animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }} />
         </div>
-        <p className="text-[10px] mt-3" style={{ color: 'var(--brand-text-muted)' }}>AI will resume automatically</p>
+        <p className="text-[10px] mt-3" style={{ color: 'var(--brand-text-muted)' }}>Please wait — AI will respond shortly</p>
       </div>
     </motion.div>
   );
