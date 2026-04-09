@@ -96,6 +96,13 @@ export class VoiceService implements OnModuleDestroy {
     this.voiceClient = new protoDesc.voice.VoiceAgent(
       `${host}:${port}`,
       grpc.credentials.createInsecure(),
+      {
+        'grpc.keepalive_time_ms': 10_000,
+        'grpc.keepalive_timeout_ms': 5_000,
+        'grpc.keepalive_permit_without_calls': 1,
+        'grpc.max_receive_message_length': 10 * 1024 * 1024,
+        'grpc.max_send_message_length': 10 * 1024 * 1024,
+      },
     )
 
     this.logger.log(`gRPC client configured → ${host}:${port}`)
@@ -265,6 +272,8 @@ export class VoiceService implements OnModuleDestroy {
       })
     } catch (err) {
       this.logger.error('Failed to forward audio to ADK service', err)
+      session.callbacks.onError('Voice connection lost. Please try again.')
+      void this.endSession(socketId)
     }
   }
 
@@ -279,6 +288,8 @@ export class VoiceService implements OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error('Failed to forward text to ADK service', err)
+      session.callbacks.onError('Voice connection lost. Please try again.')
+      void this.endSession(socketId)
     }
   }
 
