@@ -9,7 +9,7 @@ stream when a tool completes.
 import asyncio
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
@@ -185,12 +185,23 @@ def make_tools(
             )
         )
         try:
+            # Compute startDate/endDate — the NestJS endpoint uses these, not "days"
+            from zoneinfo import ZoneInfo
+            try:
+                tz = ZoneInfo(patient_timezone)
+            except Exception:
+                tz = ZoneInfo("America/New_York")
+            now = datetime.now(tz)
+            start_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+            end_date = now.strftime("%Y-%m-%d")
+
             resp = requests.get(
                 f"{NESTJS_URL}/daily-journal",
                 headers=headers,
-                params={"days": days},
+                params={"startDate": start_date, "endDate": end_date, "limit": "15"},
                 timeout=REQUEST_TIMEOUT,
             )
+            logger.info("GET /daily-journal responded %s (%d bytes)", resp.status_code, len(resp.content))
             if resp.status_code == 200:
                 data = resp.json()
                 entries = data if isinstance(data, list) else data.get("data", [])
@@ -199,16 +210,14 @@ def make_tools(
                     readings.append({
                         "id": e.get("id", ""),
                         "date": e.get("entryDate", ""),
-                        "measurement_time": e.get("measurementTime"),
                         "systolic": e.get("systolicBP"),
                         "diastolic": e.get("diastolicBP"),
-                        "weight": e.get("weight"),
                         "medication_taken": e.get("medicationTaken"),
-                        "symptoms": e.get("symptoms", []),
                     })
+                logger.info("Returning %d readings to Gemini", len(readings))
                 return {"readings": readings, "count": len(readings)}
             else:
-                logger.warning("GET /daily-journal returned %s", resp.status_code)
+                logger.warning("GET /daily-journal returned %s: %s", resp.status_code, resp.text[:200])
                 return {"readings": [], "count": 0}
         except requests.RequestException as exc:
             logger.error("Failed to GET /daily-journal: %s", exc)
