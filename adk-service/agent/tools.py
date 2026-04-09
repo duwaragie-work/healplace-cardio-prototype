@@ -208,13 +208,16 @@ def make_tools(
                 data = resp.json()
                 entries = data if isinstance(data, list) else data.get("data", [])
                 # Build a compact text summary for Gemini Live voice output
+                # MUST include entry IDs so update/delete tools can reference them
                 lines = []
                 for e in entries[:5]:
+                    eid = e.get("id", "unknown")
                     d = e.get("entryDate", "unknown")
                     s = e.get("systolicBP", "?")
                     di = e.get("diastolicBP", "?")
                     med = "yes" if e.get("medicationTaken") else "no"
-                    lines.append(f"{d}: {s}/{di}, meds {med}")
+                    sym = ", ".join(e.get("symptoms", [])) if e.get("symptoms") else "none"
+                    lines.append(f"[id={eid}] {d}: {s}/{di}, meds {med}, symptoms: {sym}")
                 summary = "; ".join(lines) if lines else "No readings found."
                 logger.info("Returning %d readings to Gemini (%d chars)", len(lines), len(summary))
                 return {"summary": summary, "count": len(lines)}
@@ -287,7 +290,7 @@ def make_tools(
             changes.append(f"weight={weight}lbs")
         if symptoms is not None:
             changes.append(f"symptoms={','.join(symptoms) if symptoms else 'none'}")
-        detail_str = f"entry={entry_id or entry_date or 'unknown'} changes=[{', '.join(changes)}]"
+        detail_str = f"entry={entry_id} changes=[{', '.join(changes)}]"
 
         from generated import voice_pb2
 
@@ -370,51 +373,79 @@ def make_tools(
             ),
         }
 
-    # ── Tool 4: Delete a reading ──────────────────────────────────────────────
+    # ── Tool 4: Delete reading(s) ───────────────────────────────────────────
 
-    def delete_checkin(entry_id: str) -> dict:
+    def delete_checkin(entry_ids: str) -> dict:
         """
-        Delete a blood pressure reading. Use this only when the patient
-        explicitly asks to remove a specific reading. You MUST first call
-        get_recent_readings to find the entry_id, confirm the date and values
-        with the patient, and get their explicit confirmation before deleting.
+        Delete one or more blood pressure readings. Use this when the patient
+        asks to remove readings. You MUST first call get_recent_readings to find
+        the entry IDs, read back the readings to the patient, and get their
+        explicit confirmation before deleting.
+
+        Supports bulk deletion — e.g. if the patient says "delete all readings
+        for today", pass all matching entry IDs at once.
 
         Args:
-            entry_id: The ID of the journal entry to delete (from get_recent_readings).
+            entry_ids: Comma-separated string of journal entry IDs to delete
+                       (from get_recent_readings). For a single reading pass just
+                       the ID (e.g. "abc123"). For multiple readings separate with
+                       commas (e.g. "abc123,def456,ghi789").
 
         Returns:
-            dict with 'deleted' (bool) and 'message' (str).
+            dict with 'deleted_count' (int), 'failed_count' (int), and 'message' (str).
         """
         from generated import voice_pb2 as _vpb_del
+
+        # Normalise input — accept comma-separated string or a single ID
+        if isinstance(entry_ids, list):
+            ids = [eid.strip() for eid in entry_ids if eid.strip()]
+        else:
+            ids = [eid.strip() for eid in str(entry_ids).split(",") if eid.strip()]
+
+        if not ids:
+            return {"deleted_count": 0, "failed_count": 0, "message": "No entry IDs provided."}
+
         _put(
             _vpb_del.ServerMessage(
-                action=_vpb_del.ActionNotice(type="deleting_checkin", detail=f"Deleting entry {entry_id}")
+                action=_vpb_del.ActionNotice(
+                    type="deleting_checkin",
+                    detail=f"Deleting {len(ids)} entry(ies): {', '.join(ids[:5])}",
+                )
             )
         )
-        try:
-            resp = requests.delete(
-                f"{NESTJS_URL}/daily-journal/{entry_id}",
-                headers=headers,
-                timeout=REQUEST_TIMEOUT,
-            )
-            deleted = resp.status_code in (200, 204)
-            if not deleted:
-                logger.warning(
-                    "DELETE /daily-journal/%s returned %s: %s",
-                    entry_id,
-                    resp.status_code,
-                    resp.text[:200],
+
+        deleted_count = 0
+        failed_count = 0
+        for eid in ids:
+            try:
+                resp = requests.delete(
+                    f"{NESTJS_URL}/daily-journal/{eid}",
+                    headers=headers,
+                    timeout=REQUEST_TIMEOUT,
                 )
-            return {
-                "deleted": deleted,
-                "message": (
-                    "Reading deleted successfully."
-                    if deleted
-                    else "Could not delete the reading. Please try again."
-                ),
-            }
-        except requests.RequestException as exc:
-            logger.error("Failed to DELETE /daily-journal/%s: %s", entry_id, exc)
-            return {"deleted": False, "message": "Could not connect to the server."}
+                if resp.status_code in (200, 204):
+                    deleted_count += 1
+                else:
+                    failed_count += 1
+                    logger.warning(
+                        "DELETE /daily-journal/%s returned %s: %s",
+                        eid, resp.status_code, resp.text[:200],
+                    )
+            except requests.RequestException as exc:
+                failed_count += 1
+                logger.error("Failed to DELETE /daily-journal/%s: %s", eid, exc)
+
+        if failed_count == 0:
+            msg = (
+                "Reading deleted successfully."
+                if deleted_count == 1
+                else f"All {deleted_count} readings deleted successfully."
+            )
+        elif deleted_count == 0:
+            msg = "Could not delete the reading(s). Please try again."
+        else:
+            msg = f"Deleted {deleted_count} reading(s), but {failed_count} could not be deleted."
+
+        return {"deleted_count": deleted_count, "failed_count": failed_count, "message": msg}
 
     return [submit_checkin, get_recent_readings, update_checkin, delete_checkin]
