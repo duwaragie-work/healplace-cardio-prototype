@@ -42,6 +42,28 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
     """
     messages: list[voice_pb2.ServerMessage] = []
 
+    # ── 0. Tool call events — notify frontend BEFORE tool executes ─────
+    func_calls = getattr(event, "get_function_calls", lambda: [])()
+    for fc in func_calls:
+        tool_name = getattr(fc, "name", "") or ""
+        action_map = {
+            "submit_checkin": "submitting_checkin",
+            "get_recent_readings": "fetching_readings",
+            "update_checkin": "updating_checkin",
+            "delete_checkin": "deleting_checkin",
+        }
+        action_type = action_map.get(tool_name)
+        if action_type:
+            messages.append(
+                voice_pb2.ServerMessage(
+                    action=voice_pb2.ActionNotice(
+                        type=action_type,
+                        detail=f"Tool call: {tool_name}",
+                    )
+                )
+            )
+            logger.info("[EVENT] Tool call detected: %s → action %s", tool_name, action_type)
+
     # ── 1. Transcription events (top-level on ADK Event) ─────────────────
     #    The ADK sets these directly on the event and returns early,
     #    so server_content / content are NOT populated for these events.
@@ -236,7 +258,7 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
                         automatic_activity_detection=genai_types.AutomaticActivityDetection(
                             start_of_speech_sensitivity=genai_types.StartSensitivity.START_SENSITIVITY_LOW,
                             end_of_speech_sensitivity=genai_types.EndSensitivity.END_SENSITIVITY_LOW,
-                            prefix_padding_ms=600,
+                            prefix_padding_ms=800,
                             silence_duration_ms=1500,
                         ),
                     ),
