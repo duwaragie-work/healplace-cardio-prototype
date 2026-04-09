@@ -75,7 +75,7 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
 
     # If we extracted transcription, this event is transcription-only — return early.
     if messages:
-        logger.info("[EVENT] Transcription: %s", [(m.transcript.speaker, m.transcript.text[:80]) for m in messages])
+        logger.debug("[EVENT] Transcription: %s", [(m.transcript.speaker, m.transcript.text[:80]) for m in messages])
         return messages
 
     # ── 2. Audio / text content ──────────────────────────────────────────
@@ -153,9 +153,9 @@ def _map_event(event) -> list[voice_pb2.ServerMessage]:
     transcript_msgs = [m for m in messages if m.HasField("transcript") and m.transcript.text.strip()]
     audio_msgs = [m for m in messages if m.HasField("audio")]
     if transcript_msgs:
-        logger.info("[EVENT] Extracted %d transcripts: %s", len(transcript_msgs), [(m.transcript.speaker, m.transcript.text[:50]) for m in transcript_msgs])
+        logger.debug("[EVENT] Extracted %d transcripts: %s", len(transcript_msgs), [(m.transcript.speaker, m.transcript.text[:50]) for m in transcript_msgs])
     if audio_msgs:
-        logger.info("[EVENT] Extracted %d audio chunks", len(audio_msgs))
+        logger.debug("[EVENT] Extracted %d audio chunks", len(audio_msgs))
 
     return messages
 
@@ -232,6 +232,14 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
                     response_modalities=["AUDIO"],
                     output_audio_transcription=_tx_config,
                     input_audio_transcription=_tx_config,
+                    realtime_input_config=genai_types.RealtimeInputConfig(
+                        automatic_activity_detection=genai_types.AutomaticActivityDetection(
+                            start_of_speech_sensitivity=genai_types.StartSensitivity.START_SENSITIVITY_LOW,
+                            end_of_speech_sensitivity=genai_types.EndSensitivity.END_SENSITIVITY_LOW,
+                            prefix_padding_ms=600,
+                            silence_duration_ms=1500,
+                        ),
+                    ),
                 )
                 logger.info("[Config] RunConfig: modalities=AUDIO, transcription=%s", "enabled" if _tx_config else "disabled")
                 async for event in runner.run_live(
