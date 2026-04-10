@@ -18,8 +18,19 @@ export class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
-      await this.resend.emails.send({ from: this.from, to, subject, html })
-      this.logger.log(`Email sent to ${to} — subject: ${subject}`)
+      const { data, error } = await this.resend.emails.send({
+        from: this.from,
+        to,
+        subject,
+        html,
+      })
+      if (error) {
+        this.logger.error(`Email failed for ${to}: ${error.message}`)
+        return
+      }
+      this.logger.log(
+        `Email sent to ${to} — id: ${data?.id} — subject: ${subject}`,
+      )
     } catch (error) {
       this.logger.error(
         `Email failed for ${to}`,
