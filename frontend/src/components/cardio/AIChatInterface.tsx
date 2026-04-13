@@ -701,10 +701,12 @@ function LiveTranscriptBubbles({ lines }: { lines: TranscriptLine[] }) {
 
 // ─── Voice Active Screen (replaces chat area during voice) ────────────────────
 
-function VoiceActiveScreen({ state, pendingCheckin, onDismissCheckin, actionType }: {
+function VoiceActiveScreen({ state, pendingCheckin, onDismissCheckin, pendingUpdate, onDismissUpdate, actionType }: {
   state: SessionState;
   pendingCheckin: CheckinSummary | null;
   onDismissCheckin: () => void;
+  pendingUpdate: UpdateSummary | null;
+  onDismissUpdate: () => void;
   actionType: string | null;
 }) {
   const isConnecting = state === 'connecting' || state === 'ready';
@@ -713,6 +715,12 @@ function VoiceActiveScreen({ state, pendingCheckin, onDismissCheckin, actionType
   const isProcessing = state === 'processing';
   const isCheckin = state === 'checkin_confirm';
   const isActive = isListening || isSpeaking;
+
+  useEffect(() => {
+    if (!pendingUpdate) return;
+    const timer = setTimeout(onDismissUpdate, 3000);
+    return () => clearTimeout(timer);
+  }, [pendingUpdate, onDismissUpdate]);
 
   const orbColor = isListening ? '#ef4444' : isSpeaking ? '#7B00E0' : isProcessing ? '#f59e0b' : '#7B00E0';
   const orbGradient = isListening
@@ -996,6 +1004,44 @@ function VoiceActiveScreen({ state, pendingCheckin, onDismissCheckin, actionType
                 <p className="text-[10px]" style={{ color: '#b91c1c' }}>Chest pain or severe shortness of breath? Call 911 immediately.</p>
               </motion.div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Update confirmation — overlays the orb briefly without stopping mic */}
+      <AnimatePresence>
+        {pendingUpdate && (
+          <motion.div
+            key="update-confirm"
+            initial={{ opacity: 0, scale: 0.92, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+            className="absolute z-20 inset-x-0 top-6 flex justify-center pointer-events-none"
+          >
+            <div
+              className="rounded-2xl px-5 py-4 max-w-xs w-full mx-4 pointer-events-auto"
+              style={{ backgroundColor: 'white', border: '1.5px solid var(--brand-border)', boxShadow: '0 8px 28px rgba(0,0,0,0.12)' }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                {pendingUpdate.updated
+                  ? <CheckCircle className="w-5 h-5" style={{ color: 'var(--brand-accent-teal)' }} />
+                  : <AlertCircle className="w-5 h-5 text-red-500" />}
+                <p className="font-bold text-[14px]" style={{ color: 'var(--brand-text-primary)' }}>
+                  {pendingUpdate.updated ? 'Reading updated!' : 'Could not update reading'}
+                </p>
+              </div>
+              {pendingUpdate.systolicBP != null && pendingUpdate.diastolicBP != null && (
+                <div className="rounded-xl p-2.5 text-center mb-2" style={{ backgroundColor: 'var(--brand-primary-purple-light)' }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--brand-text-muted)' }}>Blood Pressure</p>
+                  <p className="text-[18px] font-bold" style={{ color: 'var(--brand-primary-purple)' }}>{pendingUpdate.systolicBP}/{pendingUpdate.diastolicBP} <span className="text-[10px] font-medium">mmHg</span></p>
+                </div>
+              )}
+              <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--brand-border)' }}>
+                <motion.div className="h-full rounded-full" style={{ backgroundColor: 'var(--brand-accent-teal)' }} initial={{ width: '100%' }} animate={{ width: '0%' }} transition={{ duration: 3, ease: 'linear' }} />
+              </div>
+              <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--brand-text-muted)' }}>AI will resume talking…</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1440,6 +1486,8 @@ export default function AIChatInterface() {
             state={voiceState}
             pendingCheckin={pendingCheckin}
             onDismissCheckin={handleDismissCheckin}
+            pendingUpdate={voicePendingUpdate}
+            onDismissUpdate={dismissUpdate}
             actionType={voiceActionType}
           />
         ) : (
