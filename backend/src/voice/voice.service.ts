@@ -13,6 +13,7 @@ export interface VoiceSessionCallbacks {
   onAudio: (audioBase64: string) => void
   onTranscript: (text: string, isFinal: boolean, speaker: 'user' | 'agent') => void
   onAction: (type: string, detail: string) => void
+  onActionComplete: (type: string, success: boolean, detail: string) => void
   onCheckinSaved: (summary: CheckinSummary) => void
   onCheckinUpdated: (summary: UpdateSummary) => void
   onError: (message: string) => void
@@ -229,6 +230,13 @@ export class VoiceService implements OnModuleDestroy {
           sess.activity.actions.push({ type: actionType, detail: actionDetail, timestamp: Date.now() })
           this.logger.log(`[ACTION TRACKED] total actions=${sess.activity.actions.length}`)
         }
+      } else if (payload === 'actionComplete') {
+        const ac = msg.actionComplete
+        const type = ac?.type ?? ''
+        const success = ac?.success ?? false
+        const detail = ac?.detail ?? ''
+        this.logger.log(`[ACTION COMPLETE] type=${type} success=${success} socket=${socketId}`)
+        callbacks.onActionComplete(type, success, detail)
       } else if (payload === 'checkin') {
         const c = msg.checkin
         callbacks.onCheckinSaved({

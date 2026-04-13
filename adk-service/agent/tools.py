@@ -166,6 +166,16 @@ def make_tools(
             )
         )
 
+        _put(
+            voice_pb2.ServerMessage(
+                action_complete=voice_pb2.ActionComplete(
+                    type="submitting_checkin",
+                    success=saved,
+                    detail=f"BP={systolic_bp}/{diastolic_bp} saved={saved}",
+                )
+            )
+        )
+
         return {
             "saved": saved,
             "entry_date_used": resolved_date,
@@ -235,12 +245,15 @@ def make_tools(
                     lines.append(f"entry_id=\"{entry_id}\" | {d}{time_str} | BP {s}/{di} | meds {med} | symptoms: {sym}")
                 summary = "\n".join(lines) if lines else "No readings found."
                 logger.info("Returning %d readings to Gemini (%d chars)", len(lines), len(summary))
+                _put(_vpb_fetch.ServerMessage(action_complete=_vpb_fetch.ActionComplete(type="fetching_readings", success=True, detail=f"Found {len(lines)} readings")))
                 return {"summary": summary, "count": len(lines)}
             else:
                 logger.warning("GET /daily-journal returned %s: %s", resp.status_code, resp.text[:200])
+                _put(_vpb_fetch.ServerMessage(action_complete=_vpb_fetch.ActionComplete(type="fetching_readings", success=False, detail=f"HTTP {resp.status_code}")))
                 return {"readings": [], "count": 0}
         except requests.RequestException as exc:
             logger.error("Failed to GET /daily-journal (url=%s): %s", NESTJS_URL, exc)
+            _put(_vpb_fetch.ServerMessage(action_complete=_vpb_fetch.ActionComplete(type="fetching_readings", success=False, detail="Connection failed")))
             return {"summary": f"Could not fetch readings — connection to backend failed ({exc})", "count": 0}
 
     # ── Tool 3: Update an existing reading ────────────────────────────────────
@@ -382,6 +395,16 @@ def make_tools(
             )
         )
 
+        _put(
+            voice_pb2.ServerMessage(
+                action_complete=voice_pb2.ActionComplete(
+                    type="updating_checkin",
+                    success=updated,
+                    detail=f"entry={entry_id} updated={updated}",
+                )
+            )
+        )
+
         return {
             "updated": updated,
             "message": (
@@ -421,6 +444,15 @@ def make_tools(
             ids = [eid.strip() for eid in str(entry_ids).split(",") if eid.strip()]
 
         if not ids:
+            _put(
+                _vpb_del.ServerMessage(
+                    action_complete=_vpb_del.ActionComplete(
+                        type="deleting_checkin",
+                        success=False,
+                        detail="No entry IDs provided",
+                    )
+                )
+            )
             return {"deleted_count": 0, "failed_count": 0, "message": "No entry IDs provided."}
 
         _put(
@@ -467,6 +499,16 @@ def make_tools(
             msg = "Could not delete the reading(s). Please try again."
         else:
             msg = f"Deleted {deleted_count} reading(s), but {failed_count} could not be deleted."
+
+        _put(
+            _vpb_del.ServerMessage(
+                action_complete=_vpb_del.ActionComplete(
+                    type="deleting_checkin",
+                    success=(failed_count == 0),
+                    detail=msg,
+                )
+            )
+        )
 
         return {"deleted_count": deleted_count, "failed_count": failed_count, "message": msg}
 

@@ -110,14 +110,27 @@ if "3.1" in _GEMINI_MODEL:
                 if fr:
                     func_responses.append(fr)
             if func_responses:
+                # Try send_tool_response first, then realtime text fallback,
+                # then original send_content as last resort
+                sent = False
                 try:
                     await self._gemini_session.send_tool_response(
                         function_responses=func_responses
                     )
                     logger.info("Sent %d function response(s) via send_tool_response", len(func_responses))
+                    sent = True
                 except Exception as exc:
-                    logger.error("send_tool_response failed, falling back to original: %s", exc)
-                    await _original_send_content(self, content)
+                    logger.error("send_tool_response failed: %s", exc)
+                if not sent:
+                    # Fallback: send as realtime text so model at least gets the result
+                    try:
+                        import json
+                        for fr in func_responses:
+                            text = json.dumps({"name": fr.name, "response": fr.response}, default=str)
+                            await self._gemini_session.send_realtime_input(text=text)
+                        logger.info("Sent %d function response(s) via realtime text fallback", len(func_responses))
+                    except Exception as exc2:
+                        logger.error("Realtime text fallback also failed: %s", exc2)
             else:
                 await _original_send_content(self, content)
         else:
