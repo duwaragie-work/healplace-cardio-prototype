@@ -311,6 +311,11 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
         }
       });
 
+      socket.on('action_complete', (data: { type: string; success: boolean; detail: string }) => {
+        setActionType((current) => (current === data.type ? null : current));
+        setSessionState((prev) => (prev === 'processing' ? 'listening' : prev));
+      });
+
       socket.on('checkin_saved', (summary: CheckinSummary) => {
         setPendingCheckin(summary);
         setActionType(null);

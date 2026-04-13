@@ -109,6 +109,10 @@ export class VoiceGateway implements OnGatewayConnection, OnGatewayDisconnect {
           this.logger.log(`[FLOW] Step 8 — tool action [${type}] ${detail.slice(0, 80)}`)
           client.emit('action', { type, detail })
         },
+        onActionComplete: (type: string, success: boolean, detail: string) => {
+          this.logger.log(`[FLOW] Step 8 — tool complete [${type}] success=${success} ${detail.slice(0, 80)}`)
+          client.emit('action_complete', { type, success, detail })
+        },
         onCheckinSaved: (summary) => {
           this.logger.log(`[FLOW] Step 8 — checkin_saved BP=${summary.systolicBP}/${summary.diastolicBP}`)
           client.emit('checkin_saved', summary)

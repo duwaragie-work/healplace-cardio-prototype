@@ -49,14 +49,15 @@ message EndSession {}
 
 message ServerMessage {
   oneof payload {
-    SessionReady   ready      = 1;
-    AudioChunk     audio      = 2;
-    Transcript     transcript = 3;
-    ActionNotice   action     = 4;
-    CheckinSaved   checkin    = 5;
-    SessionError   error      = 6;
-    SessionClosed  closed     = 7;
-    CheckinUpdated updated    = 8;
+    SessionReady   ready           = 1;
+    AudioChunk     audio           = 2;
+    Transcript     transcript      = 3;
+    ActionNotice   action          = 4;
+    CheckinSaved   checkin         = 5;
+    SessionError   error           = 6;
+    SessionClosed  closed          = 7;
+    CheckinUpdated updated         = 8;
+    ActionComplete action_complete = 9;
   }
 }
 
@@ -73,6 +74,12 @@ message Transcript {
 message ActionNotice {
   string type   = 1;  // e.g. "submitting_checkin"
   string detail = 2;
+}
+
+message ActionComplete {
+  string type    = 1;  // matches ActionNotice.type (e.g. "deleting_checkin")
+  bool   success = 2;  // did the underlying operation succeed
+  string detail  = 3;  // optional human-readable result message
 }
 
 message CheckinSaved {
