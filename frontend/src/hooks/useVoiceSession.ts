@@ -41,11 +41,6 @@ export interface UpdateSummary {
   updated: boolean;
 }
 
-export interface DeleteSummary {
-  success: boolean;
-  detail: string;
-}
-
 export interface StartOptions {
   token: string;
   sessionId?: string;
@@ -100,7 +95,6 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [pendingCheckin, setPendingCheckin] = useState<CheckinSummary | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateSummary | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<DeleteSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [actionType, setActionType] = useState<string | null>(null);
 
@@ -320,9 +314,6 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
       socket.on('action_complete', (data: { type: string; success: boolean; detail: string }) => {
         setActionType((current) => (current === data.type ? null : current));
         setSessionState((prev) => (prev === 'processing' ? 'listening' : prev));
-        if (data.type === 'deleting_checkin') {
-          setPendingDelete({ success: data.success, detail: data.detail });
-        }
       });
 
       socket.on('checkin_saved', (summary: CheckinSummary) => {
@@ -373,8 +364,6 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     // Don't clear transcript here — AIChatInterface converts them to
     // permanent message bubbles when it detects the idle transition.
     setPendingCheckin(null);
-    setPendingUpdate(null);
-    setPendingDelete(null);
   }, [cleanup]);
 
   const dismissCheckin = useCallback(() => {
@@ -390,16 +379,11 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     setPendingUpdate(null);
   }, []);
 
-  const dismissDelete = useCallback(() => {
-    setPendingDelete(null);
-  }, []);
-
   return {
     sessionState,
     transcript,
     pendingCheckin,
     pendingUpdate,
-    pendingDelete,
     errorMessage,
     actionType,
     start,
@@ -407,7 +391,6 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
     end,
     dismissCheckin,
     dismissUpdate,
-    dismissDelete,
     clearTranscript,
   };
 }
