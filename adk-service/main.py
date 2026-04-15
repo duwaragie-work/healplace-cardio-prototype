@@ -121,6 +121,21 @@ async def _patched_send_content_for_tool(self, content):
                 "[ToolResponsePatch] Sent %d function response(s) via send_tool_response",
                 len(func_responses),
             )
+            # Nudge: AI Studio Live API does NOT auto-respond after a bare
+            # tool response. Without an explicit turn_complete the model
+            # sits idle waiting for VAD-end that never fires, then the
+            # connection idle-times-out at ~30s. This signal forces the
+            # model to start its response turn immediately.
+            try:
+                await self._gemini_session.send(
+                    input=_genai_types.LiveClientContent(turn_complete=True)
+                )
+                logger.info("[ToolResponsePatch] Sent turn_complete nudge after tool response")
+            except Exception as nudge_err:
+                logger.warning(
+                    "[ToolResponsePatch] turn_complete nudge failed: %s",
+                    nudge_err,
+                )
             return
         except Exception as exc:
             logger.warning(
@@ -133,6 +148,31 @@ async def _patched_send_content_for_tool(self, content):
 
 GeminiLlmConnection.send_content = _patched_send_content_for_tool
 logger.info("Applied tool-response patch (model-agnostic) for %s", _GEMINI_MODEL)
+
+# ── Strip session_resumption from Gemini.connect() (AI Studio backend) ─────
+# ADK's auto-reconnect logic in base_llm_flow attaches a transparent session
+# resumption handle on every reconnect attempt. AI Studio's Gemini API rejects
+# it with `ValueError: Transparent session resumption is only supported for
+# Vertex AI backend.`, which crashes the entire run_live loop and ends the
+# voice session. Strip session_resumption here so reconnects become fresh
+# connections (context lost across reconnects, but session survives).
+import contextlib as _contextlib
+from google.adk.models.google_llm import Gemini as _AdkGemini
+
+_orig_adk_gemini_connect = _AdkGemini.connect
+
+@_contextlib.asynccontextmanager
+async def _patched_adk_gemini_connect(self, llm_request):
+    if (
+        llm_request.live_connect_config
+        and llm_request.live_connect_config.session_resumption
+    ):
+        llm_request.live_connect_config.session_resumption = None
+    async with _orig_adk_gemini_connect(self, llm_request) as conn:
+        yield conn
+
+_AdkGemini.connect = _patched_adk_gemini_connect
+logger.info("Applied Gemini.connect patch (strip session_resumption for AI Studio)")
 
 # NOTE: Sequential tool execution is enforced via the system prompt
 # ("STRICTLY call only ONE tool per turn"). We do NOT patch the ADK's
