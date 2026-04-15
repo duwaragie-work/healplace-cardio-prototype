@@ -226,8 +226,17 @@ class VoiceAgentServicer(voice_pb2_grpc.VoiceAgentServicer):
             try:
                 run_config = RunConfig(
                     response_modalities=["AUDIO"],
+                    realtime_input_config=genai_types.RealtimeInputConfig(
+                        # NO_INTERRUPTION: prevents the user's mic from
+                        # cancelling the model's audio response. Without
+                        # this, after a tool call, Gemini Live's VAD picks
+                        # up the user's breathing or speaker echo and
+                        # interrupts the agent mid-confirmation, causing
+                        # the silent-after-tool-call symptom.
+                        activity_handling=genai_types.ActivityHandling.NO_INTERRUPTION,
+                    ),
                 )
-                logger.info("[Config] RunConfig: modalities=AUDIO, defaults")
+                logger.info("[Config] RunConfig: modalities=AUDIO, activity_handling=NO_INTERRUPTION")
                 event_count = 0
                 tool_call_count = 0
                 audio_chunk_count = 0
