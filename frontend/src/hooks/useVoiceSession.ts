@@ -350,6 +350,15 @@ export function useVoiceSession(onSessionCreated?: (sessionId: string) => void) 
         setSessionState('error');
       });
 
+      socket.on('disconnect', () => {
+        // Safety net for WS drops that don't carry an explicit
+        // session_error/session_closed event (Railway proxy idle timeout,
+        // ADK crash that outraces the cleanup chain). Without this the UI
+        // would stay stuck on "Listening" forever.
+        stopMic();
+        setSessionState((prev) => (prev === 'error' ? prev : 'idle'));
+      });
+
       socket.on('connect', () => {
         socket.emit('start_session', { sessionId: sessionId ?? null });
       });
