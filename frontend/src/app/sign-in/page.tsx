@@ -55,6 +55,9 @@ export default function RegisterPage() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const resendTimerRef = useRef<number | null>(null);
+  const [authMode, setAuthMode] = useState<"otp" | "magic_link">("otp");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const emailIsValid = useMemo(() => isEmailValid(email.trim()), [email]);
@@ -152,6 +155,35 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleSendMagicLink() {
+    if (!emailIsValid || isSendingMagicLink) return;
+    setErrorMessage("");
+    setStatusMessage("");
+    setIsSendingMagicLink(true);
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const timezone = getBrowserTimezone();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v2/auth/magic-link/send`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Device-Id": deviceId,
+          ...(timezone ? { "X-Timezone": timezone } : {}),
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Something went wrong.");
+      setMagicLinkSent(true);
+      setStatusMessage(t('register.magicLinkSent') || "Magic link sent! Check your email.");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to send magic link.");
+    } finally {
+      setIsSendingMagicLink(false);
+    }
+  }
+
   async function handleVerifyOtp() {
     if (!canVerifyOtp || isVerifyingOtp || !otpSent) return;
     setErrorMessage("");
@@ -215,93 +247,137 @@ export default function RegisterPage() {
 
             {/* Form */}
             <div className="space-y-6 w-full">
-              {/* Email / OTP section (swaps in-place) */}
-              <div className="w-full max-w-105">
-                <>
-                  <label className="block font-semibold text-[#171717] text-xs lg:text-sm mb-2">
-                    {t('register.emailAddress')}
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('register.emailPlaceholder')}
-                    autoComplete="email"
-                    className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
-                  />
-
-                  <button
-                    onClick={handleSendOtp}
-                    disabled={!emailIsValid || isRequestingOtp}
-                    className="w-full cursor-pointer h-12 lg:h-14 rounded-lg flex items-center justify-center border border-[#6B00D1] mt-3 mb-7"
-                  >
-                    <span className="font-semibold text-[#6B00D1] text-base lg:text-medium">{isRequestingOtp ? t('register.sendingOtp') : t('register.sendOtp')}</span>
-                  </button>
-                </>
-                {otpSent &&
-                  <>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="font-semibold text-[#171717] text-xs lg:text-sm">
-                        {t('register.enterOtp')}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleResendOtp}
-                        disabled={resendCooldown > 0 || isResendingOtp}
-                        className="font-medium text-[#7B00E0] text-xs lg:text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isResendingOtp
-                          ? t('register.resending')
-                          : resendCooldown > 0
-                            ? t('register.resendIn').replace('{s}', String(resendCooldown))
-                            : t('register.resendCode')}
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
-                      placeholder="••••••"
-                      maxLength={OTP_LENGTH}
-                      className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all mb-3"
-                    />
-
-                    {/* Feedback */}
-
-                    {!(statusMessage || errorMessage) ? (
-                      <p className="mt-2 text-[#737373] text-xs lg:text-sm">
-                        {t('register.enterCode')}
-                      </p>
-                    ) : (
-                      <div className="w-full max-w-105">
-
-                        <p
-                          role="status"
-                          className={`mt-2 text-xs lg:text-sm ${errorMessage
-                            ? "text-red-500"
-                            : "text-green-500"
-                            }`}
-                        >
-                          {errorMessage || statusMessage}
-                        </p>
-                      </div>
-                    )}
-
-                  </>
-                }
-
-              </div>
-
-              <div className="pt-4 w-full max-w-105">
+              {/* Auth mode toggle */}
+              <div className="w-full max-w-105 flex rounded-lg border border-[#e5d9f2] overflow-hidden">
                 <button
                   type="button"
-                  onClick={handleVerifyOtp}
-                  disabled={!canVerifyOtp || isVerifyingOtp}
-                  className="w-full h-12 lg:h-14 bg-[#7B00E0] rounded-full shadow-[0px_10px_15px_rgba(123,0,224,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#6600BC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  onClick={() => { setAuthMode("otp"); setErrorMessage(""); setStatusMessage(""); setMagicLinkSent(false); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${authMode === "otp" ? "bg-[#7B00E0] text-white" : "bg-white text-[#6B00D1]"}`}
                 >
-                  {isVerifyingOtp ? t('register.verifying') : t('register.continue')}
+                  {t('register.otpTab') || 'OTP Code'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("magic_link"); setErrorMessage(""); setStatusMessage(""); setOtpSent(false); setOtp(""); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors cursor-pointer ${authMode === "magic_link" ? "bg-[#7B00E0] text-white" : "bg-white text-[#6B00D1]"}`}
+                >
+                  {t('register.magicLinkTab') || 'Magic Link'}
                 </button>
               </div>
+
+              {/* Email input (shared) */}
+              <div className="w-full max-w-105">
+                <label className="block font-semibold text-[#171717] text-xs lg:text-sm mb-2">
+                  {t('register.emailAddress')}
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t('register.emailPlaceholder')}
+                  autoComplete="email"
+                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
+                />
+
+                {/* OTP flow */}
+                {authMode === "otp" && (
+                  <>
+                    <button
+                      onClick={handleSendOtp}
+                      disabled={!emailIsValid || isRequestingOtp}
+                      className="w-full cursor-pointer h-12 lg:h-14 rounded-lg flex items-center justify-center border border-[#6B00D1] mt-3 mb-7"
+                    >
+                      <span className="font-semibold text-[#6B00D1] text-base lg:text-medium">{isRequestingOtp ? t('register.sendingOtp') : t('register.sendOtp')}</span>
+                    </button>
+
+                    {otpSent && (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="font-semibold text-[#171717] text-xs lg:text-sm">
+                            {t('register.enterOtp')}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleResendOtp}
+                            disabled={resendCooldown > 0 || isResendingOtp}
+                            className="font-medium text-[#7B00E0] text-xs lg:text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isResendingOtp
+                              ? t('register.resending')
+                              : resendCooldown > 0
+                                ? t('register.resendIn').replace('{s}', String(resendCooldown))
+                                : t('register.resendCode')}
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+                          placeholder="••••••"
+                          maxLength={OTP_LENGTH}
+                          className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all mb-3"
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* Magic link flow */}
+                {authMode === "magic_link" && (
+                  <>
+                    {!magicLinkSent ? (
+                      <button
+                        onClick={handleSendMagicLink}
+                        disabled={!emailIsValid || isSendingMagicLink}
+                        className="w-full cursor-pointer h-12 lg:h-14 bg-[#7B00E0] rounded-full shadow-[0px_10px_15px_rgba(123,0,224,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#6600BC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                      >
+                        {isSendingMagicLink ? (t('register.sendingMagicLink') || 'Sending...') : (t('register.sendMagicLink') || 'Send magic link')}
+                      </button>
+                    ) : (
+                      <div className="mt-4 p-4 bg-[#f5f3ff] border border-[#e5d9f2] rounded-lg text-center">
+                        <p className="text-[#7B00E0] font-semibold text-sm mb-1">{t('register.checkEmail') || 'Check your email!'}</p>
+                        <p className="text-[#6b7280] text-xs">{t('register.magicLinkDesc') || 'We sent a sign-in link. Tap it to log in.'}</p>
+                        <button
+                          type="button"
+                          onClick={() => { setMagicLinkSent(false); setStatusMessage(""); }}
+                          className="mt-3 text-[#7B00E0] text-xs font-medium hover:underline cursor-pointer"
+                        >
+                          {t('register.sendAnother') || 'Send another link'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Feedback messages */}
+                {(statusMessage || errorMessage) && (
+                  <p
+                    role="status"
+                    className={`mt-2 text-xs lg:text-sm ${errorMessage ? "text-red-500" : "text-green-500"}`}
+                  >
+                    {errorMessage || statusMessage}
+                  </p>
+                )}
+                {authMode === "otp" && otpSent && !statusMessage && !errorMessage && (
+                  <p className="mt-2 text-[#737373] text-xs lg:text-sm">
+                    {t('register.enterCode')}
+                  </p>
+                )}
+              </div>
+
+              {/* Continue button (OTP mode only) */}
+              {authMode === "otp" && (
+                <div className="pt-4 w-full max-w-105">
+                  <button
+                    type="button"
+                    onClick={handleVerifyOtp}
+                    disabled={!canVerifyOtp || isVerifyingOtp}
+                    className="w-full h-12 lg:h-14 bg-[#7B00E0] rounded-full shadow-[0px_10px_15px_rgba(123,0,224,0.25)] font-semibold text-white text-sm lg:text-base hover:bg-[#6600BC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isVerifyingOtp ? t('register.verifying') : t('register.continue')}
+                  </button>
+                </div>
+              )}
 
               {/* Terms */}
               <div className=" w-full max-w-105">
@@ -374,16 +450,6 @@ export default function RegisterPage() {
       </div>
       </div>
       <LandingFooter />
-      <footer className="w-full py-3 text-center text-sm font-medium text-white" style={{ backgroundColor: '#7b00e0' }}>
-        <a
-          href="https://healplace.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline hover:text-gray-200 transition-colors"
-        >
-          A Healplace Company
-        </a>
-      </footer>
     </div>
     </Suspense>
   );

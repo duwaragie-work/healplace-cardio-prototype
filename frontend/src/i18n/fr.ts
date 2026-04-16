@@ -493,6 +493,14 @@ const fr: Record<TranslationKey, string> = {
   'register.invalidOtp': 'Code invalide. Veuillez réessayer.',
   'register.otpSentSuccess': 'Code envoyé avec succès',
   'register.pleaseWait': 'Veuillez patienter 60 secondes avant de demander un nouveau code',
+  'register.otpTab': 'Code OTP',
+  'register.magicLinkTab': 'Lien magique',
+  'register.sendMagicLink': 'Envoyer le lien magique',
+  'register.sendingMagicLink': 'Envoi en cours...',
+  'register.magicLinkSent': 'Lien envoye! Verifiez votre email.',
+  'register.checkEmail': 'Verifiez votre email!',
+  'register.magicLinkDesc': 'Nous vous avons envoye un lien de connexion. Appuyez dessus pour vous connecter.',
+  'register.sendAnother': 'Envoyer un autre lien',
 
   // ─── Onboarding Page ──────────────────────────────────────────────────────
   'onboarding.title': 'Parlez-nous de Votre Santé',

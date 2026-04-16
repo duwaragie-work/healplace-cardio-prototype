@@ -493,6 +493,14 @@ const es: Record<TranslationKey, string> = {
   'register.invalidOtp': 'Código inválido. Intenta de nuevo.',
   'register.otpSentSuccess': 'Código enviado exitosamente',
   'register.pleaseWait': 'Espera 60 segundos antes de solicitar un nuevo código',
+  'register.otpTab': 'Codigo OTP',
+  'register.magicLinkTab': 'Enlace magico',
+  'register.sendMagicLink': 'Enviar enlace magico',
+  'register.sendingMagicLink': 'Enviando...',
+  'register.magicLinkSent': 'Enlace enviado. Revisa tu correo.',
+  'register.checkEmail': 'Revisa tu correo!',
+  'register.magicLinkDesc': 'Te enviamos un enlace para iniciar sesion. Tocalo para entrar.',
+  'register.sendAnother': 'Enviar otro enlace',
 
   // ─── Onboarding Page ──────────────────────────────────────────────────────
   'onboarding.title': 'Cuéntanos Sobre Tu Salud',

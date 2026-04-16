@@ -491,6 +491,14 @@ const en = {
   'register.invalidOtp': 'Invalid OTP. Please try again.',
   'register.otpSentSuccess': 'OTP sent successfully',
   'register.pleaseWait': 'Please wait 60 seconds before requesting a new OTP',
+  'register.otpTab': 'OTP Code',
+  'register.magicLinkTab': 'Magic Link',
+  'register.sendMagicLink': 'Send magic link',
+  'register.sendingMagicLink': 'Sending...',
+  'register.magicLinkSent': 'Magic link sent! Check your email.',
+  'register.checkEmail': 'Check your email!',
+  'register.magicLinkDesc': 'We sent a sign-in link. Tap it to log in.',
+  'register.sendAnother': 'Send another link',
 
   // ─── Onboarding Page ──────────────────────────────────────────────────────
   'onboarding.title': 'Tell Us About Your Health',

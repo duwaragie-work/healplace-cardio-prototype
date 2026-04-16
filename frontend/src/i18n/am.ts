@@ -493,6 +493,14 @@ const am: Record<TranslationKey, string> = {
   'register.invalidOtp': 'ልክ ያልሆነ OTP። እባክዎ እንደገና ይሞክሩ።',
   'register.otpSentSuccess': 'OTP በተሳካ ሁኔታ ተልኳል',
   'register.pleaseWait': 'አዲስ OTP ከመጠየቅዎ በፊት 60 ሰከንድ ይጠብቁ',
+  'register.otpTab': 'OTP ኮድ',
+  'register.magicLinkTab': 'አስማት ሊንክ',
+  'register.sendMagicLink': 'አስማት ሊንክ ላክ',
+  'register.sendingMagicLink': 'በመላክ ላይ...',
+  'register.magicLinkSent': 'ሊንክ ተልኳል! ኢሜልዎን ይፈትሹ።',
+  'register.checkEmail': 'ኢሜልዎን ይፈትሹ!',
+  'register.magicLinkDesc': 'የመግቢያ ሊንክ ልከንልዎታል። ለመግባት ይጫኑት።',
+  'register.sendAnother': 'ሌላ ሊንክ ላክ',
 
   // ─── Onboarding Page ──────────────────────────────────────────────────────
   'onboarding.title': 'ስለ ጤናዎ ይንገሩን',
