@@ -1179,9 +1179,7 @@ export class AuthService {
     })
 
     const port = this.config.get<string>('PORT', '8080')
-    const backendUrl = process.env.NODE_ENV === 'production'
-      ? this.config.get<string>('BACKEND_URL', `http://localhost:${port}`)
-      : `http://localhost:${port}`
+    const backendUrl = this.config.get<string>('BACKEND_URL', `http://localhost:${port}`)
     const magicUrl = `${backendUrl}/api/v2/auth/magic-link/verify?token=${rawToken}`
 
     this.sendMagicLinkEmail(normalizedEmail, magicUrl) // fire-and-forget
