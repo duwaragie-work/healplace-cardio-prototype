@@ -494,6 +494,7 @@ const es: Record<TranslationKey, string> = {
   'register.otpSentSuccess': 'Código enviado exitosamente',
   'register.showOtp': 'Mostrar código',
   'register.hideOtp': 'Ocultar código',
+  'register.invalidEmail': 'Introduce un correo electrónico válido.',
   'register.pleaseWait': 'Espera 60 segundos antes de solicitar un nuevo código',
   'register.otpTab': 'Codigo OTP',
   'register.magicLinkTab': 'Enlace magico',

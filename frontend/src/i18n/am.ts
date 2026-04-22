@@ -494,6 +494,7 @@ const am: Record<TranslationKey, string> = {
   'register.otpSentSuccess': 'OTP በተሳካ ሁኔታ ተልኳል',
   'register.showOtp': 'ኮዱን አሳይ',
   'register.hideOtp': 'ኮዱን ደብቅ',
+  'register.invalidEmail': 'እባክዎ ትክክለኛ ኢሜይል አድራሻ ያስገቡ።',
   'register.pleaseWait': 'አዲስ OTP ከመጠየቅዎ በፊት 60 ሰከንድ ይጠብቁ',
   'register.otpTab': 'OTP ኮድ',
   'register.magicLinkTab': 'አስማት ሊንክ',

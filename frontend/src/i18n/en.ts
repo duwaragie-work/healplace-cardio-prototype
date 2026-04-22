@@ -492,6 +492,7 @@ const en = {
   'register.otpSentSuccess': 'OTP sent successfully',
   'register.showOtp': 'Show code',
   'register.hideOtp': 'Hide code',
+  'register.invalidEmail': 'Please enter a valid email address.',
   'register.pleaseWait': 'Please wait 60 seconds before requesting a new OTP',
   'register.otpTab': 'OTP Code',
   'register.magicLinkTab': 'Magic Link',

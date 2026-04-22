@@ -60,6 +60,7 @@ export default function RegisterPage() {
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
 
   const [showOtp, setShowOtp] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
   const [mounted, setMounted] = useState(false);
   const emailIsValid = useMemo(() => isEmailValid(email.trim()), [email]);
   const canVerifyOtp = otp.length === OTP_LENGTH;
@@ -176,7 +177,6 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Something went wrong.");
       setMagicLinkSent(true);
-      setStatusMessage(t('register.magicLinkSent') || "Magic link sent! Check your email.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to send magic link.");
     } finally {
@@ -273,11 +273,26 @@ export default function RegisterPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (magicLinkSent) setMagicLinkSent(false);
+                    if (otpSent) { setOtpSent(false); setOtp(""); }
+                    if (statusMessage) setStatusMessage("");
+                    if (errorMessage) setErrorMessage("");
+                  }}
+                  onBlur={() => setEmailTouched(true)}
                   placeholder={t('register.emailPlaceholder')}
                   autoComplete="email"
-                  className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
+                  aria-invalid={emailTouched && email.length > 0 && !emailIsValid}
+                  className={`w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border rounded-lg text-sm lg:text-base text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+                    emailTouched && email.length > 0 && !emailIsValid
+                      ? "border-red-400 focus:ring-red-400"
+                      : "border-[#e5d9f2] focus:ring-[#7B00E0]"
+                  }`}
                 />
+                {emailTouched && email.length > 0 && !emailIsValid && (
+                  <p className="mt-1 text-xs text-red-500">{t('register.invalidEmail')}</p>
+                )}
 
                 {/* OTP flow */}
                 {authMode === "otp" && (
