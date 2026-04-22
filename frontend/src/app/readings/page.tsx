@@ -464,7 +464,7 @@ function EditModal({
               {t('readings.medicationTaken')}
             </label>
             <div className="flex gap-3">
-              {(['yes', 'no', ''] as const).map((val) => (
+              {(['yes', 'no'] as const).map((val) => (
                 <button
                   key={val}
                   onClick={() => onChange('medication', val)}
@@ -484,7 +484,7 @@ function EditModal({
                         : 'var(--brand-text-muted)',
                   }}
                 >
-                  {val === '' ? t('common.na') : val === 'yes' ? t('common.yes') : t('common.no')}
+                  {val === 'yes' ? t('common.yes') : t('common.no')}
                 </button>
               ))}
             </div>

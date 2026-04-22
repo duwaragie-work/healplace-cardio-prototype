@@ -11,7 +11,6 @@ import {
   Save,
   Star,
   X,
-  Shield,
   Heart,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -31,7 +30,6 @@ type User = {
   communicationPreference: string | null;
   preferredLanguage: string;
   riskTier: string;
-  timezone: string;
   diagnosisDate: string | null;
   accountStatus: AccountStatus;
   emailVerified: boolean;
@@ -51,7 +49,6 @@ type ProfileGetResponse = {
   communicationPreference?: string | null;
   preferredLanguage?: string;
   riskTier?: string;
-  timezone?: string;
   diagnosisDate?: string | null;
   onboardingStatus?: string;
 };
@@ -63,7 +60,6 @@ type ProfilePatchResponse = {
   primaryCondition?: string;
   communicationPreference?: string | null;
   preferredLanguage?: string;
-  timezone?: string;
   onboardingStatus?: string;
 };
 
@@ -121,7 +117,7 @@ function RiskTierBadge({ tier }: { tier: string | null | undefined }) {
 const initialUserData: User = {
   id: "", email: "", createdAt: "", name: "", dateOfBirth: "",
   primaryCondition: "", communicationPreference: null,
-  preferredLanguage: "English", riskTier: "STANDARD", timezone: "",
+  preferredLanguage: "English", riskTier: "STANDARD",
   diagnosisDate: null, accountStatus: "active", emailVerified: false, roles: [],
 };
 
@@ -191,7 +187,6 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState<User>(initialUserData);
   const [serverSnapshot, setServerSnapshot] = useState<User>(initialUserData);
-  const [timezones, setTimezones] = useState<string[]>([]);
   // Start true so skeleton shows on first paint
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -224,19 +219,6 @@ export default function Profile() {
     if (isAuthLoading) return;
     if (!user) router.replace("/sign-in");
   }, [isAuthLoading, user, router]);
-
-  useEffect(() => {
-    try {
-      const supported =
-        typeof Intl !== "undefined" && (Intl as any).supportedValuesOf
-          ? (Intl as any).supportedValuesOf("timeZone") : [];
-      if (Array.isArray(supported) && supported.length > 0) { setTimezones(supported); return; }
-    } catch { /* ignore */ }
-    setTimezones([
-      "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-      "Europe/London", "Europe/Paris", "Asia/Colombo", "Asia/Tokyo", "Australia/Sydney",
-    ]);
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -274,7 +256,6 @@ export default function Profile() {
             communicationPreference: data.communicationPreference ?? null,
             preferredLanguage: data.preferredLanguage ?? "English",
             riskTier: data.riskTier ?? "STANDARD",
-            timezone: data.timezone ?? "",
             diagnosisDate: data.diagnosisDate ?? null,
           };
           setServerSnapshot(next);
@@ -298,19 +279,12 @@ export default function Profile() {
     if (!API_BASE_URL) { setSaveError("Missing API configuration."); return; }
     setIsSaving(true); setSaveError(null);
 
-    const timezoneLooksValid = userData.timezone && userData.timezone.includes("/");
-    if (!timezoneLooksValid && userData.timezone) {
-      setSaveError('Timezone must be a valid IANA identifier (e.g. "America/New_York")');
-      setIsSaving(false); return;
-    }
-
     try {
       const raw: Record<string, unknown> = {
         name: userData.name,
         dateOfBirth: toDateInputValue(userData.dateOfBirth),
         primaryCondition: userData.primaryCondition,
         communicationPreference: userData.communicationPreference || undefined,
-        ...(timezoneLooksValid ? { timezone: userData.timezone } : {}),
       };
       // Strip empty strings so the backend @IsOptional() skips unfilled fields
       const payload: Record<string, unknown> = {};
@@ -338,7 +312,6 @@ export default function Profile() {
         communicationPreference:
           data.communicationPreference !== undefined ? data.communicationPreference : userData.communicationPreference,
         preferredLanguage: data.preferredLanguage ?? userData.preferredLanguage,
-        timezone: data.timezone ?? userData.timezone,
       };
       setServerSnapshot(next); setUserData(next); setIsEditing(false);
       updateUser({ name: next.name });
@@ -498,21 +471,6 @@ export default function Profile() {
                       onChange={(e) => setUserData((p) => ({ ...p, dateOfBirth: e.target.value }))}
                       className={inputCls} style={{ color: 'var(--brand-text-primary)' }} />
                   ) : <FieldValue>{formatDate(userData.dateOfBirth)}</FieldValue>}
-                </div>
-
-                {/* Timezone */}
-                <div>
-                  <FieldLabel>{t('profile.timezone')}</FieldLabel>
-                  {loading ? <Bone w="78%" h={14} /> : isEditing ? (
-                    <select value={userData.timezone || ""}
-                      onChange={(e) => setUserData((p) => ({ ...p, timezone: e.target.value }))}
-                      className={selectCls} style={{ color: 'var(--brand-text-primary)' }}>
-                      {timezones.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-                      {userData.timezone && !timezones.includes(userData.timezone) && (
-                        <option value={userData.timezone}>{userData.timezone}</option>
-                      )}
-                    </select>
-                  ) : <FieldValue>{userData.timezone || "N/A"}</FieldValue>}
                 </div>
 
                 {/* Communication Preference */}
@@ -687,17 +645,6 @@ export default function Profile() {
               {/* </div>
             </div>       */}
 
-            {/* Security */}
-            <div className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--brand-shadow-card)' }}>
-              <CardHeader icon={<Shield className="w-3.5 h-3.5" style={{ color: 'var(--brand-primary-purple)' }} />}
-                title={t('profile.security')} />
-              {loading ? <Bone w="100%" h={40} r={12} /> : (
-                <button className="w-full py-2.5 rounded-xl text-sm font-semibold transition-colors"
-                  style={{ color: 'var(--brand-alert-red)', backgroundColor: 'rgba(220,38,38,0.06)' }}>
-                  {t('profile.deactivateAccount')}
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </div>

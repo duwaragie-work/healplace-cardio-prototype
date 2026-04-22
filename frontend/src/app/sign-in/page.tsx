@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Mail, KeyRound } from "lucide-react";
+import { CheckCircle2, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useAuth, type OtpVerifyResponse } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
@@ -59,6 +59,7 @@ export default function RegisterPage() {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isSendingMagicLink, setIsSendingMagicLink] = useState(false);
 
+  const [showOtp, setShowOtp] = useState(false);
   const [mounted, setMounted] = useState(false);
   const emailIsValid = useMemo(() => isEmailValid(email.trim()), [email]);
   const canVerifyOtp = otp.length === OTP_LENGTH;
@@ -127,10 +128,9 @@ export default function RegisterPage() {
     setStatusMessage("");
     setIsRequestingOtp(true);
     try {
-      const data = await sendOtpRequest(email.trim());
+      await sendOtpRequest(email.trim());
       setOtpSent(true);
       setOtp("");
-      setStatusMessage(translateBackendMsg(data.message) || t('register.otpSent'));
       startResendCooldown();
     } catch (err) {
       setErrorMessage(translateBackendMsg(err instanceof Error ? err.message : '') || t('register.failedOtp'));
@@ -309,14 +309,30 @@ export default function RegisterPage() {
                                 : t('register.resendCode')}
                           </button>
                         </div>
-                        <input
-                          type="text"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
-                          placeholder="••••••"
-                          maxLength={OTP_LENGTH}
-                          className="w-full h-11 lg:h-12 px-4 lg:px-5 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all mb-3"
-                        />
+                        <div className="relative mb-3">
+                          <input
+                            type={showOtp ? "text" : "password"}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            value={otp}
+                            onChange={(e) => {
+                              setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH));
+                              if (statusMessage) setStatusMessage("");
+                              if (errorMessage) setErrorMessage("");
+                            }}
+                            placeholder="••••••"
+                            maxLength={OTP_LENGTH}
+                            className="w-full h-11 lg:h-12 pl-4 lg:pl-5 pr-11 bg-[rgba(243,232,255,0.1)] border border-[#e5d9f2] rounded-lg text-base lg:text-lg text-center tracking-[8px] text-[#171717] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#7B00E0] focus:border-transparent transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowOtp((s) => !s)}
+                            aria-label={showOtp ? t('register.hideOtp') : t('register.showOtp')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#737373] hover:text-[#7B00E0] transition-colors cursor-pointer"
+                          >
+                            {showOtp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </>
                     )}
                   </>

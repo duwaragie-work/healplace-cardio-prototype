@@ -950,8 +950,14 @@ export default function CheckIn() {
       };
       if (form.systolic) payload.systolicBP = parseInt(form.systolic, 10);
       if (form.diastolic) payload.diastolicBP = parseInt(form.diastolic, 10);
-      if (form.weight) payload.weight = parseFloat(form.weight);
-      if (form.medication !== null) payload.medicationTaken = form.medication === 'yes';
+      if (form.weight) {
+        const parsed = parseFloat(form.weight);
+        const lbs = form.weightUnit === 'kg' ? parsed * 2.20462 : parsed;
+        payload.weight = Math.round(lbs * 10) / 10;
+      }
+      if (form.medication === 'yes' || form.medication === 'no') {
+        payload.medicationTaken = form.medication === 'yes';
+      }
       const cleanedSymptoms = form.symptoms.filter((s) => s !== 'None of these');
       if (cleanedSymptoms.length > 0) payload.symptoms = cleanedSymptoms;
       if (form.notes.trim()) payload.notes = form.notes.trim();

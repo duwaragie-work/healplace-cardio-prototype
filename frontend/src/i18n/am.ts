@@ -492,6 +492,8 @@ const am: Record<TranslationKey, string> = {
   'register.verificationFailed': 'ማረጋገጥ አልተሳካም።',
   'register.invalidOtp': 'ልክ ያልሆነ OTP። እባክዎ እንደገና ይሞክሩ።',
   'register.otpSentSuccess': 'OTP በተሳካ ሁኔታ ተልኳል',
+  'register.showOtp': 'ኮዱን አሳይ',
+  'register.hideOtp': 'ኮዱን ደብቅ',
   'register.pleaseWait': 'አዲስ OTP ከመጠየቅዎ በፊት 60 ሰከንድ ይጠብቁ',
   'register.otpTab': 'OTP ኮድ',
   'register.magicLinkTab': 'አስማት ሊንክ',

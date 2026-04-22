@@ -429,15 +429,9 @@ export default function Dashboard() {
                           backgroundColor: alert.severity === 'HIGH' ? 'var(--brand-alert-red-light)' : 'var(--brand-warning-amber-light)',
                           borderLeft: `3px solid ${alert.severity === 'HIGH' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)'}`,
                         }}>
-                        <div className="flex items-start justify-between">
-                          <p className="text-[11px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
-                            {formatAlertType(alert.type)}
-                          </p>
-                          <span className="text-[10px] font-semibold"
-                            style={{ color: alert.severity === 'HIGH' ? 'var(--brand-alert-red)' : 'var(--brand-warning-amber)' }}>
-                            {t('dashboard.open')}
-                          </span>
-                        </div>
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--brand-text-primary)' }}>
+                          {formatAlertType(alert.type)}
+                        </p>
                         <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-text-muted)' }}>
                           {formatAlertDate(alert.journalEntry?.entryDate ?? alert.createdAt ?? '')} {'· ' + t('dashboard.careTeamNotified')}
                         </p>
