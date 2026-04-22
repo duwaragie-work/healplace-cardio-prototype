@@ -26,3 +26,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* iOS Safari auto-zooms into any focused input whose computed font-size < 16px.
+   Force a 16px floor on mobile so focus doesn't shift the viewport.
+   !important is needed to beat per-input Tailwind classes (e.g. text-[15px], text-sm). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
